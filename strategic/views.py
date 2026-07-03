@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
@@ -10,6 +12,8 @@ from .forms import (
     CompetitorForm, PestelFactorForm,
 )
 
+logger = logging.getLogger("strategic")
+
 
 def _has_perm(request, perm):
     """Checks a Django model permission (e.g. 'strategic.add_study').
@@ -17,12 +21,70 @@ def _has_perm(request, perm):
     if request.user.has_perm(perm):
         return True
     messages.error(request, "شما اجازه انجام این عملیات را ندارید. برای دسترسی ویرایش با مدیر سیستم هماهنگ کنید.")
+    logger.warning("PERMISSION DENIED: user=%s perm=%s", request.user, perm)
     return False
+
+
+def _log_action(request, action, label):
+    logger.info("%s: user=%s item=%r", action, request.user, label)
 
 
 @login_required
 def home(request):
-    return render(request, "strategic/home.html", {"active_page": "home"})
+    objectives = list(StrategicObjective.objects.all())
+    obj_total = len(objectives)
+    obj_score = 0
+    if obj_total:
+        weight = {"on": 1, "watch": 0.5, "risk": 0}
+        obj_score = round(sum(weight.get(o.status, 0) for o in objectives) / obj_total * 100)
+
+    initiatives = list(Initiative.objects.all())
+    init_total = len(initiatives)
+    init_behind = sum(1 for i in initiatives if i.status == "needs_attention")
+    init_on_track = init_total - init_behind
+    init_avg_progress = round(sum(i.progress for i in initiatives) / init_total) if init_total else 0
+
+    studies = list(Study.objects.all())
+    study_total = len(studies)
+    study_done = sum(1 for s in studies if s.status == "done")
+    study_pct = round(study_done / study_total * 100) if study_total else 0
+
+    risks = list(Risk.objects.all())
+    risk_total = len(risks)
+    risk_high = sum(1 for r in risks if r.zone == "red")
+    risk_pct = round(risk_high / risk_total * 100) if risk_total else 0
+
+    # فید فعالیت‌های اخیر — از هر ۷ مدل، آخرین رکوردها را ترکیب می‌کند
+    activity = []
+    for s in Study.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-book", "text": f"مطالعه «{s.title}» ثبت شد", "tag": "کتابخانه مطالعات", "dt": s.created_at})
+    for i in Initiative.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-route", "text": f"ابتکار «{i.title}» ثبت شد", "tag": "نقشه راه", "dt": i.created_at})
+    for r in Risk.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-triangle-exclamation", "text": f"ریسک «{r.title}» ثبت شد", "tag": "نقشه ریسک", "dt": r.created_at})
+    for o in StrategicObjective.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-map", "text": f"هدف «{o.code} — {o.title}» ثبت شد", "tag": "نقشه استراتژیک", "dt": o.created_at})
+    for it in SWOTItem.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-table-cells", "text": f"مورد SWOT «{it.text}» ثبت شد", "tag": "SWOT", "dt": it.created_at})
+    for c in Competitor.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-chart-line", "text": f"بازیگر «{c.name}» ثبت شد", "tag": "هوش رقابتی", "dt": c.created_at})
+    for f in PestelFactor.objects.order_by("-created_at")[:5]:
+        activity.append({"icon": "fa-earth-americas", "text": f"عامل «{f.text}» ثبت شد", "tag": "PESTEL", "dt": f.created_at})
+
+    activity.sort(key=lambda a: a["dt"], reverse=True)
+    activity = activity[:6]
+
+    return render(request, "strategic/home.html", {
+        "active_page": "home",
+        "obj_score": obj_score, "obj_total": obj_total,
+        "init_total": init_total, "init_on_track": init_on_track, "init_behind": init_behind, "init_avg_progress": init_avg_progress,
+        "study_total": study_total, "study_done": study_done, "study_pct": study_pct,
+        "risk_total": risk_total, "risk_high": risk_high, "risk_pct": risk_pct,
+        "competitor_count": Competitor.objects.count(),
+        "pestel_count": PestelFactor.objects.count(),
+        "swot_count": SWOTItem.objects.count(),
+        "activity": activity,
+    })
 
 
 # ---------------- Research library ----------------
@@ -34,6 +96,7 @@ def research(request):
             form = StudyForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE Study", str(form.instance))
                 return redirect("strategic:research")
         else:
             form = StudyForm()
@@ -56,7 +119,10 @@ def research(request):
 @login_required
 def study_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_study"):
-        get_object_or_404(Study, pk=pk).delete()
+        _obj = get_object_or_404(Study, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE Study", _label)
     return redirect("strategic:research")
 
 
@@ -69,6 +135,7 @@ def roadmap(request):
             form = InitiativeForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE Initiative", str(form.instance))
                 return redirect("strategic:roadmap")
         else:
             form = InitiativeForm()
@@ -84,7 +151,10 @@ def roadmap(request):
 @login_required
 def initiative_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_initiative"):
-        get_object_or_404(Initiative, pk=pk).delete()
+        _obj = get_object_or_404(Initiative, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE Initiative", _label)
     return redirect("strategic:roadmap")
 
 
@@ -97,6 +167,7 @@ def market(request):
             form = CompetitorForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE Competitor", str(form.instance))
                 return redirect("strategic:market")
         else:
             form = CompetitorForm()
@@ -112,7 +183,10 @@ def market(request):
 @login_required
 def competitor_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_competitor"):
-        get_object_or_404(Competitor, pk=pk).delete()
+        _obj = get_object_or_404(Competitor, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE Competitor", _label)
     return redirect("strategic:market")
 
 
@@ -125,6 +199,7 @@ def pestel(request):
             form = PestelFactorForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE PestelFactor", str(form.instance))
                 return redirect("strategic:pestel")
         else:
             form = PestelFactorForm()
@@ -148,7 +223,10 @@ def pestel(request):
 @login_required
 def pestel_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_pestelfactor"):
-        get_object_or_404(PestelFactor, pk=pk).delete()
+        _obj = get_object_or_404(PestelFactor, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE PestelFactor", _label)
     return redirect("strategic:pestel")
 
 
@@ -177,6 +255,7 @@ def stratmap(request):
             form = StrategicObjectiveForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
+                _log_action(request, "UPDATE StrategicObjective" if obj_id else "CREATE StrategicObjective", str(form.instance))
                 return redirect("strategic:stratmap")
         else:
             form = StrategicObjectiveForm()
@@ -205,7 +284,10 @@ def stratmap(request):
 @login_required
 def objective_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_strategicobjective"):
-        get_object_or_404(StrategicObjective, pk=pk).delete()
+        _obj = get_object_or_404(StrategicObjective, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE StrategicObjective", _label)
     return redirect("strategic:stratmap")
 
 
@@ -218,6 +300,7 @@ def swot(request):
             form = SWOTItemForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE SWOTItem", str(form.instance))
                 return redirect("strategic:swot")
         else:
             form = SWOTItemForm()
@@ -237,7 +320,10 @@ def swot(request):
 @login_required
 def swot_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_swotitem"):
-        get_object_or_404(SWOTItem, pk=pk).delete()
+        _obj = get_object_or_404(SWOTItem, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE SWOTItem", _label)
     return redirect("strategic:swot")
 
 
@@ -250,6 +336,7 @@ def risk(request):
             form = RiskForm(request.POST)
             if form.is_valid():
                 form.save()
+                _log_action(request, "CREATE Risk", str(form.instance))
                 return redirect("strategic:risk")
         else:
             form = RiskForm()
@@ -278,5 +365,8 @@ def risk(request):
 @login_required
 def risk_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_risk"):
-        get_object_or_404(Risk, pk=pk).delete()
+        _obj = get_object_or_404(Risk, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE Risk", _label)
     return redirect("strategic:risk")

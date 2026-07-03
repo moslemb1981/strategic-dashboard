@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Study(models.Model):
@@ -149,6 +150,7 @@ class StrategicObjective(models.Model):
     kpi = models.CharField(max_length=300, verbose_name="KPI", blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="on", verbose_name="وضعیت")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["order", "code"]
@@ -170,6 +172,7 @@ class Competitor(models.Model):
     weaknesses = models.TextField(blank=True, verbose_name="نقاط ضعف (هر خط یک مورد)")
     recent_move = models.CharField(max_length=300, blank=True, verbose_name="آخرین حرکت")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["order", "-market_share"]
@@ -209,6 +212,7 @@ class PestelFactor(models.Model):
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="بُعد")
     text = models.CharField(max_length=300, verbose_name="عامل محیطی")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["category", "order"]
