@@ -6,7 +6,9 @@
 {% block content %}
 <div class="topbar">
   <div><h1>نقشه راه ابتکارات</h1><div class="sub">زمان‌بندی ابتکارات تحول اداره، هم‌راستا با محورهای نقشه استراتژیک</div></div>
+  {% if perms.strategic.add_initiative %}
   <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن ابتکار</button>
+  {% endif %}
 </div>
 
 <div class="roadmap-gantt-wrap">
@@ -32,10 +34,12 @@
     <div class="field">{{ i.progress }}٪</div>
     <div class="body"><h4>{{ i.title }}</h4><div class="meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }} · {{ i.start_date }} تا {{ i.end_date }}</div></div>
     <span class="status-pill progress">{{ i.get_status_display }}</span>
+    {% if perms.strategic.delete_initiative %}
     <form method="post" action="{% url 'strategic:initiative_delete' i.pk %}" onsubmit="return confirm('این ابتکار حذف شود؟');">
       {% csrf_token %}
       <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
     </form>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

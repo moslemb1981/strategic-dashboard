@@ -1,37 +1,59 @@
 {% extends "strategic/base.html" %}
+{% load static %}
 {% block title %}تحلیل PESTEL{% endblock %}
 {% block crumb %}تحلیل PESTEL{% endblock %}
 
 {% block content %}
 <div class="topbar">
   <div><h1>تحلیل PESTEL</h1><div class="sub">روندهای کلان محیطی مؤثر بر صنعت قطعات یدکی خودرو</div></div>
+  {% if perms.strategic.add_pestelfactor %}
+  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن عامل</button>
+  {% endif %}
 </div>
-<span class="demo-tag"><i class="fa-solid fa-circle-info"></i>نمونه اولیه برای بحث در نشست تدوین استراتژی</span>
 
 <div class="pestel-grid">
-  <div class="pestel-card" style="--pc:var(--primary);--pcs:var(--primary-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-flag"></i></div><h4>سیاسی</h4></div>
-    <ul><li>تغییرات سیاست‌های تجاری و تعرفه‌ای</li><li>تحریم‌ها و محدودیت‌های واردات قطعات</li></ul>
+  {% for group in grouped %}
+  <div class="pestel-card" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
+    <div class="head"><div class="icon"><i class="fa-solid {{ group.icon }}"></i></div><h4>{{ group.label }}</h4></div>
+    <ul>
+      {% for item in group.items %}
+      <li style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span>{{ item.text }}</span>
+        {% if perms.strategic.delete_pestelfactor %}
+        <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">
+          {% csrf_token %}
+          <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li style="opacity:.6;">موردی ثبت نشده</li>
+      {% endfor %}
+    </ul>
   </div>
-  <div class="pestel-card" style="--pc:var(--accent);--pcs:var(--accent-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-coins"></i></div><h4>اقتصادی</h4></div>
-    <ul><li>نوسان نرخ ارز و تورم مواد اولیه</li><li>کاهش قدرت خرید مصرف‌کننده نهایی</li></ul>
-  </div>
-  <div class="pestel-card" style="--pc:var(--success);--pcs:var(--success-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-users"></i></div><h4>اجتماعی</h4></div>
-    <ul><li>افزایش سن ناوگان خودرویی کشور</li><li>تغییر ترجیح مشتریان به قطعات باکیفیت</li></ul>
-  </div>
-  <div class="pestel-card" style="--pc:var(--purple);--pcs:var(--purple-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-microchip"></i></div><h4>فناورانه</h4></div>
-    <ul><li>رشد خودروهای متصل و هوشمند</li><li>دیجیتالی‌شدن زنجیره تأمین و انبارداری</li></ul>
-  </div>
-  <div class="pestel-card" style="--pc:var(--teal);--pcs:var(--teal-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-leaf"></i></div><h4>زیست‌محیطی</h4></div>
-    <ul><li>الزامات کاهش آلایندگی خودرو</li><li>فشار قانونی برای بازیافت قطعات فرسوده</li></ul>
-  </div>
-  <div class="pestel-card" style="--pc:var(--coral);--pcs:var(--coral-soft);">
-    <div class="head"><div class="icon"><i class="fa-solid fa-gavel"></i></div><h4>قانونی</h4></div>
-    <ul><li>استانداردهای اجباری کیفیت قطعات</li><li>مقررات ضمانت و خدمات پس از فروش</li></ul>
+  {% endfor %}
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3>افزودن عامل PESTEL</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-group"><label>بُعد</label>{{ form.category }}</div>
+      <div class="field-group"><label>عامل محیطی</label>{{ form.text }}</div>
+      <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت مورد</button>
+      </div>
+    </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+</script>
 {% endblock %}

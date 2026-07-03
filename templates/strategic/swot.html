@@ -22,11 +22,15 @@
       <ul class="swot-list">
         {% for it in s_items %}
         <li><span class="code">S{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
         </li>
         {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
       </ul>
+      {% if perms.strategic.add_swotitem %}
       <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="s"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+      {% endif %}
     </div>
     <div class="swot-cell w">
       <h4><i class="fa-solid fa-circle-minus"></i>نقاط ضعف</h4>
@@ -34,11 +38,15 @@
       <ul class="swot-list">
         {% for it in w_items %}
         <li><span class="code">W{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
         </li>
         {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
       </ul>
+      {% if perms.strategic.add_swotitem %}
       <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="w"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+      {% endif %}
     </div>
   </div>
   <div class="swot-axis-side" style="grid-row:2;">عوامل خارجی</div>
@@ -49,11 +57,15 @@
       <ul class="swot-list">
         {% for it in o_items %}
         <li><span class="code">O{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
         </li>
         {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
       </ul>
+      {% if perms.strategic.add_swotitem %}
       <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="o"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+      {% endif %}
     </div>
     <div class="swot-cell t">
       <h4><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</h4>
@@ -61,11 +73,15 @@
       <ul class="swot-list">
         {% for it in t_items %}
         <li><span class="code">T{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
         </li>
         {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
       </ul>
+      {% if perms.strategic.add_swotitem %}
       <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="t"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+      {% endif %}
     </div>
   </div>
 </div>

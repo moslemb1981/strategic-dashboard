@@ -6,7 +6,9 @@
 {% block content %}
 <div class="topbar">
   <div><h1>کتابخانه مطالعات</h1><div class="sub">آرشیو پژوهش‌ها و گزارش‌های تحلیلی اداره</div></div>
+  {% if perms.strategic.add_study %}
   <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن مطالعه</button>
+  {% endif %}
 </div>
 
 <form class="toolbar" method="get">
@@ -29,10 +31,12 @@
     <div class="field">{{ s.field }}</div>
     <div class="body"><h4>{{ s.title }}</h4><div class="meta"><i class="fa-solid fa-calendar-days"></i> {{ s.date|default:"—" }}</div></div>
     <span class="status-pill {{ s.status }}">{{ s.get_status_display }}</span>
+    {% if perms.strategic.delete_study %}
     <form method="post" action="{% url 'strategic:study_delete' s.pk %}" onsubmit="return confirm('این مطالعه حذف شود؟');">
       {% csrf_token %}
       <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
     </form>
+    {% endif %}
   </div>
   {% empty %}
   <div class="empty"><i class="fa-solid fa-magnifying-glass"></i>موردی یافت نشد</div>

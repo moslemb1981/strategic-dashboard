@@ -41,7 +41,7 @@
       <div class="brand">
         <img class="mark" src="{% static 'images/logo.svg' %}" alt="سایپا یدک">
         <div class="company">سایپا یدک</div>
-        <div class="office">اداره مطالعات و توسعه استراتژیک</div>
+        <div class="office">اداره مطالعات و توسعه استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
       </div>
       <nav class="nav">
         <div class="nav-label">کار روزانه</div>
@@ -59,6 +59,13 @@
     </aside>
 
     <main class="main">
+      {% if messages %}
+        {% for message in messages %}
+        <div style="background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:11px 16px;margin-bottom:16px;font-size:12.5px;">
+          <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
   </div>

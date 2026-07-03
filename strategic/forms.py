@@ -1,5 +1,5 @@
 from django import forms
-from .models import Study, Initiative, Risk, SWOTItem, StrategicObjective
+from .models import Study, Initiative, Risk, SWOTItem, StrategicObjective, Competitor, PestelFactor
 
 
 class StudyForm(forms.ModelForm):
@@ -56,4 +56,26 @@ class StrategicObjectiveForm(forms.ModelForm):
             "code": forms.TextInput(attrs={"placeholder": "مثلاً: F1"}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان هدف استراتژیک"}),
             "kpi": forms.TextInput(attrs={"placeholder": "مثلاً: رشد ۱۲٪ حاشیه سود ناخالص"}),
+        }
+
+
+class CompetitorForm(forms.ModelForm):
+    class Meta:
+        model = Competitor
+        fields = ["name", "market_share", "strengths", "weaknesses", "recent_move", "order"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "مثلاً: تولیدکنندگان داخلی OEM"}),
+            "market_share": forms.NumberInput(attrs={"min": 0, "max": 100}),
+            "strengths": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک نقطه قوت"}),
+            "weaknesses": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک نقطه ضعف"}),
+            "recent_move": forms.TextInput(attrs={"placeholder": "مثلاً: افزایش ظرفیت تولید در فصل اخیر"}),
+        }
+
+
+class PestelFactorForm(forms.ModelForm):
+    class Meta:
+        model = PestelFactor
+        fields = ["category", "text", "order"]
+        widgets = {
+            "text": forms.TextInput(attrs={"placeholder": "عامل محیطی جدید"}),
         }

@@ -6,7 +6,9 @@
 {% block content %}
 <div class="topbar">
   <div><h1>نقشه استراتژیک</h1><div class="sub">مدل کارت امتیازی متوازن (BSC) — چهار منظر × سه محور استراتژیک</div></div>
+  {% if perms.strategic.add_strategicobjective %}
   <button class="btn accent" onclick="newObjective()"><i class="fa-solid fa-plus"></i>افزودن هدف</button>
+  {% endif %}
 </div>
 
 <div class="stratmap-vision">
@@ -31,6 +33,7 @@
           <span class="obj-code">{{ obj.code }}</span>
           <span style="display:flex;align-items:center;gap:8px;">
             <span class="status-dot {{ obj.status }}"></span>
+            {% if perms.strategic.change_strategicobjective %}
             <button type="button" onclick="editObjective(this)"
               data-id="{{ obj.pk }}" data-code="{{ obj.code }}" data-perspective="{{ obj.perspective }}"
               data-theme="{{ obj.theme }}" data-title="{{ obj.title }}" data-kpi="{{ obj.kpi }}"
@@ -38,10 +41,13 @@
               style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;">
               <i class="fa-solid fa-pen"></i>
             </button>
+            {% endif %}
+            {% if perms.strategic.delete_strategicobjective %}
             <form method="post" action="{% url 'strategic:objective_delete' obj.pk %}" style="margin:0;" onsubmit="return confirm('این هدف حذف شود؟');">
               {% csrf_token %}
               <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
             </form>
+            {% endif %}
           </span>
         </div>
         <h5>{{ obj.title }}</h5>

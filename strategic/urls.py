@@ -14,7 +14,10 @@ urlpatterns = [
     path("roadmap/delete/<int:pk>/", views.initiative_delete, name="initiative_delete"),
 
     path("market/", views.market, name="market"),
+    path("market/delete/<int:pk>/", views.competitor_delete, name="competitor_delete"),
+
     path("pestel/", views.pestel, name="pestel"),
+    path("pestel/delete/<int:pk>/", views.pestel_delete, name="pestel_delete"),
     path("stratmap/", views.stratmap, name="stratmap"),
     path("stratmap/delete/<int:pk>/", views.objective_delete, name="objective_delete"),
 

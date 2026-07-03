@@ -161,3 +161,59 @@ class StrategicObjective(models.Model):
     @property
     def theme_css(self):
         return self.THEME_COLOR.get(self.theme, "var(--primary)")
+
+
+class Competitor(models.Model):
+    name = models.CharField(max_length=200, verbose_name="نام بازیگر")
+    market_share = models.PositiveSmallIntegerField(default=0, verbose_name="سهم بازار (٪)")
+    strengths = models.TextField(blank=True, verbose_name="نقاط قوت (هر خط یک مورد)")
+    weaknesses = models.TextField(blank=True, verbose_name="نقاط ضعف (هر خط یک مورد)")
+    recent_move = models.CharField(max_length=300, blank=True, verbose_name="آخرین حرکت")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["order", "-market_share"]
+        verbose_name = "بازیگر بازار"
+        verbose_name_plural = "هوش رقابتی و بازار"
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def strengths_list(self):
+        return [s.strip() for s in self.strengths.splitlines() if s.strip()]
+
+    @property
+    def weaknesses_list(self):
+        return [s.strip() for s in self.weaknesses.splitlines() if s.strip()]
+
+
+class PestelFactor(models.Model):
+    CATEGORY_CHOICES = [
+        ("political", "سیاسی"),
+        ("economic", "اقتصادی"),
+        ("social", "اجتماعی"),
+        ("technological", "فناورانه"),
+        ("environmental", "زیست‌محیطی"),
+        ("legal", "قانونی"),
+    ]
+    CATEGORY_STYLE = {
+        "political": ("var(--primary)", "var(--primary-soft)", "fa-flag"),
+        "economic": ("var(--accent)", "var(--accent-soft)", "fa-coins"),
+        "social": ("var(--success)", "var(--success-soft)", "fa-users"),
+        "technological": ("var(--purple)", "var(--purple-soft)", "fa-microchip"),
+        "environmental": ("var(--teal)", "var(--teal-soft)", "fa-leaf"),
+        "legal": ("var(--coral)", "var(--coral-soft)", "fa-gavel"),
+    }
+
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="بُعد")
+    text = models.CharField(max_length=300, verbose_name="عامل محیطی")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["category", "order"]
+        verbose_name = "عامل PESTEL"
+        verbose_name_plural = "تحلیل PESTEL"
+
+    def __str__(self):
+        return f"{self.get_category_display()} — {self.text}"

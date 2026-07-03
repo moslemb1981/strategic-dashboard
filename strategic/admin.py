@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Study, Initiative, Risk, SWOTItem, StrategicObjective
+from .models import Study, Initiative, Risk, SWOTItem, StrategicObjective, Competitor, PestelFactor
 
 
 @admin.register(Study)
@@ -38,3 +38,20 @@ class StrategicObjectiveAdmin(admin.ModelAdmin):
     list_filter = ("perspective", "theme", "status")
     search_fields = ("code", "title", "kpi")
     ordering = ("perspective", "theme", "order", "code")
+
+
+@admin.register(Competitor)
+class CompetitorAdmin(admin.ModelAdmin):
+    list_display = ("name", "market_share", "recent_move", "order")
+    list_editable = ("market_share", "order")
+    search_fields = ("name",)
+    ordering = ("order", "-market_share")
+
+
+@admin.register(PestelFactor)
+class PestelFactorAdmin(admin.ModelAdmin):
+    list_display = ("category", "text", "order")
+    list_filter = ("category",)
+    list_editable = ("order",)
+    search_fields = ("text",)
+    ordering = ("category", "order")

@@ -93,6 +93,86 @@ static\js\             ← فقط ۱ فایل جدید: strategic-app.js
     - فیلد «ترتیب نمایش» هم تعیین می‌کنه چند هدف داخل یک خانه به چه ترتیبی
       روی هم بچینن
 
+۱۱. رفع سرریز کادر «اقدام کاهشی» — استایل عمومی فیلدها فقط روی input/select
+    بود، textarea رو یادش رفته بود؛ الان درست شد.
+
+۱۲. داده‌ی نمونه برای نقشه ریسک — دقیقاً مثل seed_stratmap، این دستور ۶
+    ریسک نمونه‌ی نزدیک به عملکرد یک شرکت قطعات یدکی رو ثبت می‌کنه تا الگو
+    داشته باشید (امن است، تکراری نمی‌سازد):
+
+    (venv) PS D:\sysapp\strategic> python manage.py seed_risks
+
+۱۳. ماژول‌های «هوش رقابتی و بازار» و «تحلیل PESTEL» هم الان مدل واقعی دارن
+    (Competitor و PestelFactor) — همون makemigrations/migrate این‌ها رو هم
+    می‌سازه. برای داده‌ی نمونه:
+
+    (venv) PS D:\sysapp\strategic> python manage.py seed_market
+    (venv) PS D:\sysapp\strategic> python manage.py seed_pestel
+
+۱۴. سیستم سطح دسترسی — دو گروه کاربری ساخته می‌شه: «ویرایشگران» (اجازه
+    افزودن/ویرایش/حذف در همه‌ی ماژول‌ها) و «بینندگان» (فقط مشاهده، دکمه‌های
+    افزودن/حذف/ویرایش اصلاً براشون نمایش داده نمی‌شه). این دستور رو یک‌بار
+    بزنید:
+
+    (venv) PS D:\sysapp\strategic> python manage.py seed_groups
+
+    بعد برید /admin/ → بخش Users → یوزر مورد نظر رو باز کنید → پایین صفحه
+    قسمت «Groups» رو پیدا کنید → یکی از دو گروه رو انتخاب و منتقل کنید به
+    ستون «Chosen groups» → Save. کاربر admin (سوپریوزر) نیازی به گروه نداره،
+    چون دسترسی کامل به همه‌چیز داره.
+
+۱۵. آماده‌سازی برای اجرای واقعی (production) — این چند مرحله سیستم رو از
+    حالت «فقط روی سیستم من» به حالت «قابل اجرا و امن برای کل سازمان» می‌بره:
+
+    الف) نصب پکیج‌های جدید:
+    (venv) PS D:\sysapp\strategic> pip install -r requirements.txt
+
+    ب) فایل .env.example رو کپی کنید و اسمش رو بذارید .env، بعد مقادیرش رو
+       با یک کلید تصادفی واقعی و آدرس سرورتون پر کنید. برای ساختن یک
+       SECRET_KEY تصادفی امن:
+       (venv) PS D:\sysapp\strategic> python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+    ج) توی config\settings.py این تغییرات رو بدید:
+
+       - زیر خط `BASE_DIR = Path(__file__).resolve().parent.parent` این
+         دو خط رو اضافه کنید:
+         import os
+         from dotenv import load_dotenv
+         load_dotenv(BASE_DIR / ".env")
+
+       - خط‌های SECRET_KEY، DEBUG، ALLOWED_HOSTS رو با این جایگزین کنید
+         (مقدار فعلی SECRET_KEY خودتون رو به‌جای «کلید-قبلی-شما» به‌عنوان
+         fallback بذارید تا اگه .env نبود، بازم کار کنه):
+         SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "کلید-قبلی-شما")
+         DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+         ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+
+       - توی MIDDLEWARE، بلافاصله بعد از
+         'django.middleware.security.SecurityMiddleware' این خط رو اضافه کنید:
+         'whitenoise.middleware.WhiteNoiseMiddleware',
+
+       - زیر STATIC_URL این دو تنظیم رو اضافه کنید:
+         STATIC_ROOT = BASE_DIR / "staticfiles"
+         STORAGES = {
+             "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+             "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+         }
+
+    د) جمع‌آوری فایل‌های استاتیک برای حالت production:
+       (venv) PS D:\sysapp\strategic> python manage.py collectstatic
+
+    ه) اجرا با سرور واقعی (به‌جای runserver):
+       (venv) PS D:\sysapp\strategic> run_production.bat
+       یا مستقیم:
+       (venv) PS D:\sysapp\strategic> waitress-serve --listen=0.0.0.0:8000 config.wsgi:application
+
+       حالا از هر سیستم دیگه‌ای توی شبکه‌ی داخلی شرکت، با آی‌پی این سیستم
+       (مثلاً http://192.168.1.50:8000) قابل دسترسیه، نه فقط از خود سیستم.
+
+    نکته: SQLite برای تیم‌های کوچک (چند نفر) کاملاً کافیه. اگه بعداً تعداد
+    کاربران همزمان زیاد شد، مهاجرت به PostgreSQL قدم بعدیه — فعلاً لازم
+    نیست نگرانش باشید.
+
 چیزی که این‌بار عوض شده
 --------------------------
 - چهار ماژول (کتابخانه مطالعات، نقشه راه ابتکارات، نقشه ریسک، SWOT) همه

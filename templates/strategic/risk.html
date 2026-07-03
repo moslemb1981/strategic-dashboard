@@ -6,7 +6,9 @@
 {% block content %}
 <div class="topbar">
   <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">ماتریس احتمال وقوع × شدت اثر، به‌همراه ثبت اقدامات کاهشی</div></div>
+  {% if perms.strategic.add_risk %}
   <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن ریسک</button>
+  {% endif %}
 </div>
 
 <div class="risk-wrap">
@@ -32,10 +34,12 @@
   <div class="risk-row"><span class="sev {{ r.sev_class }}"></span>
     <div class="body"><h5>{{ r.title }}</h5><div class="meta">مسئول: {{ r.owner|default:"—" }} · احتمال: {{ r.get_likelihood_display }} · اثر: {{ r.get_impact_display }}</div></div>
     <div class="mit">{{ r.mitigation|default:"—" }}</div>
+    {% if perms.strategic.delete_risk %}
     <form method="post" action="{% url 'strategic:risk_delete' r.pk %}" onsubmit="return confirm('این ریسک حذف شود؟');">
       {% csrf_token %}
       <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
     </form>
+    {% endif %}
   </div>
   {% empty %}
   <div class="empty"><i class="fa-solid fa-shield-halved"></i>هنوز ریسکی ثبت نشده</div>
