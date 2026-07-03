@@ -5,10 +5,10 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import (
-    Study, Initiative, Risk, SWOTItem, StrategicObjective, Competitor, PestelFactor,
+    Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
 )
 from .forms import (
-    StudyForm, InitiativeForm, RiskForm, SWOTItemForm, StrategicObjectiveForm,
+    StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm,
 )
 
@@ -92,11 +92,14 @@ def home(request):
 @login_required
 def research(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_study"):
-            form = StudyForm(request.POST)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_study" if obj_id else "strategic.add_study"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Study, pk=obj_id) if obj_id else None
+            form = StudyForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "CREATE Study", str(form.instance))
+                _log_action(request, "UPDATE Study" if obj_id else "CREATE Study", str(form.instance))
                 return redirect("strategic:research")
         else:
             form = StudyForm()
@@ -131,11 +134,14 @@ def study_delete(request, pk):
 @login_required
 def roadmap(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_initiative"):
-            form = InitiativeForm(request.POST)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
+            form = InitiativeForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "CREATE Initiative", str(form.instance))
+                _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(form.instance))
                 return redirect("strategic:roadmap")
         else:
             form = InitiativeForm()
@@ -163,11 +169,14 @@ def initiative_delete(request, pk):
 @login_required
 def market(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_competitor"):
-            form = CompetitorForm(request.POST)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_competitor" if obj_id else "strategic.add_competitor"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Competitor, pk=obj_id) if obj_id else None
+            form = CompetitorForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "CREATE Competitor", str(form.instance))
+                _log_action(request, "UPDATE Competitor" if obj_id else "CREATE Competitor", str(form.instance))
                 return redirect("strategic:market")
         else:
             form = CompetitorForm()
@@ -195,11 +204,14 @@ def competitor_delete(request, pk):
 @login_required
 def pestel(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_pestelfactor"):
-            form = PestelFactorForm(request.POST)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_pestelfactor" if obj_id else "strategic.add_pestelfactor"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(PestelFactor, pk=obj_id) if obj_id else None
+            form = PestelFactorForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "CREATE PestelFactor", str(form.instance))
+                _log_action(request, "UPDATE PestelFactor" if obj_id else "CREATE PestelFactor", str(form.instance))
                 return redirect("strategic:pestel")
         else:
             form = PestelFactorForm()
@@ -232,19 +244,6 @@ def pestel_delete(request, pk):
 
 # ---------------- Strategic map (BSC) ----------------
 
-PERSPECTIVES = [
-    ("financial", "مالی", "var(--primary-soft)", "var(--primary-dark)", 2),
-    ("customer", "مشتری", "var(--accent-soft)", "#7A4711", 4),
-    ("process", "فرآیندهای داخلی", "var(--success-soft)", "var(--success)", 6),
-    ("learning", "یادگیری و رشد", "var(--purple-soft)", "var(--purple)", 8),
-]
-THEMES = [
-    ("operational", "تعالی عملیاتی و کیفیت", "var(--success)", 2),
-    ("growth", "رشد بازار و سودآوری", "var(--primary)", 3),
-    ("digital", "نوآوری و تحول دیجیتال", "var(--purple)", 4),
-]
-
-
 @login_required
 def stratmap(request):
     if request.method == "POST":
@@ -262,22 +261,26 @@ def stratmap(request):
     else:
         form = StrategicObjectiveForm()
 
-    objectives = list(StrategicObjective.objects.all())
+    objectives = list(StrategicObjective.objects.all().prefetch_related("feeds_into"))
 
-    grid = []
-    for p_key, p_label, p_bg, p_color, p_row in PERSPECTIVES:
-        cells = []
-        for t_key, t_label, t_color, t_col in THEMES:
-            cells.append({
-                "grid_col": t_col,
-                "objectives": [o for o in objectives if o.perspective == p_key and o.theme == t_key],
-            })
-        grid.append({"label": p_label, "bg": p_bg, "color": p_color, "grid_row": p_row, "cells": cells})
+    PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
+    bands = []
+    for p_key, p_label in StrategicObjective.PERSPECTIVE_CHOICES:
+        bands.append({
+            "key": p_key, "css": PERSP_KEYS[p_key], "label": p_label,
+            "nodes": [o for o in objectives if o.perspective == p_key],
+        })
 
-    themes_header = [{"label": l, "color": c} for _, l, c, _ in THEMES]
+    links = []
+    for o in objectives:
+        for target in o.feeds_into.all():
+            links.append([f"obj-{o.pk}", f"obj-{target.pk}"])
+
+    all_objectives = objectives  # for the feeds_into picker list in the modal
 
     return render(request, "strategic/stratmap.html", {
-        "active_page": "stratmap", "grid": grid, "themes_header": themes_header, "form": form,
+        "active_page": "stratmap", "bands": bands, "form": form,
+        "links": links, "all_objectives": all_objectives,
     })
 
 
@@ -296,24 +299,62 @@ def objective_delete(request, pk):
 @login_required
 def swot(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_swotitem"):
-            form = SWOTItemForm(request.POST)
-            if form.is_valid():
-                form.save()
-                _log_action(request, "CREATE SWOTItem", str(form.instance))
-                return redirect("strategic:swot")
-        else:
-            form = SWOTItemForm()
+        cat = request.POST.get("category", "")
+        if cat in ("s", "w", "o", "t"):
+            if _has_perm(request, "strategic.add_swotitem"):
+                form = SWOTItemForm(request.POST)
+                if form.is_valid():
+                    form.save()
+                    _log_action(request, "CREATE SWOTItem", str(form.instance))
+                    return redirect("strategic:swot")
+        elif cat in ("so", "st", "wo", "wt"):
+            if _has_perm(request, "strategic.add_towsstrategy"):
+                tform = TOWSStrategyForm(request.POST)
+                if tform.is_valid():
+                    tform.save()
+                    _log_action(request, "CREATE TOWSStrategy", str(tform.instance))
+                    return redirect("strategic:swot")
+
+    s_items = list(SWOTItem.objects.filter(category="s"))
+    w_items = list(SWOTItem.objects.filter(category="w"))
+    o_items = list(SWOTItem.objects.filter(category="o"))
+    t_items = list(SWOTItem.objects.filter(category="t"))
+
+    def avg_w(items):
+        return round(sum(i.weight for i in items) / len(items), 1) if items else 0
+
+    s_score, w_score, o_score, t_score = avg_w(s_items), avg_w(w_items), avg_w(o_items), avg_w(t_items)
+
+    def norm(score):
+        return (score - 3) / 2 if score else 0
+
+    internal = norm(s_score) - norm(w_score)
+    external = norm(o_score) - norm(t_score)
+    pos_x = 50 + internal * 42
+    pos_y = 50 - external * 42
+    if internal >= 0 and external >= 0:
+        posture, posture_color = "راهبرد تهاجمی (SO)", "var(--s)"
+    elif internal >= 0 and external < 0:
+        posture, posture_color = "راهبرد تنوع (ST)", "var(--w)"
+    elif internal < 0 and external >= 0:
+        posture, posture_color = "راهبرد بازنگری (WO)", "var(--o)"
     else:
-        form = SWOTItemForm()
+        posture, posture_color = "راهبرد تدافعی (WT)", "var(--t)"
+
+    tows = {}
+    for key, _ in TOWSStrategy.CATEGORY_CHOICES:
+        tows[key] = list(TOWSStrategy.objects.filter(category=key))
 
     return render(request, "strategic/swot.html", {
         "active_page": "swot",
-        "s_items": SWOTItem.objects.filter(category="s"),
-        "w_items": SWOTItem.objects.filter(category="w"),
-        "o_items": SWOTItem.objects.filter(category="o"),
-        "t_items": SWOTItem.objects.filter(category="t"),
-        "form": form,
+        "s_items": s_items, "w_items": w_items, "o_items": o_items, "t_items": t_items,
+        "s_score": s_score, "w_score": w_score, "o_score": o_score, "t_score": t_score,
+        "pos_x": pos_x, "pos_y": pos_y, "posture": posture, "posture_color": posture_color,
+        "internal_dominant": "قوت‌ها بر ضعف‌ها" if internal >= 0 else "ضعف‌ها بر قوت‌ها",
+        "external_dominant": "فرصت‌ها بر تهدیدها" if external >= 0 else "تهدیدها بر فرصت‌ها",
+        "tows": tows,
+        "form": SWOTItemForm(),
+        "tows_form": TOWSStrategyForm(),
     })
 
 
@@ -327,16 +368,29 @@ def swot_delete(request, pk):
     return redirect("strategic:swot")
 
 
+@login_required
+def tows_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_towsstrategy"):
+        _obj = get_object_or_404(TOWSStrategy, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE TOWSStrategy", _label)
+    return redirect("strategic:swot")
+
+
 # ---------------- Risk register ----------------
 
 @login_required
 def risk(request):
     if request.method == "POST":
-        if _has_perm(request, "strategic.add_risk"):
-            form = RiskForm(request.POST)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_risk" if obj_id else "strategic.add_risk"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Risk, pk=obj_id) if obj_id else None
+            form = RiskForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "CREATE Risk", str(form.instance))
+                _log_action(request, "UPDATE Risk" if obj_id else "CREATE Risk", str(form.instance))
                 return redirect("strategic:risk")
         else:
             form = RiskForm()
@@ -344,21 +398,51 @@ def risk(request):
         form = RiskForm()
 
     risks = list(Risk.objects.all())
+    risks_sorted = sorted(risks, key=lambda r: -r.residual_score)
+    for idx, r in enumerate(risks_sorted, start=1):
+        r.display_no = idx  # runtime-only, used for bubble/row numbering
 
+    ZONE_COLOR = {"low": "#2fa96b", "med": "#e3b23c", "high": "#e2792e", "crit": "#d6402f"}
+
+    # ماتریس ۵×۵ (احتمال × شدت اثر) بر اساس امتیاز باقیمانده
     matrix = []
-    for impact in range(4, 0, -1):
+    for impact in range(5, 0, -1):
         row = []
-        for likelihood in range(1, 5):
-            s = likelihood + impact
-            zone = "green" if s <= 4 else ("amber" if s <= 6 else "red")
-            items = [r.title for r in risks if r.likelihood == likelihood and r.impact == impact]
-            row.append({"zone": zone, "items": items})
+        for likelihood in range(1, 6):
+            s = likelihood * impact
+            zone = Risk._zone_of(s)
+            cell_risks = [r for r in risks_sorted if r.likelihood == likelihood and r.impact == impact]
+            row.append({"zone": zone, "color": ZONE_COLOR[zone], "score": s,
+                        "likelihood": likelihood, "impact": impact, "risks": cell_risks})
         matrix.append(row)
 
-    risks_sorted = sorted(risks, key=lambda r: -(r.likelihood + r.impact))
+    top_risks = risks_sorted[:5]
+
+    categories = []
+    for key, label in Risk.CATEGORY_CHOICES:
+        n = sum(1 for r in risks if r.category == key)
+        categories.append({"key": key, "label": label, "color": Risk.CATEGORY_COLOR[key], "count": n})
+    max_cat = max([c["count"] for c in categories], default=0) or 1
+    for c in categories:
+        c["pct"] = round(c["count"] / max_cat * 100)
+
+    total = len(risks)
+    high_or_crit = sum(1 for r in risks if r.residual_score >= 10)
+    above_appetite = sum(1 for r in risks if r.residual_score > 9)
+    avg_score = round(sum(r.residual_score for r in risks) / total, 1) if total else 0
+    avg_effectiveness = round(sum(r.effectiveness_pct for r in risks) / total) if total else 0
+
+    risks_json = [
+        {"pk": r.pk, "likelihood": r.likelihood, "impact": r.impact,
+         "inherent_likelihood": r.inherent_likelihood, "inherent_impact": r.inherent_impact}
+        for r in risks_sorted
+    ]
 
     return render(request, "strategic/risk.html", {
-        "active_page": "risk", "matrix": matrix, "risks": risks_sorted, "form": form,
+        "active_page": "risk", "matrix": matrix, "risks": risks_sorted, "top_risks": top_risks,
+        "form": form, "categories": categories, "max_cat": max_cat,
+        "total": total, "high_or_crit": high_or_crit, "above_appetite": above_appetite,
+        "avg_score": avg_score, "avg_effectiveness": avg_effectiveness, "risks_json": risks_json,
     })
 
 

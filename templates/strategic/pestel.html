@@ -7,7 +7,7 @@
 <div class="topbar">
   <div><h1>تحلیل PESTEL</h1><div class="sub">روندهای کلان محیطی مؤثر بر صنعت قطعات یدکی خودرو</div></div>
   {% if perms.strategic.add_pestelfactor %}
-  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن عامل</button>
+  <button class="btn accent" onclick="newFactor()"><i class="fa-solid fa-plus"></i>افزودن عامل</button>
   {% endif %}
 </div>
 
@@ -19,12 +19,21 @@
       {% for item in group.items %}
       <li style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
         <span>{{ item.text }}</span>
-        {% if perms.strategic.delete_pestelfactor %}
-        <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">
-          {% csrf_token %}
-          <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
-        </form>
-        {% endif %}
+        <span style="display:flex;align-items:center;gap:6px;flex:none;">
+          {% if perms.strategic.change_pestelfactor %}
+          <button type="button" onclick="editFactor(this)"
+            data-id="{{ item.pk }}" data-category="{{ item.category }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+            style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          {% endif %}
+          {% if perms.strategic.delete_pestelfactor %}
+          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">
+            {% csrf_token %}
+            <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
+          </form>
+          {% endif %}
+        </span>
       </li>
       {% empty %}
       <li style="opacity:.6;">موردی ثبت نشده</li>
@@ -36,15 +45,16 @@
 
 <div class="overlay" id="overlay">
   <div class="modal-card">
-    <h3>افزودن عامل PESTEL</h3>
-    <form method="post">
+    <h3 id="modalTitle">افزودن عامل PESTEL</h3>
+    <form method="post" id="pestelForm">
       {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>بُعد</label>{{ form.category }}</div>
       <div class="field-group"><label>عامل محیطی</label>{{ form.text }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
-        <button type="submit" class="btn accent">ثبت مورد</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت مورد</button>
       </div>
     </form>
   </div>
@@ -55,5 +65,24 @@
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newFactor(){
+    document.getElementById('pestelForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن عامل PESTEL';
+    document.getElementById('submitBtn').textContent = 'ثبت مورد';
+    openModal();
+  }
+
+  function editFactor(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_category').value = d.category;
+    document.getElementById('id_text').value = d.text;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('modalTitle').textContent = 'ویرایش عامل PESTEL';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
 </script>
 {% endblock %}

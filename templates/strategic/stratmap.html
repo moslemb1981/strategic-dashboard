@@ -3,75 +3,198 @@
 {% block title %}نقشه استراتژیک{% endblock %}
 {% block crumb %}نقشه استراتژیک{% endblock %}
 
+{% block extra_css %}
+<style>
+  .sm{
+    --sm-bg:#eef0f3; --sm-ink:#0d1b2e; --sm-muted:#5a6474; --sm-hair:#d5d9e0; --sm-brake:#d64528;
+    --fin:#0f8a6a; --cust:#1183c9; --proc:#7b5cd6; --learn:#d08a1f;
+    --fin-g:#34d9a6; --cust-g:#4cc4ff; --proc-g:#b39aff; --learn-g:#ffc147;
+    font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;
+  }
+  .sm *{box-sizing:border-box;}
+  .sm .wrap{max-width:1280px;margin:0 auto;}
+
+  .sm header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.1rem;}
+  .sm .eyebrow{display:flex;align-items:center;gap:.6rem;font-size:.72rem;letter-spacing:.1em;font-weight:600;color:var(--sm-muted);margin-bottom:.5rem;}
+  .sm .eyebrow::before{content:"";width:26px;height:2px;background:var(--sm-brake);}
+  .sm h1{font-size:clamp(1.4rem,3vw,2rem);font-weight:900;line-height:1.2;color:var(--sm-ink);margin:0;}
+  .sm h1 b{color:var(--sm-brake);font-weight:900;}
+  .sm .sub{font-size:.8rem;color:var(--sm-muted);max-width:30ch;line-height:1.7;border-right:2px solid var(--sm-hair);padding-right:.9rem;}
+
+  .sm .vision{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;
+    background:linear-gradient(100deg,#0d1b2e,#132a45);color:#eaf0f8;
+    padding:1rem 1.4rem;border-radius:10px;margin-bottom:1.1rem;
+    box-shadow:0 12px 30px -12px rgba(13,27,46,.5);}
+  .sm .vision .lbl{font-size:.62rem;letter-spacing:.15em;font-weight:700;color:var(--sm-brake);white-space:nowrap;
+    padding:.3rem .6rem;border:1px solid rgba(214,69,40,.4);border-radius:5px;}
+  .sm .vision .txt{font-size:.85rem;font-weight:400;line-height:1.7;}
+
+  .sm .toolbar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-bottom:.7rem;}
+  .sm .toolbar button{font-family:inherit;font-size:.74rem;font-weight:600;background:#fff;border:1px solid var(--sm-hair);
+    color:var(--sm-ink);padding:.42rem .9rem;border-radius:7px;cursor:pointer;transition:.18s;box-shadow:0 1px 2px rgba(13,27,46,.05);}
+  .sm .toolbar button:hover{border-color:var(--sm-brake);color:var(--sm-brake);transform:translateY(-1px);}
+  .sm .toolbar .flow-toggle.on{background:var(--sm-ink);color:#fff;border-color:var(--sm-ink);}
+  .sm .toolbar .flow-toggle.on:hover{color:#fff;}
+  .sm .toolbar button.accent-btn{background:var(--sm-brake);color:#fff;border-color:var(--sm-brake);}
+  .sm .toolbar button.accent-btn:hover{color:#fff;opacity:.9;}
+  .sm .toolbar .hint{font-size:.74rem;color:var(--sm-muted);}
+  .sm .toolbar .spacer{flex:1;}
+  .sm #sm-status{font-size:.74rem;color:var(--sm-muted);font-weight:500;}
+
+  .sm .panel{position:relative;border-radius:14px;overflow:hidden;
+    background:radial-gradient(120% 100% at 50% -10%,#12294a 0%,#0c1a30 55%,#0a1626 100%);
+    box-shadow:0 30px 60px -25px rgba(13,27,46,.6),inset 0 0 0 1px rgba(120,160,220,.08);}
+  .sm .panel-scroll{overflow-x:auto;}
+  .sm .map{position:relative;min-width:1100px;}
+  .sm .grid-bg{position:absolute;inset:0;z-index:0;opacity:.5;
+    background-image:linear-gradient(rgba(120,160,220,.06) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,160,220,.06) 1px,transparent 1px);
+    background-size:34px 34px;}
+
+  .sm svg.wires{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;}
+  .sm svg.wires .wire{fill:none;stroke:rgba(150,185,235,.16);stroke-width:1.4;transition:stroke .25s,stroke-width .25s,opacity .25s;}
+  .sm svg.wires .wire.hot{stroke-width:2.4;}
+  .sm.focusing svg.wires .wire:not(.hot){opacity:.05;}
+  .sm .sm-particle{transition:opacity .25s;}
+  .sm.focusing .sm-particle:not(.hot){opacity:.06;}
+
+  .sm .band{position:relative;z-index:2;display:flex;align-items:stretch;border-bottom:1px solid rgba(120,160,220,.1);}
+  .sm .band:last-child{border-bottom:none;}
+  .sm .band-label{writing-mode:vertical-rl;text-orientation:mixed;display:flex;align-items:center;justify-content:center;gap:.6rem;
+    min-width:52px;font-weight:800;font-size:.86rem;letter-spacing:.02em;color:#0c1a30;
+    background:linear-gradient(180deg,var(--c1),var(--c2));}
+  .sm .band-label small{writing-mode:horizontal-tb;font-weight:500;font-size:.58rem;opacity:.7;}
+  .sm .band-inner{flex:1;display:flex;flex-wrap:wrap;gap:1rem;padding:1.4rem 1.2rem;align-content:center;justify-content:center;}
+  .sm .band-empty{color:#7f96b8;font-size:.78rem;padding:.6rem;}
+
+  .sm .node{position:relative;z-index:3;width:200px;min-height:74px;cursor:pointer;border-radius:9px;
+    background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));
+    border:1px solid var(--nc);
+    padding:.75rem .9rem .7rem;color:#e9eff8;
+    display:flex;flex-direction:column;gap:.35rem;
+    box-shadow:0 6px 18px -8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+    transition:transform .18s,box-shadow .18s,opacity .25s,border-color .18s;
+    opacity:0;transform:translateY(14px);}
+  .sm .node.in{opacity:1;transform:none;}
+  .sm .node::before{content:"";position:absolute;top:0;right:0;left:0;height:3px;border-radius:9px 9px 0 0;
+    background:linear-gradient(90deg,var(--ng),transparent 85%);}
+  .sm .node:hover{transform:translateY(-4px);box-shadow:0 16px 30px -10px rgba(0,0,0,.6);border-color:var(--ng);}
+  .sm .node .code{position:absolute;top:-9px;right:12px;font-size:.6rem;font-weight:800;letter-spacing:.03em;
+    color:#0c1a30;background:var(--ng);padding:.08rem .42rem;border-radius:4px;}
+  .sm .node .ttl{font-size:.8rem;font-weight:600;line-height:1.45;}
+  .sm .node .kpi{font-size:.64rem;color:#9fb2cb;font-weight:400;display:flex;align-items:center;gap:.35rem;margin-top:auto;}
+  .sm .node .kpi::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ng);flex-shrink:0;box-shadow:0 0 6px var(--ng);}
+  .sm .node.selected{border-color:var(--sm-brake);box-shadow:0 0 0 2px var(--sm-brake),0 16px 34px -10px rgba(214,69,40,.5);transform:translateY(-4px);}
+  .sm.focusing .node:not(.hot){opacity:.22;}
+  .sm .node.hot{opacity:1;}
+  .sm .node-actions{position:absolute;top:-9px;left:8px;display:flex;gap:4px;}
+  .sm .node-actions button{border:none;background:#0c1a30;color:#9fb2cb;width:18px;height:18px;border-radius:4px;
+    font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .sm .node-actions button:hover{color:#fff;background:#16304f;}
+
+  .sm .fin  {--c1:#34d9a6;--c2:#0f8a6a;}
+  .sm .cust {--c1:#4cc4ff;--c2:#1183c9;}
+  .sm .proc {--c1:#b39aff;--c2:#7b5cd6;}
+  .sm .learn{--c1:#ffc147;--c2:#d08a1f;}
+  .sm .node.n-fin  {--nc:rgba(52,217,166,.4);--ng:var(--fin-g);}
+  .sm .node.n-cust {--nc:rgba(76,196,255,.4);--ng:var(--cust-g);}
+  .sm .node.n-proc {--nc:rgba(179,154,255,.4);--ng:var(--proc-g);}
+  .sm .node.n-learn{--nc:rgba(255,193,71,.4);--ng:var(--learn-g);}
+
+  .sm .foot{margin-top:1.1rem;padding-top:.9rem;border-top:1px solid var(--sm-hair);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;font-size:.72rem;color:var(--sm-muted);}
+  .sm .legend{display:flex;gap:1.1rem;flex-wrap:wrap;}
+  .sm .legend span{display:inline-flex;align-items:center;gap:.4rem;font-weight:500;}
+  .sm .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="topbar">
-  <div><h1>نقشه استراتژیک</h1><div class="sub">مدل کارت امتیازی متوازن (BSC) — چهار منظر × سه محور استراتژیک</div></div>
-  {% if perms.strategic.add_strategicobjective %}
-  <button class="btn accent" onclick="newObjective()"><i class="fa-solid fa-plus"></i>افزودن هدف</button>
-  {% endif %}
-</div>
-
-<div class="stratmap-vision">
-  <div class="label">چشم‌انداز اداره مطالعات و توسعه استراتژیک</div>
-  <div class="text">تبدیل شدن به بازوی تحلیلی و آینده‌نگر سایپا یدک برای تصمیم‌گیری مبتنی بر داده، در راستای تثبیت جایگاه پیشرو در بازار قطعات یدکی کشور</div>
-</div>
-<div class="stratmap-note">هر ستون یک <strong>محور استراتژیک</strong> است و هر ردیف یک <strong>منظر BSC</strong>. برای جابه‌جا کردن یک هدف بین منظر/محورها یا تغییر ترتیبش، روی آیکون مداد کلیک کنید و در فرم، منظر/محور/ترتیب جدید را انتخاب کنید — نیازی به پنل ادمین نیست.</div>
-
-<div class="stratmap-grid">
-  <div></div>
-  {% for t in themes_header %}
-  <div class="theme-head" style="--tc:{{ t.color }}"><span class="dot"></span><span class="name">{{ t.label }}</span></div>
-  {% endfor %}
-
-  {% for row in grid %}
-    <div class="persp-label" style="background:{{ row.bg }};color:{{ row.color }};grid-row:{{ row.grid_row }};">{{ row.label }}</div>
-    {% for cell in row.cells %}
-    <div style="grid-column:{{ cell.grid_col }};grid-row:{{ row.grid_row }};display:flex;flex-direction:column;gap:8px;">
-      {% for obj in cell.objectives %}
-      <div class="obj-card" style="--tc:{{ obj.theme_css }};">
-        <div class="top-row">
-          <span class="obj-code">{{ obj.code }}</span>
-          <span style="display:flex;align-items:center;gap:8px;">
-            <span class="status-dot {{ obj.status }}"></span>
-            {% if perms.strategic.change_strategicobjective %}
-            <button type="button" onclick="editObjective(this)"
-              data-id="{{ obj.pk }}" data-code="{{ obj.code }}" data-perspective="{{ obj.perspective }}"
-              data-theme="{{ obj.theme }}" data-title="{{ obj.title }}" data-kpi="{{ obj.kpi }}"
-              data-status="{{ obj.status }}" data-order="{{ obj.order }}"
-              style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            {% endif %}
-            {% if perms.strategic.delete_strategicobjective %}
-            <form method="post" action="{% url 'strategic:objective_delete' obj.pk %}" style="margin:0;" onsubmit="return confirm('این هدف حذف شود؟');">
-              {% csrf_token %}
-              <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
-            </form>
-            {% endif %}
-          </span>
-        </div>
-        <h5>{{ obj.title }}</h5>
-        <div class="obj-kpi"><i class="fa-solid fa-bullseye"></i>{% if obj.kpi %}KPI: {{ obj.kpi }}{% endif %}</div>
+<div class="sm" id="smRoot">
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="eyebrow">اداره مطالعات و توسعه استراتژیک</div>
+        <h1>نقشه استراتژیک <b>سایپا یدک</b></h1>
       </div>
-      {% endfor %}
-    </div>
-    {% endfor %}
-    {% if not forloop.last %}
-    <div class="connector-row" style="grid-column:2;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
-    <div class="connector-row" style="grid-column:3;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
-    <div class="connector-row" style="grid-column:4;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
-    {% endif %}
-  {% endfor %}
-</div>
+      <p class="sub">مدل کارت امتیازی متوازن — جریان خلق ارزش از زیربنای سازمانی تا نتیجه مالی</p>
+    </header>
 
-<div class="stratmap-legend">
-  <span><span class="status-dot on"></span>در مسیر هدف</span>
-  <span><span class="status-dot watch"></span>نیازمند پیگیری</span>
-  <span><span class="status-dot risk"></span>در معرض ریسک</span>
+    <div class="vision">
+      <span class="lbl">چشم‌انداز</span>
+      <span class="txt">تبدیل شدن به بازوی تحلیلی و آینده‌نگر سایپا یدک برای تصمیم‌گیری مبتنی بر داده، در راستای تثبیت جایگاه پیشرو در بازار قطعات یدکی کشور</span>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" id="resetBtn">نمای کامل نقشه</button>
+      <button type="button" id="flowBtn" class="flow-toggle on">جریان ارزش: روشن</button>
+      <span class="hint">↳ روی هر هدف کلیک کنید تا زنجیره علّی آن روشن شود</span>
+      <span class="spacer"></span>
+      {% if perms.strategic.add_strategicobjective %}
+      <button type="button" class="accent-btn" onclick="newObjective()"><i class="fa-solid fa-plus"></i> افزودن هدف</button>
+      {% endif %}
+      <span id="sm-status">همه ارتباطات نمایش داده می‌شوند</span>
+    </div>
+
+    <div class="panel">
+      <div class="grid-bg"></div>
+      <div class="panel-scroll">
+        <div class="map" id="smMap">
+          <svg class="wires" id="smWires" preserveAspectRatio="none"></svg>
+
+          {% for band in bands %}
+          <div class="band {{ band.css }}">
+            <div class="band-label">{{ band.label }}{% if band.key == "learning" %}<small>زیربنا</small>{% endif %}</div>
+            <div class="band-inner">
+              {% for n in band.nodes %}
+              <div class="node n-{{ band.css }}" id="obj-{{ n.pk }}" data-persp="{{ band.css }}">
+                <span class="code">{{ n.code }}</span>
+                {% if perms.strategic.change_strategicobjective or perms.strategic.delete_strategicobjective %}
+                <div class="node-actions">
+                  {% if perms.strategic.change_strategicobjective %}
+                  <button type="button" onclick="event.stopPropagation(); editObjective(this)"
+                    data-id="{{ n.pk }}" data-code="{{ n.code }}" data-perspective="{{ n.perspective }}" data-theme="{{ n.theme }}"
+                    data-title="{{ n.title }}" data-kpi="{{ n.kpi }}" data-status="{{ n.status }}" data-order="{{ n.order }}"
+                    data-feeds="{% for t in n.feeds_into.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  {% endif %}
+                  {% if perms.strategic.delete_strategicobjective %}
+                  <form method="post" action="{% url 'strategic:objective_delete' n.pk %}" style="margin:0;"
+                    onsubmit="event.stopPropagation(); return confirm('این هدف حذف شود؟');">
+                    {% csrf_token %}
+                    <button type="submit"><i class="fa-solid fa-xmark"></i></button>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endif %}
+                <div class="ttl">{{ n.title }}</div>
+                <div class="kpi">{{ n.kpi|default:"—" }}</div>
+              </div>
+              {% empty %}
+              <div class="band-empty">هدفی در این منظر ثبت نشده</div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="legend">
+        <span><i style="background:var(--fin)"></i>مالی</span>
+        <span><i style="background:var(--cust)"></i>مشتری</span>
+        <span><i style="background:var(--proc)"></i>فرآیند داخلی</span>
+        <span><i style="background:var(--learn)"></i>یادگیری و رشد</span>
+      </div>
+      <div>مبتنی بر مدل Kaplan &amp; Norton — Balanced Scorecard · جهت فلش‌ها: خلق ارزش رو به بالا</div>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="overlay">
-  <div class="modal-card">
+  <div class="modal-card" style="max-width:460px;">
     <h3 id="modalTitle">افزودن هدف استراتژیک</h3>
     <form method="post" id="objForm">
       {% csrf_token %}
@@ -80,9 +203,26 @@
       <div class="field-group"><label>منظر BSC</label>{{ form.perspective }}</div>
       <div class="field-group"><label>محور استراتژیک</label>{{ form.theme }}</div>
       <div class="field-group"><label>عنوان هدف</label>{{ form.title }}</div>
-      <div class="field-group"><label>KPI</label>{{ form.kpi }}</div>
+      <div class="field-group">
+        <label>KPI</label>
+        <select id="kpi_template" onchange="applyKpiTemplate()" style="margin-bottom:8px;">
+          <option value="">— یا یک الگوی آماده انتخاب کنید —</option>
+          <option value="نرخ تحقق ≥ ۹۰٪">درصد هدف (مثلاً نرخ تحقق ≥ ۹۰٪)</option>
+          <option value="کاهش ۱۰٪ نسبت به سال قبل">کاهش درصدی (مثلاً کاهش هزینه)</option>
+          <option value="رشد ۱۵٪ نسبت به سال قبل">رشد درصدی (مثلاً رشد فروش)</option>
+          <option value="حداکثر ۵ روز کاری">سقف زمانی (مثلاً زمان پاسخ‌گویی)</option>
+          <option value="حداقل ۸۰ امتیاز از ۱۰۰">امتیاز/شاخص (مثلاً NPS، رضایت)</option>
+          <option value="تکمیل تا پایان سه‌ماهه دوم ۱۴۰۵">مهلت زمانی مشخص</option>
+          <option value="کمتر از ۱٪">سقف نرخ خطا/مرجوعی</option>
+        </select>
+        {{ form.kpi }}
+      </div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="field-group">
+        <label>این هدف به کدام هدف(ها) کمک می‌کند</label>
+        {{ form.feeds_into }}
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="objSubmitBtn">ثبت هدف</button>
@@ -93,13 +233,20 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ links|json_script:"links-data" }}
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 
+  function applyKpiTemplate(){
+    const sel = document.getElementById('kpi_template');
+    if (sel.value) { document.getElementById('id_kpi').value = sel.value; sel.value = ''; }
+  }
+
   function newObjective(){
     document.getElementById('objForm').reset();
     document.getElementById('obj_id').value = '';
+    Array.from(document.getElementById('id_feeds_into').options).forEach(o => o.selected = false);
     document.getElementById('modalTitle').textContent = 'افزودن هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ثبت هدف';
     openModal();
@@ -115,9 +262,140 @@
     document.getElementById('id_kpi').value = d.kpi;
     document.getElementById('id_status').value = d.status;
     document.getElementById('id_order').value = d.order;
+    const feedsIds = (d.feeds || '').split(',').filter(Boolean);
+    Array.from(document.getElementById('id_feeds_into').options).forEach(o => { o.selected = feedsIds.includes(o.value); });
     document.getElementById('modalTitle').textContent = 'ویرایش هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ذخیره تغییرات';
     openModal();
   }
+
+  // ---------------- Wires + particles + causal-chain focus ----------------
+  (function(){
+    const root = document.getElementById('smRoot');
+    const svg = document.getElementById('smWires');
+    const map = document.getElementById('smMap');
+    const statusEl = document.getElementById('sm-status');
+    const NS = "http://www.w3.org/2000/svg";
+    const links = JSON.parse(document.getElementById('links-data').textContent);
+    const glow = {fin:'var(--fin-g)', cust:'var(--cust-g)', proc:'var(--proc-g)', learn:'var(--learn-g)'};
+    const rawGlow = {fin:'#34d9a6', cust:'#4cc4ff', proc:'#b39aff', learn:'#ffc147'};
+    let wires = [], particles = [], flowOn = true, selected = null;
+
+    function pt(el){
+      const r = el.getBoundingClientRect(), m = map.getBoundingClientRect();
+      return {x: r.left - m.left + r.width/2, top: r.top - m.top, bottom: r.bottom - m.top};
+    }
+
+    function build(){
+      svg.innerHTML = ""; wires = []; particles = [];
+      const mr = map.getBoundingClientRect();
+      svg.setAttribute("viewBox", `0 0 ${mr.width} ${mr.height}`);
+      const defs = document.createElementNS(NS, "defs");
+      defs.innerHTML = `<filter id="smGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+      svg.appendChild(defs);
+      const wireLayer = document.createElementNS(NS, "g");
+      const partLayer = document.createElementNS(NS, "g");
+
+      links.forEach(([from, to]) => {
+        const a = document.getElementById(from), b = document.getElementById(to);
+        if (!a || !b) return;
+        const ca = pt(a), cb = pt(b);
+        const x1=ca.x, y1=ca.top, x2=cb.x, y2=cb.bottom, my=(y1+y2)/2;
+        const d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+        const w = document.createElementNS(NS, "path");
+        w.setAttribute("d", d); w.setAttribute("class", "wire");
+        w.dataset.from = from; w.dataset.to = to;
+        wireLayer.appendChild(w);
+        const key = a.dataset.persp;
+        const len = w.getTotalLength();
+        const n = Math.max(1, Math.round(len / 220));
+        for (let i=0; i<n; i++){
+          const c = document.createElementNS(NS, "circle");
+          c.setAttribute("r", "2.4");
+          c.setAttribute("fill", rawGlow[key] || '#9fb2cb');
+          c.setAttribute("filter", "url(#smGlow)");
+          c.setAttribute("class", "sm-particle");
+          c.dataset.from = from; c.dataset.to = to;
+          partLayer.appendChild(c);
+          particles.push({el:c, path:w, len, off:(i/n)+Math.random()*0.1, speed:0.10+Math.random()*0.05, from, to});
+        }
+        wires.push(w);
+      });
+      svg.appendChild(wireLayer); svg.appendChild(partLayer);
+    }
+
+    let last = performance.now();
+    function tick(now){
+      const dt = Math.min(0.05, (now-last)/1000); last = now;
+      if (flowOn){
+        particles.forEach(p => {
+          p.off += p.speed*dt; if (p.off > 1) p.off -= 1;
+          const pos = p.path.getPointAtLength(p.off * p.len);
+          p.el.setAttribute("cx", pos.x); p.el.setAttribute("cy", pos.y);
+          p.el.style.opacity = (0.35 + 0.65*Math.sin(p.off*Math.PI)).toFixed(2);
+        });
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function chain(startId, dir){
+      const nodes = new Set([startId]), edges = new Set(); let f = [startId];
+      while (f.length){
+        const nx = [];
+        f.forEach(cur => {
+          links.forEach(([a,b]) => {
+            const src = dir==="up" ? a : b, dst = dir==="up" ? b : a;
+            if (src === cur){ edges.add(a+">"+b); if (!nodes.has(dst)){ nodes.add(dst); nx.push(dst); } }
+          });
+        });
+        f = nx;
+      }
+      return {nodes, edges};
+    }
+
+    function focus(id){
+      const u = chain(id, "up"), d = chain(id, "down");
+      const N = new Set([...u.nodes, ...d.nodes]), E = new Set([...u.edges, ...d.edges]);
+      root.classList.add("focusing");
+      document.querySelectorAll(".sm .node").forEach(n => {
+        n.classList.toggle("hot", N.has(n.id)); n.classList.toggle("selected", n.id === id);
+      });
+      wires.forEach(w => w.classList.toggle("hot", E.has(w.dataset.from+">"+w.dataset.to)));
+      particles.forEach(p => p.el.classList.toggle("hot", E.has(p.from+">"+p.to)));
+      const codeEl = document.getElementById(id).querySelector(".code");
+      statusEl.textContent = `زنجیره علّی هدف ${codeEl ? codeEl.textContent : ''} — ${N.size} هدف مرتبط`;
+    }
+    function resetFocus(){
+      selected = null; root.classList.remove("focusing");
+      document.querySelectorAll(".sm .node").forEach(n => n.classList.remove("hot","selected"));
+      wires.forEach(w => w.classList.remove("hot"));
+      particles.forEach(p => p.el.classList.remove("hot"));
+      statusEl.textContent = "همه ارتباطات نمایش داده می‌شوند";
+    }
+
+    document.querySelectorAll(".sm .node").forEach(n => n.addEventListener("click", () => {
+      if (selected === n.id) resetFocus(); else { selected = n.id; focus(n.id); }
+    }));
+    document.getElementById("resetBtn").addEventListener("click", resetFocus);
+    const flowBtn = document.getElementById("flowBtn");
+    flowBtn.addEventListener("click", () => {
+      flowOn = !flowOn; flowBtn.classList.toggle("on", flowOn);
+      flowBtn.textContent = flowOn ? "جریان ارزش: روشن" : "جریان ارزش: خاموش";
+      document.querySelectorAll(".sm-particle").forEach(p => p.style.display = flowOn ? "" : "none");
+    });
+
+    function reveal(){
+      const nodes = document.querySelectorAll(".sm .node");
+      nodes.forEach((el, i) => setTimeout(() => el.classList.add("in"), 100 + i*40));
+    }
+
+    window.addEventListener("load", () => { build(); reveal(); requestAnimationFrame(tick); });
+    window.addEventListener("resize", () => {
+      build(); if (selected) focus(selected);
+      document.querySelectorAll(".sm .node").forEach(n => n.classList.add("in"));
+    });
+    setTimeout(() => { build(); }, 500);
+  })();
 </script>
 {% endblock %}

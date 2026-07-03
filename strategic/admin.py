@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Study, Initiative, Risk, SWOTItem, StrategicObjective, Competitor, PestelFactor
+from .models import Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor
 
 
 @admin.register(Study)
@@ -18,16 +18,26 @@ class InitiativeAdmin(admin.ModelAdmin):
 
 @admin.register(Risk)
 class RiskAdmin(admin.ModelAdmin):
-    list_display = ("title", "owner", "likelihood", "impact", "zone")
-    list_filter = ("likelihood", "impact")
-    search_fields = ("title", "owner")
+    list_display = ("title", "owner", "category", "inherent_score", "residual_score", "target_score", "zone", "trend", "response_strategy")
+    list_filter = ("category", "trend", "response_strategy")
+    search_fields = ("title", "owner", "kri")
 
 
 @admin.register(SWOTItem)
 class SWOTItemAdmin(admin.ModelAdmin):
-    list_display = ("text", "category", "impact", "created_at")
-    list_filter = ("category", "impact")
+    list_display = ("text", "category", "weight", "created_at")
+    list_editable = ("weight",)
+    list_filter = ("category",)
     search_fields = ("text",)
+
+
+@admin.register(TOWSStrategy)
+class TOWSStrategyAdmin(admin.ModelAdmin):
+    list_display = ("category", "text", "order")
+    list_editable = ("order",)
+    list_filter = ("category",)
+    search_fields = ("text",)
+    ordering = ("category", "order")
 
 
 @admin.register(StrategicObjective)
@@ -38,6 +48,7 @@ class StrategicObjectiveAdmin(admin.ModelAdmin):
     list_filter = ("perspective", "theme", "status")
     search_fields = ("code", "title", "kpi")
     ordering = ("perspective", "theme", "order", "code")
+    filter_horizontal = ("feeds_into",)
 
 
 @admin.register(Competitor)

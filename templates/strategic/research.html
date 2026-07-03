@@ -7,7 +7,7 @@
 <div class="topbar">
   <div><h1>کتابخانه مطالعات</h1><div class="sub">آرشیو پژوهش‌ها و گزارش‌های تحلیلی اداره</div></div>
   {% if perms.strategic.add_study %}
-  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن مطالعه</button>
+  <button class="btn accent" onclick="newStudy()"><i class="fa-solid fa-plus"></i>افزودن مطالعه</button>
   {% endif %}
 </div>
 
@@ -31,6 +31,13 @@
     <div class="field">{{ s.field }}</div>
     <div class="body"><h4>{{ s.title }}</h4><div class="meta"><i class="fa-solid fa-calendar-days"></i> {{ s.date|default:"—" }}</div></div>
     <span class="status-pill {{ s.status }}">{{ s.get_status_display }}</span>
+    {% if perms.strategic.change_study %}
+    <button type="button" onclick="editStudy(this)"
+      data-id="{{ s.pk }}" data-title="{{ s.title }}" data-field="{{ s.field }}" data-date="{{ s.date }}" data-status="{{ s.status }}"
+      style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:0 4px;">
+      <i class="fa-solid fa-pen"></i>
+    </button>
+    {% endif %}
     {% if perms.strategic.delete_study %}
     <form method="post" action="{% url 'strategic:study_delete' s.pk %}" onsubmit="return confirm('این مطالعه حذف شود؟');">
       {% csrf_token %}
@@ -45,36 +52,47 @@
 
 <div class="overlay" id="overlay">
   <div class="modal-card">
-    <h3>افزودن مطالعه جدید</h3>
-    <form method="post">
+    <h3 id="modalTitle">افزودن مطالعه جدید</h3>
+    <form method="post" id="studyForm">
       {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>عنوان مطالعه</label>{{ form.title }}</div>
       <div class="field-group"><label>حوزه</label>{{ form.field }}</div>
       <div class="field-group"><label>تاریخ (شمسی)</label>{{ form.date }}</div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
-        <button type="submit" class="btn accent">ثبت مطالعه</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت مطالعه</button>
       </div>
     </form>
   </div>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'programs/css/datepicker.css' %}">
-{% endblock %}
-
 {% block extra_js %}
-<script src="{% static 'programs/js/jalali-datepicker.js' %}"></script>
+<script src="{% static 'js/jalali-picker.js' %}"></script>
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
-  // این بخش را مطابق API دقیق کتابخانه jalali-datepicker خودتان تنظیم کنید
-  document.addEventListener('DOMContentLoaded', function(){
-    if (window.jalaliDatepicker && typeof jalaliDatepicker.startWatch === 'function') {
-      jalaliDatepicker.startWatch({ selector: '.jalali-date-input', time: false, persianDigit: true, autoHide: true });
-    }
-  });
+
+  function newStudy(){
+    document.getElementById('studyForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن مطالعه جدید';
+    document.getElementById('submitBtn').textContent = 'ثبت مطالعه';
+    openModal();
+  }
+
+  function editStudy(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_title').value = d.title;
+    document.getElementById('id_field').value = d.field;
+    document.getElementById('id_date').value = d.date;
+    document.getElementById('id_status').value = d.status;
+    document.getElementById('modalTitle').textContent = 'ویرایش مطالعه';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
 </script>
 {% endblock %}

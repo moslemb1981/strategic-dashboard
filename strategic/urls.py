@@ -23,6 +23,7 @@ urlpatterns = [
 
     path("swot/", views.swot, name="swot"),
     path("swot/delete/<int:pk>/", views.swot_delete, name="swot_delete"),
+    path("swot/tows/delete/<int:pk>/", views.tows_delete, name="tows_delete"),
 
     path("risk/", views.risk, name="risk"),
     path("risk/delete/<int:pk>/", views.risk_delete, name="risk_delete"),

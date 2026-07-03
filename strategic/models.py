@@ -62,13 +62,43 @@ class Initiative(models.Model):
 
 
 class Risk(models.Model):
-    LEVEL_CHOICES = [(1, "کم"), (2, "متوسط"), (3, "زیاد"), (4, "خیلی زیاد")]
+    LEVEL_CHOICES = [(1, "۱ - بسیار کم"), (2, "۲ - کم"), (3, "۳ - متوسط"), (4, "۴ - زیاد"), (5, "۵ - بسیار زیاد")]
+    CATEGORY_CHOICES = [
+        ("ops", "زنجیره تأمین/عملیاتی"), ("mkt", "بازار و رقابت"), ("fin", "مالی و ارزی"),
+        ("legal", "انطباق و قانونی"), ("it", "فناوری اطلاعات"), ("hr", "منابع انسانی"),
+    ]
+    CATEGORY_COLOR = {"ops": "#1183c9", "mkt": "#d6402f", "fin": "#0f8a6a",
+                       "legal": "#d08a1f", "it": "#17a3a3", "hr": "#7b5cd6"}
+    RESPONSE_CHOICES = [
+        ("mitigate", "کاهش (Mitigate)"), ("transfer", "انتقال (Transfer)"),
+        ("accept", "پذیرش (Accept)"), ("avoid", "اجتناب (Avoid)"),
+    ]
+    TREND_CHOICES = [("up", "افزایشی"), ("down", "کاهشی"), ("flat", "پایدار")]
 
     title = models.CharField(max_length=300, verbose_name="عنوان ریسک")
-    owner = models.CharField(max_length=150, verbose_name="مسئول", blank=True)
-    likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="احتمال وقوع")
-    impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="شدت اثر")
-    mitigation = models.TextField(verbose_name="اقدام کاهشی", blank=True)
+    owner = models.CharField(max_length=150, verbose_name="مالک ریسک", blank=True)
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default="ops", verbose_name="دسته‌بندی")
+
+    # ریسک ذاتی: پیش از هرگونه کنترل
+    inherent_likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=4, verbose_name="احتمال (ذاتی)")
+    inherent_impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=4, verbose_name="شدت اثر (ذاتی)")
+
+    # ریسک باقیمانده: وضعیت فعلی، پس از کنترل‌های موجود
+    likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=3, verbose_name="احتمال (باقیمانده)")
+    impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=3, verbose_name="شدت اثر (باقیمانده)")
+
+    # ریسک هدف: سطح قابل‌قبول پس از تکمیل اقدامات برنامه‌ریزی‌شده
+    target_likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="احتمال (هدف)")
+    target_impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="شدت اثر (هدف)")
+
+    response_strategy = models.CharField(max_length=10, choices=RESPONSE_CHOICES, default="mitigate", verbose_name="راهبرد پاسخ")
+    trend = models.CharField(max_length=5, choices=TREND_CHOICES, default="flat", verbose_name="روند نسبت به دوره قبل")
+    kri = models.CharField(max_length=200, blank=True, verbose_name="شاخص کلیدی ریسک (KRI)")
+    mitigation = models.TextField(verbose_name="اقدامات کنترلی (هر خط یک مورد)", blank=True)
+    linked_objective = models.ForeignKey(
+        "StrategicObjective", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="risks", verbose_name="هدف استراتژیک تهدیدشده",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -79,22 +109,63 @@ class Risk(models.Model):
     def __str__(self):
         return self.title
 
+    @staticmethod
+    def _zone_of(score):
+        if score >= 15:
+            return "crit"
+        if score >= 10:
+            return "high"
+        if score >= 5:
+            return "med"
+        return "low"
+
+    @property
+    def inherent_score(self):
+        return self.inherent_likelihood * self.inherent_impact
+
+    @property
+    def residual_score(self):
+        return self.likelihood * self.impact
+
+    @property
+    def target_score(self):
+        return self.target_likelihood * self.target_impact
+
+    # نگه‌داری برای سازگاری با کدهای قبلی که severity_sum را صدا می‌زنند
     @property
     def severity_sum(self):
-        return self.likelihood + self.impact
+        return self.residual_score
 
     @property
     def zone(self):
-        s = self.severity_sum
-        if s <= 4:
-            return "green"
-        if s <= 6:
-            return "amber"
-        return "red"
+        return self._zone_of(self.residual_score)
+
+    @property
+    def inherent_zone(self):
+        return self._zone_of(self.inherent_score)
+
+    @property
+    def target_zone(self):
+        return self._zone_of(self.target_score)
+
+    @property
+    def category_color(self):
+        return self.CATEGORY_COLOR.get(self.category, "#5a6474")
+
+    @property
+    def effectiveness_pct(self):
+        """چند درصد از ریسک ذاتی، توسط کنترل‌های موجود کاهش یافته."""
+        if self.inherent_score <= 0:
+            return 0
+        return round((self.inherent_score - self.residual_score) / self.inherent_score * 100)
+
+    @property
+    def mitigation_list(self):
+        return [m.strip() for m in self.mitigation.splitlines() if m.strip()]
 
     @property
     def sev_class(self):
-        return {"red": "high", "amber": "med", "green": "low"}[self.zone]
+        return {"crit": "high", "high": "high", "med": "med", "low": "low"}[self.zone]
 
 
 class SWOTItem(models.Model):
@@ -105,19 +176,43 @@ class SWOTItem(models.Model):
         ("t", "تهدید"),
     ]
     IMPACT_CHOICES = [("high", "بالا"), ("med", "متوسط")]
+    WEIGHT_CHOICES = [(1, "۱"), (2, "۲"), (3, "۳"), (4, "۴"), (5, "۵")]
 
     category = models.CharField(max_length=1, choices=CATEGORY_CHOICES)
     text = models.CharField(max_length=300, verbose_name="متن")
     impact = models.CharField(max_length=10, choices=IMPACT_CHOICES, default="med", verbose_name="اهمیت")
+    weight = models.PositiveSmallIntegerField(choices=WEIGHT_CHOICES, default=3, verbose_name="وزن اهمیت (۱ تا ۵)")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["-weight", "created_at"]
         verbose_name = "مورد SWOT"
         verbose_name_plural = "موارد SWOT"
 
     def __str__(self):
         return self.text
+
+
+class TOWSStrategy(models.Model):
+    CATEGORY_CHOICES = [
+        ("so", "SO — تهاجمی"),
+        ("st", "ST — تنوع"),
+        ("wo", "WO — بازنگری"),
+        ("wt", "WT — تدافعی"),
+    ]
+
+    category = models.CharField(max_length=2, choices=CATEGORY_CHOICES, verbose_name="نوع راهبرد")
+    text = models.CharField(max_length=300, verbose_name="متن راهبرد")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["category", "order"]
+        verbose_name = "راهبرد TOWS"
+        verbose_name_plural = "راهبردهای TOWS"
+
+    def __str__(self):
+        return f"{self.get_category_display()} — {self.text}"
 
 
 class StrategicObjective(models.Model):
@@ -150,6 +245,10 @@ class StrategicObjective(models.Model):
     kpi = models.CharField(max_length=300, verbose_name="KPI", blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="on", verbose_name="وضعیت")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    feeds_into = models.ManyToManyField(
+        "self", blank=True, symmetrical=False, related_name="fed_by",
+        verbose_name="این هدف به کدام هدف(ها) کمک می‌کند",
+    )
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

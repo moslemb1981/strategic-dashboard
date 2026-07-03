@@ -27,3 +27,4 @@ Thumbs.db
 
 # لاگ‌ها
 *.log
+logs/*.log

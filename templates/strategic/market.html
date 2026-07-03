@@ -7,7 +7,7 @@
 <div class="topbar">
   <div><h1>هوش رقابتی و بازار</h1><div class="sub">رصد بازیگران بازار قطعات یدکی و روندهای صنعت</div></div>
   {% if perms.strategic.add_competitor %}
-  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن بازیگر</button>
+  <button class="btn accent" onclick="newCompetitor()"><i class="fa-solid fa-plus"></i>افزودن بازیگر</button>
   {% endif %}
 </div>
 
@@ -18,6 +18,15 @@
       <h4>{{ c.name }}</h4>
       <span style="display:flex;align-items:center;gap:10px;">
         <span class="share">{{ c.market_share }}٪</span>
+        {% if perms.strategic.change_competitor %}
+        <button type="button" onclick="editCompetitor(this)"
+          data-id="{{ c.pk }}" data-name="{{ c.name }}" data-share="{{ c.market_share }}"
+          data-strengths="{{ c.strengths }}" data-weaknesses="{{ c.weaknesses }}"
+          data-move="{{ c.recent_move }}" data-order="{{ c.order }}"
+          style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:0;">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        {% endif %}
         {% if perms.strategic.delete_competitor %}
         <form method="post" action="{% url 'strategic:competitor_delete' c.pk %}" style="margin:0;" onsubmit="return confirm('این بازیگر حذف شود؟');">
           {% csrf_token %}
@@ -42,9 +51,10 @@
 
 <div class="overlay" id="overlay">
   <div class="modal-card">
-    <h3>افزودن بازیگر بازار</h3>
-    <form method="post">
+    <h3 id="modalTitle">افزودن بازیگر بازار</h3>
+    <form method="post" id="compForm">
       {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>نام بازیگر</label>{{ form.name }}</div>
       <div class="field-group"><label>سهم بازار (٪)</label>{{ form.market_share }}</div>
       <div class="field-group"><label>نقاط قوت</label>{{ form.strengths }}</div>
@@ -53,7 +63,7 @@
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
-        <button type="submit" class="btn accent">ثبت بازیگر</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت بازیگر</button>
       </div>
     </form>
   </div>
@@ -64,5 +74,27 @@
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newCompetitor(){
+    document.getElementById('compForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن بازیگر بازار';
+    document.getElementById('submitBtn').textContent = 'ثبت بازیگر';
+    openModal();
+  }
+
+  function editCompetitor(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_name').value = d.name;
+    document.getElementById('id_market_share').value = d.share;
+    document.getElementById('id_strengths').value = d.strengths;
+    document.getElementById('id_weaknesses').value = d.weaknesses;
+    document.getElementById('id_recent_move').value = d.move;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('modalTitle').textContent = 'ویرایش بازیگر بازار';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
 </script>
 {% endblock %}

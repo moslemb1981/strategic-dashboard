@@ -1,4 +1,5 @@
 {% load static %}
+{% load jalali_tags %}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -23,7 +24,7 @@
       <i class="fa-solid fa-chevron-left"></i><b>{% block crumb %}خانه{% endblock %}</b>
     </div>
     <div class="right">
-      <span>تیر ۱۴۰۵</span>
+      <span>{% jalali_now %}</span>
       {% if user.is_authenticated %}
       <span><i class="fa-solid fa-circle-user"></i> {{ user.get_full_name|default:user.username }}</span>
       <form method="post" action="{% url 'strategic:logout' %}" style="margin:0;">

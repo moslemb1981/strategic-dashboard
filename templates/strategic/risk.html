@@ -1,64 +1,256 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}نقشه ریسک استراتژیک{% endblock %}
 {% block crumb %}نقشه ریسک استراتژیک{% endblock %}
 
+{% block extra_css %}
+<style>
+  .rd{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;
+    --ink:#0d1b2e;--muted:#5a6474;--hair:#dde1e8;--brake:#d64528;--card:#fff;
+    --z-low:#2fa96b;--z-med:#e3b23c;--z-high:#e2792e;--z-crit:#d6402f;}
+  .rd *{box-sizing:border-box;}
+
+  .rd .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:.8rem;margin-bottom:1rem;}
+  @media(max-width:900px){.rd .kpis{grid-template-columns:repeat(2,1fr);}}
+  .rd .kpi{background:var(--card);border:1px solid var(--hair);border-radius:12px;padding:.9rem 1rem;position:relative;overflow:hidden;box-shadow:0 8px 20px -14px rgba(13,27,46,.3);}
+  .rd .kpi::after{content:"";position:absolute;top:0;right:0;width:4px;height:100%;background:var(--kc,var(--brake));}
+  .rd .kpi .k-lbl{font-size:.68rem;color:var(--muted);font-weight:500;margin-bottom:.35rem;}
+  .rd .kpi .k-val{font-size:1.9rem;font-weight:900;line-height:1;letter-spacing:-.02em;}
+  .rd .kpi .k-val small{font-size:.85rem;font-weight:600;color:var(--muted);}
+  .rd .kpi .k-sub{font-size:.66rem;color:var(--muted);margin-top:.35rem;}
+
+  .rd .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:1rem;align-items:start;margin-bottom:1rem;}
+  @media(max-width:980px){.rd .grid{grid-template-columns:1fr;}}
+
+  .rd .panel{position:relative;border-radius:14px;padding:1.2rem 1.2rem 1rem;
+    background:radial-gradient(120% 100% at 50% -10%,#12294a 0%,#0c1a30 55%,#0a1626 100%);
+    box-shadow:0 26px 55px -25px rgba(13,27,46,.6),inset 0 0 0 1px rgba(120,160,220,.08);}
+  .rd .p-title{color:#cdd8e8;font-size:.8rem;font-weight:700;letter-spacing:.03em;margin-bottom:.9rem;display:flex;justify-content:space-between;align-items:center;}
+  .rd .p-title .tog{font-family:inherit;font-size:.68rem;font-weight:600;background:rgba(255,255,255,.08);border:1px solid rgba(150,185,235,.25);
+    color:#cdd8e8;padding:.32rem .7rem;border-radius:6px;cursor:pointer;transition:.15s;}
+  .rd .p-title .tog:hover{background:rgba(255,255,255,.15);}
+  .rd .p-title .tog.on{background:var(--brake);border-color:var(--brake);color:#fff;}
+  .rd .grid-area{display:grid;grid-template-columns:auto 1fr;gap:.5rem;}
+  .rd .yaxis{writing-mode:vertical-rl;text-orientation:mixed;display:flex;align-items:center;justify-content:center;color:#9fb2cb;font-size:.66rem;font-weight:600;letter-spacing:.06em;}
+  .rd .heat{position:relative;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:4px;aspect-ratio:1/.85;min-height:300px;}
+  .rd .xaxis{grid-column:2;text-align:center;color:#9fb2cb;font-size:.66rem;font-weight:600;letter-spacing:.06em;padding-top:.35rem;}
+  .rd .cell{border-radius:6px;position:relative;opacity:.85;}
+  .rd svg.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;}
+  .rd svg.arrows path{fill:none;stroke:#cdd8e8;stroke-width:1.5;stroke-dasharray:4 3;opacity:.55;}
+  .rd .bubbles{position:absolute;inset:0;display:flex;flex-wrap:wrap;gap:2px;align-items:center;justify-content:center;padding:2px;}
+  .rd .bubble{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;color:#0c1a30;cursor:pointer;
+    box-shadow:0 3px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4);border:2px solid rgba(255,255,255,.85);transition:transform .15s,opacity .2s;}
+  .rd .bubble:hover{transform:scale(1.18);}
+  .rd .bubble.ghost{opacity:.4;border-style:dashed;background:transparent!important;color:#cdd8e8;box-shadow:none;cursor:default;}
+  .rd .zonekey{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.9rem;padding-top:.8rem;border-top:1px solid rgba(120,160,220,.12);color:#9fb2cb;font-size:.64rem;}
+  .rd .zonekey span{display:inline-flex;align-items:center;gap:.35rem;}
+  .rd .zonekey i{width:11px;height:11px;border-radius:3px;}
+
+  .rd .rcol{display:flex;flex-direction:column;gap:1rem;}
+  .rd .card{background:var(--card);border:1px solid var(--hair);border-radius:14px;overflow:hidden;box-shadow:0 10px 26px -18px rgba(13,27,46,.3);}
+  .rd .c-head{padding:.8rem 1rem;border-bottom:1px solid var(--hair);font-weight:700;font-size:.85rem;}
+  .rd .c-head small{font-weight:400;color:var(--muted);font-size:.65rem;}
+  .rd .c-body{padding:.9rem 1rem;}
+  .rd .distrow{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;font-size:.72rem;}
+  .rd .distrow:last-child{margin-bottom:0;}
+  .rd .distrow .dn{width:100px;font-weight:500;flex-shrink:0;}
+  .rd .distrow .bar{flex:1;height:9px;border-radius:6px;background:#eef0f3;overflow:hidden;}
+  .rd .distrow .bar i{display:block;height:100%;border-radius:6px;}
+  .rd .distrow .dv{font-weight:700;width:18px;text-align:left;}
+  .rd .toprisk{display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid #eef0f3;}
+  .rd .toprisk:last-child{border-bottom:none;}
+  .rd .tr-dot{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:800;color:#0c1a30;}
+  .rd .tr-t{flex:1;font-size:.74rem;font-weight:500;line-height:1.35;}
+  .rd .tr-s{font-size:.66rem;font-weight:800;color:#fff;padding:.15rem .5rem;border-radius:5px;}
+  .rd .trend{font-size:.85rem;width:16px;text-align:center;}
+  .rd .trend.up{color:var(--z-crit);} .rd .trend.down{color:var(--z-low);} .rd .trend.flat{color:var(--muted);}
+
+  .rd .regwrap{background:var(--card);border:1px solid var(--hair);border-radius:14px;overflow:hidden;box-shadow:0 10px 26px -18px rgba(13,27,46,.3);margin-top:1rem;}
+  .rd .reg-top{padding:.85rem 1.1rem;border-bottom:1px solid var(--hair);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;}
+  .rd .reg-top .rt{font-weight:700;font-size:.9rem;}
+  .rd .cats{display:flex;gap:.4rem;flex-wrap:wrap;}
+  .rd .catchip{font-size:.64rem;font-weight:600;padding:.26rem .6rem;border-radius:20px;color:#fff;}
+  .rd table{width:100%;border-collapse:collapse;font-size:.74rem;}
+  .rd thead th{text-align:right;padding:.55rem 1rem;color:var(--muted);font-weight:600;font-size:.64rem;background:#f7f8fa;border-bottom:1px solid var(--hair);white-space:nowrap;}
+  .rd tbody td{padding:.5rem 1rem;border-bottom:1px solid #f0f2f5;vertical-align:middle;}
+  .rd tbody tr:hover{background:#f7f8fa;}
+  .rd .td-id{font-weight:800;color:#0c1a30;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.56rem;}
+  .rd .pill{font-size:.6rem;font-weight:600;padding:.16rem .5rem;border-radius:12px;color:#fff;white-space:nowrap;}
+  .rd .sbadge{font-weight:800;color:#fff;padding:.14rem .48rem;border-radius:5px;font-size:.68rem;}
+  .rd .sbadge.dim{opacity:.7;}
+  .rd .rowbtn{border:none;background:none;color:var(--muted);cursor:pointer;font-size:.72rem;padding:0 3px;}
+  .rd .rowbtn:hover{color:var(--brake);}
+  .rd .empty-note{padding:2rem;text-align:center;color:var(--muted);font-size:.8rem;}
+  .rd .th3{font-size:.55rem;opacity:.75;display:block;font-weight:400;}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="topbar">
-  <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">ماتریس احتمال وقوع × شدت اثر، به‌همراه ثبت اقدامات کاهشی</div></div>
-  {% if perms.strategic.add_risk %}
-  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن ریسک</button>
-  {% endif %}
-</div>
-
-<div class="risk-wrap">
-  <div class="risk-axis-y">شدت اثر ←</div>
-  <div style="flex:1;">
-    <div class="risk-matrix">
-      {% for row in matrix %}
-        {% for cell in row %}
-        <div class="risk-cell {{ cell.zone }}">
-          {% for item in cell.items %}<span class="risk-chip">{{ item }}</span>{% endfor %}
-        </div>
-        {% endfor %}
-      {% endfor %}
-    </div>
-    <div class="risk-x-labels"><span>کم</span><span>متوسط</span><span>زیاد</span><span>خیلی زیاد</span></div>
-    <div class="risk-x-title">احتمال وقوع →</div>
-  </div>
-</div>
-
-<div class="section-title">ثبت ریسک و اقدامات کاهشی</div>
-<div class="risk-register">
-  {% for r in risks %}
-  <div class="risk-row"><span class="sev {{ r.sev_class }}"></span>
-    <div class="body"><h5>{{ r.title }}</h5><div class="meta">مسئول: {{ r.owner|default:"—" }} · احتمال: {{ r.get_likelihood_display }} · اثر: {{ r.get_impact_display }}</div></div>
-    <div class="mit">{{ r.mitigation|default:"—" }}</div>
-    {% if perms.strategic.delete_risk %}
-    <form method="post" action="{% url 'strategic:risk_delete' r.pk %}" onsubmit="return confirm('این ریسک حذف شود؟');">
-      {% csrf_token %}
-      <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
-    </form>
+<div class="rd" id="rdRoot">
+  <div class="topbar">
+    <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">ماتریس ذاتی/باقیمانده/هدف · احتمال × شدت اثر (۵×۵) · چارچوب ISO 31000</div></div>
+    {% if perms.strategic.add_risk %}
+    <button class="btn accent" onclick="newRisk()"><i class="fa-solid fa-plus"></i>افزودن ریسک</button>
     {% endif %}
   </div>
-  {% empty %}
-  <div class="empty"><i class="fa-solid fa-shield-halved"></i>هنوز ریسکی ثبت نشده</div>
-  {% endfor %}
+
+  <div class="kpis">
+    <div class="kpi" style="--kc:var(--ink)"><div class="k-lbl">کل ریسک‌های شناسایی‌شده</div><div class="k-val">{{ total|fanum }}</div><div class="k-sub">در ۶ دسته سازمانی</div></div>
+    <div class="kpi" style="--kc:var(--z-high)"><div class="k-lbl">ریسک‌های زیاد و بحرانی</div><div class="k-val" style="color:var(--z-high)">{{ high_or_crit|fanum }}</div><div class="k-sub">امتیاز ۱۰ و بالاتر</div></div>
+    <div class="kpi" style="--kc:var(--z-crit)"><div class="k-lbl">بالاتر از اشتهای ریسک</div><div class="k-val" style="color:var(--z-crit)">{{ above_appetite|fanum }}</div><div class="k-sub">نیازمند اقدام فوری</div></div>
+    <div class="kpi" style="--kc:var(--z-med)"><div class="k-lbl">میانگین امتیاز باقیمانده</div><div class="k-val">{{ avg_score|fanum }}</div><div class="k-sub">از حداکثر ۲۵</div></div>
+    <div class="kpi" style="--kc:var(--z-low)"><div class="k-lbl">اثربخشی کنترل‌ها</div><div class="k-val" style="color:var(--z-low)">{{ avg_effectiveness|fanum }}<small>٪</small></div><div class="k-sub">کاهش از ذاتی به باقیمانده</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="p-title"><span>ماتریس حرارتی ریسک — احتمال × شدت اثر</span>
+        <button class="tog" id="ghostBtn">نمایش ریسک ذاتی</button></div>
+      <div class="grid-area">
+        <div class="yaxis">شدت اثر ‹ کم — زیاد ›</div>
+        <div>
+          <div class="heat" id="heat">
+            <svg class="arrows" id="arrows"></svg>
+            {% for row in matrix %}
+              {% for cell in row %}
+              <div class="cell" id="cell-{{ cell.likelihood }}-{{ cell.impact }}" data-l="{{ cell.likelihood }}" style="background:{{ cell.color }}22;">
+                <div class="bubbles">
+                  {% for r in cell.risks %}
+                  <div class="bubble" id="b-{{ r.pk }}" style="background:{{ r.category_color }}" title="{{ r.title }}">{{ r.display_no|fanum }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            {% endfor %}
+          </div>
+          <div class="xaxis">احتمال وقوع ‹ کم — زیاد ›</div>
+        </div>
+      </div>
+      <div class="zonekey">
+        <span><i style="background:var(--z-low)"></i>کم (۱–۴)</span>
+        <span><i style="background:var(--z-med)"></i>متوسط (۵–۹)</span>
+        <span><i style="background:var(--z-high)"></i>زیاد (۱۰–۱۴)</span>
+        <span><i style="background:var(--z-crit)"></i>بحرانی (۱۵–۲۵)</span>
+      </div>
+    </div>
+
+    <div class="rcol">
+      <div class="card">
+        <div class="c-head">توزیع ریسک بر حسب دسته <small>{{ total|fanum }} ریسک</small></div>
+        <div class="c-body">
+          {% for c in categories %}
+          <div class="distrow">
+            <span class="dn">{{ c.label }}</span>
+            <span class="bar"><i style="width:{{ c.pct }}%;background:{{ c.color }}"></i></span>
+            <span class="dv">{{ c.count|fanum }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="c-head">۵ ریسک برتر <small>بر اساس امتیاز باقیمانده</small></div>
+        <div class="c-body">
+          {% for r in top_risks %}
+          <div class="toprisk">
+            <span class="tr-dot" style="background:{{ r.category_color }}">{{ forloop.counter|fanum }}</span>
+            <span class="tr-t">{{ r.title }}</span>
+            <span class="trend {{ r.trend }}">{% if r.trend == "up" %}▲{% elif r.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
+            <span class="tr-s" style="background:var(--z-{% if r.zone == 'crit' %}crit{% elif r.zone == 'high' %}high{% elif r.zone == 'med' %}med{% else %}low{% endif %})">{{ r.residual_score|fanum }}</span>
+          </div>
+          {% empty %}
+          <div class="empty-note">ریسکی ثبت نشده</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="regwrap">
+    <div class="reg-top">
+      <span class="rt">دفتر ثبت ریسک سازمانی</span>
+      <div class="cats">
+        {% for c in categories %}<span class="catchip" style="background:{{ c.color }}">{{ c.label }} ({{ c.count|fanum }})</span>{% endfor %}
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>#</th><th>عنوان ریسک</th><th>دسته</th><th>مالک</th><th>راهبرد پاسخ</th>
+          <th>ذاتی</th><th>باقیمانده</th><th>هدف</th><th>روند</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for r in risks %}
+          <tr>
+            <td><span class="td-id" style="background:{{ r.category_color }}">{{ forloop.counter|fanum }}</span></td>
+            <td style="max-width:220px">{{ r.title }}</td>
+            <td><span class="pill" style="background:{{ r.category_color }}">{{ r.get_category_display }}</span></td>
+            <td style="white-space:nowrap">{{ r.owner|default:"—" }}</td>
+            <td style="white-space:nowrap">{{ r.get_response_strategy_display }}</td>
+            <td><span class="sbadge" style="background:var(--z-{% if r.inherent_zone == 'crit' %}crit{% elif r.inherent_zone == 'high' %}high{% elif r.inherent_zone == 'med' %}med{% else %}low{% endif %})">{{ r.inherent_score|fanum }}</span></td>
+            <td><span class="sbadge" style="background:var(--z-{% if r.zone == 'crit' %}crit{% elif r.zone == 'high' %}high{% elif r.zone == 'med' %}med{% else %}low{% endif %})">{{ r.residual_score|fanum }}</span></td>
+            <td><span class="sbadge dim" style="background:var(--z-{% if r.target_zone == 'crit' %}crit{% elif r.target_zone == 'high' %}high{% elif r.target_zone == 'med' %}med{% else %}low{% endif %})">{{ r.target_score|fanum }}</span></td>
+            <td><span class="trend {{ r.trend }}">{% if r.trend == "up" %}▲{% elif r.trend == "down" %}▼{% else %}◂▸{% endif %}</span></td>
+            <td style="white-space:nowrap">
+              {% if perms.strategic.change_risk %}
+              <button type="button" class="rowbtn" onclick="editRisk(this)"
+                data-id="{{ r.pk }}" data-title="{{ r.title }}" data-owner="{{ r.owner }}" data-category="{{ r.category }}"
+                data-il="{{ r.inherent_likelihood }}" data-ii="{{ r.inherent_impact }}"
+                data-l="{{ r.likelihood }}" data-i="{{ r.impact }}"
+                data-tl="{{ r.target_likelihood }}" data-ti="{{ r.target_impact }}"
+                data-response="{{ r.response_strategy }}" data-trend="{{ r.trend }}" data-kri="{{ r.kri }}"
+                data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              {% endif %}
+              {% if perms.strategic.delete_risk %}
+              <form method="post" action="{% url 'strategic:risk_delete' r.pk %}" style="display:inline;" onsubmit="return confirm('این ریسک حذف شود؟');">
+                {% csrf_token %}<button type="submit" class="rowbtn"><i class="fa-solid fa-trash"></i></button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="empty-note">هنوز ریسکی ثبت نشده</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p style="font-size:.7rem;color:var(--ink-faint);margin-top:.8rem;">اندازه حباب و رنگ امتیاز = سطح ریسک باقیمانده · «نمایش ریسک ذاتی» موقعیت پیش از کنترل‌ها را با خط‌چین نشان می‌دهد</p>
 </div>
 
 <div class="overlay" id="overlay">
-  <div class="modal-card">
-    <h3>افزودن ریسک جدید</h3>
-    <form method="post">
+  <div class="modal-card" style="max-width:480px;">
+    <h3 id="modalTitle">افزودن ریسک جدید</h3>
+    <form method="post" id="riskForm">
       {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>عنوان ریسک</label>{{ form.title }}</div>
-      <div class="field-group"><label>مسئول</label>{{ form.owner }}</div>
-      <div class="field-group"><label>احتمال وقوع</label>{{ form.likelihood }}</div>
-      <div class="field-group"><label>شدت اثر</label>{{ form.impact }}</div>
-      <div class="field-group"><label>اقدام کاهشی</label>{{ form.mitigation }}</div>
+      <div class="field-group"><label>مالک ریسک</label>{{ form.owner }}</div>
+      <div class="field-group"><label>دسته‌بندی</label>{{ form.category }}</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>احتمال (ذاتی)</label>{{ form.inherent_likelihood }}</div>
+        <div class="field-group"><label>شدت اثر (ذاتی)</label>{{ form.inherent_impact }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>احتمال (باقیمانده - فعلی)</label>{{ form.likelihood }}</div>
+        <div class="field-group"><label>شدت اثر (باقیمانده - فعلی)</label>{{ form.impact }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>احتمال (هدف)</label>{{ form.target_likelihood }}</div>
+        <div class="field-group"><label>شدت اثر (هدف)</label>{{ form.target_impact }}</div>
+      </div>
+
+      <div class="field-group"><label>راهبرد پاسخ</label>{{ form.response_strategy }}</div>
+      <div class="field-group"><label>روند نسبت به دوره قبل</label>{{ form.trend }}</div>
+      <div class="field-group"><label>شاخص کلیدی ریسک (KRI)</label>{{ form.kri }}</div>
+      <div class="field-group"><label>هدف استراتژیک تهدیدشده</label>{{ form.linked_objective }}</div>
+      <div class="field-group"><label>اقدامات کنترلی (هر خط یک مورد)</label>{{ form.mitigation }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
-        <button type="submit" class="btn accent">ثبت ریسک</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت ریسک</button>
       </div>
     </form>
   </div>
@@ -66,8 +258,86 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ risks_json|json_script:"risks-data" }}
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newRisk(){
+    document.getElementById('riskForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن ریسک جدید';
+    document.getElementById('submitBtn').textContent = 'ثبت ریسک';
+    openModal();
+  }
+
+  function editRisk(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_title').value = d.title;
+    document.getElementById('id_owner').value = d.owner;
+    document.getElementById('id_category').value = d.category;
+    document.getElementById('id_inherent_likelihood').value = d.il;
+    document.getElementById('id_inherent_impact').value = d.ii;
+    document.getElementById('id_likelihood').value = d.l;
+    document.getElementById('id_impact').value = d.i;
+    document.getElementById('id_target_likelihood').value = d.tl;
+    document.getElementById('id_target_impact').value = d.ti;
+    document.getElementById('id_response_strategy').value = d.response;
+    document.getElementById('id_trend').value = d.trend;
+    document.getElementById('id_kri').value = d.kri;
+    document.getElementById('id_mitigation').value = d.mitigation;
+    document.getElementById('id_linked_objective').value = d.linked || '';
+    document.getElementById('modalTitle').textContent = 'ویرایش ریسک';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+
+  // ---------------- Ghost (inherent risk) toggle ----------------
+  (function(){
+    const heat = document.getElementById('heat');
+    const arrows = document.getElementById('arrows');
+    const btn = document.getElementById('ghostBtn');
+    const risksData = JSON.parse(document.getElementById('risks-data').textContent);
+    let showGhost = false;
+
+    function cellEl(l, i){ return document.getElementById('cell-' + l + '-' + i); }
+
+    function clearGhosts(){
+      document.querySelectorAll('.rd .bubble.ghost').forEach(el => el.remove());
+      arrows.innerHTML = '';
+    }
+
+    function drawGhosts(){
+      clearGhosts();
+      if (!showGhost) return;
+      const hr = heat.getBoundingClientRect();
+      risksData.forEach(r => {
+        if (r.inherent_likelihood === r.likelihood && r.inherent_impact === r.impact) return;
+        const cell = cellEl(r.inherent_likelihood, r.inherent_impact);
+        const real = document.getElementById('b-' + r.pk);
+        if (!cell || !real) return;
+        const g = document.createElement('div');
+        g.className = 'bubble ghost';
+        g.textContent = real.textContent;
+        cell.querySelector('.bubbles').appendChild(g);
+
+        const ga = g.getBoundingClientRect(), rb = real.getBoundingClientRect();
+        const x1 = ga.left - hr.left + ga.width/2, y1 = ga.top - hr.top + ga.height/2;
+        const x2 = rb.left - hr.left + rb.width/2, y2 = rb.top - hr.top + rb.height/2;
+        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+        arrows.appendChild(p);
+      });
+    }
+
+    btn.addEventListener('click', () => {
+      showGhost = !showGhost;
+      btn.classList.toggle('on', showGhost);
+      btn.textContent = showGhost ? 'مخفی‌کردن ریسک ذاتی' : 'نمایش ریسک ذاتی';
+      drawGhosts();
+    });
+    window.addEventListener('resize', () => { if (showGhost) drawGhosts(); });
+  })();
 </script>
 {% endblock %}
