@@ -1,0 +1,92 @@
+/* استایل‌های تاریخ‌پیکر شمسی */
+.jalali-datepicker {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.datepicker-header button {
+    transition: all 0.2s;
+}
+
+.datepicker-header button:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.days-container div {
+    transition: all 0.2s;
+}
+
+.days-container div:hover {
+    background-color: #e9ecef !important;
+    transform: scale(1.05);
+}
+
+.days-container div:active {
+    transform: scale(0.95);
+}
+
+.datepicker-footer button {
+    transition: all 0.2s;
+}
+
+.datepicker-footer button:hover {
+    opacity: 0.9;
+}
+
+.btn-today {
+    background-color: #007bff;
+    color: white;
+    border: none;
+}
+
+.btn-today:hover {
+    background-color: #0056b3;
+}
+
+.btn-clear {
+    background-color: transparent;
+    border: 1px solid #dc3545;
+}
+
+.btn-clear:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* استایل برای inputهای تاریخ */
+input[type="text"].jalali-datepicker {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 0.75rem center;
+    background-size: 16px 16px;
+    padding-left: 2.5rem;
+    cursor: pointer;
+}
+
+input[type="text"].jalali-datepicker:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* ریسپانسیو */
+@media (max-width: 576px) {
+    .jalali-datepicker {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%);
+        width: 90vw !important;
+        max-width: 300px;
+    }
+}

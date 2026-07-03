@@ -1,0 +1,67 @@
+/* static/css/style.css */
+body {
+    font-family: 'Vazirmatn', sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: 700;
+}
+
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    border: 1px solid #e3e6f0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 700;
+    color: #6e707e;
+}
+
+.btn {
+    border-radius: 0.35rem;
+}
+
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+/* استایل برای selectها */
+.form-select {
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #d1d3e2;
+}
+
+.form-select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+/* استایل برای جدول */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+/* استایل برای کارت‌های آماری */
+.card-border-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.card-border-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.card-border-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.card-border-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}

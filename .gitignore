@@ -1,0 +1,29 @@
+# محیط مجازی پایتون
+venv/
+env/
+*.egg-info/
+
+# فایل‌های کامپایل‌شده پایتون
+__pycache__/
+*.py[cod]
+*$py.class
+
+# دیتابیس محلی (هرکسی که پروژه رو کلون می‌کنه، خودش migrate می‌کنه)
+db.sqlite3
+db.sqlite3-journal
+
+# فایل‌های تنظیمات حساس / محلی
+.env
+*.local
+
+# خروجی collectstatic (اگر جدا از static/ منبع جمع‌آوری بشه)
+staticfiles/
+
+# فایل‌های ویرایشگر و سیستم‌عامل
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# لاگ‌ها
+*.log

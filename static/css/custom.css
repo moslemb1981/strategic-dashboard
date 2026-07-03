@@ -1,0 +1,40 @@
+body { font-family: 'Vazirmatn', Tahoma, sans-serif; }
+.table td, .table th { vertical-align: middle; }
+
+/* فرم های سامانه */
+
+.card-body,
+.table,
+.form-control,
+.form-select,
+.btn {
+
+    font-size: 0.85rem;
+
+}
+
+/* تیتر کارت ها */
+
+.card-header h4 {
+    font-size: 1.3rem;
+}
+
+.card-header h5 {
+    font-size: 1.05rem;
+}
+
+/* جدول ها */
+
+.table th {
+    font-size: 0.85rem;
+}
+
+.table td {
+    font-size: 0.82rem;
+}
+
+/* ورودی ها */
+
+.form-control-sm {
+    font-size: 0.8rem;
+}

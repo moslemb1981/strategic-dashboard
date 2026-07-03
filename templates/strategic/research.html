@@ -1,0 +1,76 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}کتابخانه مطالعات{% endblock %}
+{% block crumb %}کتابخانه مطالعات{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>کتابخانه مطالعات</h1><div class="sub">آرشیو پژوهش‌ها و گزارش‌های تحلیلی اداره</div></div>
+  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن مطالعه</button>
+</div>
+
+<form class="toolbar" method="get">
+  <div class="search" style="min-width:220px"><i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" name="q" value="{{ q }}" placeholder="جست‌وجو بر اساس عنوان..." onchange="this.form.submit()">
+  </div>
+  <div class="filters">
+    <select name="status" onchange="this.form.submit()">
+      <option value="">همه وضعیت‌ها</option>
+      <option value="done" {% if status == "done" %}selected{% endif %}>تکمیل‌شده</option>
+      <option value="progress" {% if status == "progress" %}selected{% endif %}>در حال انجام</option>
+      <option value="planned" {% if status == "planned" %}selected{% endif %}>برنامه‌ریزی‌شده</option>
+    </select>
+  </div>
+</form>
+
+<div class="rec-list">
+  {% for s in studies %}
+  <div class="rec-item">
+    <div class="field">{{ s.field }}</div>
+    <div class="body"><h4>{{ s.title }}</h4><div class="meta"><i class="fa-solid fa-calendar-days"></i> {{ s.date|default:"—" }}</div></div>
+    <span class="status-pill {{ s.status }}">{{ s.get_status_display }}</span>
+    <form method="post" action="{% url 'strategic:study_delete' s.pk %}" onsubmit="return confirm('این مطالعه حذف شود؟');">
+      {% csrf_token %}
+      <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
+    </form>
+  </div>
+  {% empty %}
+  <div class="empty"><i class="fa-solid fa-magnifying-glass"></i>موردی یافت نشد</div>
+  {% endfor %}
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3>افزودن مطالعه جدید</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-group"><label>عنوان مطالعه</label>{{ form.title }}</div>
+      <div class="field-group"><label>حوزه</label>{{ form.field }}</div>
+      <div class="field-group"><label>تاریخ (شمسی)</label>{{ form.date }}</div>
+      <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت مطالعه</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'programs/css/datepicker.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'programs/js/jalali-datepicker.js' %}"></script>
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+  // این بخش را مطابق API دقیق کتابخانه jalali-datepicker خودتان تنظیم کنید
+  document.addEventListener('DOMContentLoaded', function(){
+    if (window.jalaliDatepicker && typeof jalaliDatepicker.startWatch === 'function') {
+      jalaliDatepicker.startWatch({ selector: '.jalali-date-input', time: false, persianDigit: true, autoHide: true });
+    }
+  });
+</script>
+{% endblock %}

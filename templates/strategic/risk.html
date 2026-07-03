@@ -1,0 +1,69 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}نقشه ریسک استراتژیک{% endblock %}
+{% block crumb %}نقشه ریسک استراتژیک{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">ماتریس احتمال وقوع × شدت اثر، به‌همراه ثبت اقدامات کاهشی</div></div>
+  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن ریسک</button>
+</div>
+
+<div class="risk-wrap">
+  <div class="risk-axis-y">شدت اثر ←</div>
+  <div style="flex:1;">
+    <div class="risk-matrix">
+      {% for row in matrix %}
+        {% for cell in row %}
+        <div class="risk-cell {{ cell.zone }}">
+          {% for item in cell.items %}<span class="risk-chip">{{ item }}</span>{% endfor %}
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+    <div class="risk-x-labels"><span>کم</span><span>متوسط</span><span>زیاد</span><span>خیلی زیاد</span></div>
+    <div class="risk-x-title">احتمال وقوع →</div>
+  </div>
+</div>
+
+<div class="section-title">ثبت ریسک و اقدامات کاهشی</div>
+<div class="risk-register">
+  {% for r in risks %}
+  <div class="risk-row"><span class="sev {{ r.sev_class }}"></span>
+    <div class="body"><h5>{{ r.title }}</h5><div class="meta">مسئول: {{ r.owner|default:"—" }} · احتمال: {{ r.get_likelihood_display }} · اثر: {{ r.get_impact_display }}</div></div>
+    <div class="mit">{{ r.mitigation|default:"—" }}</div>
+    <form method="post" action="{% url 'strategic:risk_delete' r.pk %}" onsubmit="return confirm('این ریسک حذف شود؟');">
+      {% csrf_token %}
+      <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
+    </form>
+  </div>
+  {% empty %}
+  <div class="empty"><i class="fa-solid fa-shield-halved"></i>هنوز ریسکی ثبت نشده</div>
+  {% endfor %}
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3>افزودن ریسک جدید</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-group"><label>عنوان ریسک</label>{{ form.title }}</div>
+      <div class="field-group"><label>مسئول</label>{{ form.owner }}</div>
+      <div class="field-group"><label>احتمال وقوع</label>{{ form.likelihood }}</div>
+      <div class="field-group"><label>شدت اثر</label>{{ form.impact }}</div>
+      <div class="field-group"><label>اقدام کاهشی</label>{{ form.mitigation }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت ریسک</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+</script>
+{% endblock %}

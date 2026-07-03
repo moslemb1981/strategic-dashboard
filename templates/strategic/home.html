@@ -1,0 +1,92 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}خانه{% endblock %}
+{% block crumb %}خانه{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>خانه</h1><div class="sub">نمای کلی وضعیت مطالعات، ریسک‌ها و شاخص‌های استراتژیک</div></div>
+  <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="جست‌وجو..."></div>
+</div>
+
+<div class="gauge-row">
+  <div class="gauge-card">
+    <div class="gauge-holder" id="gauge-goals"></div>
+    <div class="gauge-meta"><div class="label">پیشرفت اهداف استراتژیک ۱۴۰۴</div><div class="value">۷۲ از ۱۰۰</div><div class="trend up">↑ ۴٪ نسبت به فصل قبل</div></div>
+  </div>
+  <div class="gauge-card">
+    <div class="gauge-holder" id="gauge-initiatives"></div>
+    <div class="gauge-meta"><div class="label">ابتکارات در مسیر نقشه راه</div><div class="value">۴ از ۶ ابتکار</div><div class="trend down">↓ ۲ ابتکار با تأخیر</div></div>
+  </div>
+  <div class="gauge-card">
+    <div class="gauge-holder" id="gauge-research"></div>
+    <div class="gauge-meta"><div class="label">پوشش مطالعات بازار</div><div class="value">۹ حوزه از ۱۰</div><div class="trend up">به‌روز تا این هفته</div></div>
+  </div>
+  <div class="gauge-card">
+    <div class="gauge-holder" id="gauge-risk"></div>
+    <div class="gauge-meta"><div class="label">ریسک‌های استراتژیک باز</div><div class="value">۶ ریسک فعال</div><div class="trend down">۲ ریسک با شدت بالا</div></div>
+  </div>
+</div>
+
+<div class="section-title">ماژول‌ها</div>
+<div class="card-grid" style="margin-bottom:26px;">
+  <a class="module-card" href="{% url 'strategic:research' %}">
+    <div class="icon"><i class="fa-solid fa-book"></i></div>
+    <h3>کتابخانه مطالعات</h3><p>پژوهش‌ها و گزارش‌های تحلیلی اداره</p>
+    <div class="stat">۴ مطالعه ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:roadmap' %}">
+    <div class="icon"><i class="fa-solid fa-route"></i></div>
+    <h3>نقشه راه ابتکارات</h3><p>زمان‌بندی فصلی پروژه‌های تحول</p>
+    <div class="stat">۶ ابتکار فعال</div></a>
+  <a class="module-card" href="{% url 'strategic:market' %}">
+    <div class="icon"><i class="fa-solid fa-chart-line"></i></div>
+    <h3>هوش رقابتی و بازار</h3><p>سهم بازیگران و حرکات اخیر رقبا</p>
+    <div class="stat">۴ بازیگر رصدشده</div></a>
+  <a class="module-card" href="{% url 'strategic:pestel' %}">
+    <div class="icon"><i class="fa-solid fa-earth-americas"></i></div>
+    <h3>تحلیل PESTEL</h3><p>روندهای کلان محیط صنعت خودرو</p>
+    <div class="stat">۶ بُعد محیطی</div></a>
+  <a class="module-card" href="{% url 'strategic:stratmap' %}">
+    <div class="icon"><i class="fa-solid fa-map"></i></div>
+    <h3>نقشه استراتژیک</h3><p>اهداف در قالب کارت امتیازی متوازن</p>
+    <div class="stat">۴ منظر، ۱۲ هدف</div></a>
+  <a class="module-card" href="{% url 'strategic:swot' %}">
+    <div class="icon"><i class="fa-solid fa-table-cells"></i></div>
+    <h3>تحلیل SWOT</h3><p>ماتریس عوامل به‌همراه استراتژی TOWS</p>
+    <div class="stat">قابل ویرایش زنده</div></a>
+  <a class="module-card" href="{% url 'strategic:risk' %}">
+    <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <h3>نقشه ریسک استراتژیک</h3><p>ماتریس احتمال × شدت اثر ریسک‌ها</p>
+    <div class="stat">۶ ریسک ثبت‌شده</div></a>
+</div>
+
+<div class="section-title">اولویت‌های این هفته</div>
+<div class="panel"><ul class="brief-list">
+  <li><span class="sev-dot high"></span><span class="txt">ریسک نوسان نرخ ارز — نیازمند بازنگری فوری سناریوی هزینه</span><span class="tag">نقشه ریسک</span></li>
+  <li><span class="sev-dot med"></span><span class="txt">ابتکار «داشبورد KPI فروش» دو هفته عقب‌تر از برنامه است</span><span class="tag">نقشه راه</span></li>
+  <li><span class="sev-dot high"></span><span class="txt">هدف C3 (تجربه سفارش آنلاین) در وضعیت ریسک قرار دارد</span><span class="tag">نقشه استراتژیک</span></li>
+</ul></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/raphael.min.js' %}"></script>
+<script src="{% static 'js/justgage.min.js' %}"></script>
+<script>
+  function mkGauge(id, value, color){
+    return new JustGage({
+      id: id, value: value, min: 0, max: 100,
+      symbol: '%', reverseTextDirection: true,
+      relativeGaugeSize: true, gaugeWidthScale: 0.55,
+      levelColors: [color], counter: true,
+      valueFontColor: '#1B2430', labelFontColor: '#8B93A1',
+      pointer: false
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    mkGauge('gauge-goals', 72, '#2E5C8A');
+    mkGauge('gauge-initiatives', 58, '#C97A2B');
+    mkGauge('gauge-research', 90, '#3E7A52');
+    mkGauge('gauge-risk', 35, '#B0413E');
+  });
+</script>
+{% endblock %}

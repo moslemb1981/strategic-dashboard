@@ -1,0 +1,62 @@
+/* جدول شکست اهداف در admin */
+.inline-group #targetbreakdown_set-group .tabular {
+    overflow-x: auto;
+}
+
+.inline-group #targetbreakdown_set-group table {
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+.inline-group #targetbreakdown_set-group thead th {
+    background: #1e293b;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.inline-group #targetbreakdown_set-group tbody td {
+    padding: 6px 8px;
+    text-align: center;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.inline-group #targetbreakdown_set-group tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+.inline-group #targetbreakdown_set-group .field-target_value input {
+    width: 90px;
+    text-align: center;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 13px;
+}
+
+.inline-group #targetbreakdown_set-group .field-target_value input:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99,102,241,.12);
+}
+
+.inline-group #targetbreakdown_set-group .field-period select {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+/* نکته راهنما */
+.breakdown-hint {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #1d4ed8;
+    margin-bottom: 16px;
+}

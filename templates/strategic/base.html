@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}پورتال اداره مطالعات و توسعه استراتژیک{% endblock %} | سایپا یدک</title>
+
+<!-- همه چیز لوکال است — هیچ درخواستی به اینترنت زده نمی‌شود -->
+<link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/fontawesome.min.css' %}"><!-- FontAwesome core -->
+<link rel="stylesheet" href="{% static 'css/solid.min.css' %}"><!-- FontAwesome solid glyphs + font-face -->
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'css/strategic.css' %}">
+{% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<div class="shell">
+  <div class="topheader">
+    <div class="crumb">
+      <i class="fa-solid fa-industry"></i><span>سایپا یدک</span>
+      <i class="fa-solid fa-chevron-left"></i><b>{% block crumb %}خانه{% endblock %}</b>
+    </div>
+    <div class="right">
+      <span>تیر ۱۴۰۵</span>
+      {% if user.is_authenticated %}
+      <span><i class="fa-solid fa-circle-user"></i> {{ user.get_full_name|default:user.username }}</span>
+      <form method="post" action="{% url 'strategic:logout' %}" style="margin:0;">
+        {% csrf_token %}
+        <button type="submit"><i class="fa-solid fa-right-from-bracket"></i>خروج</button>
+      </form>
+      {% endif %}
+      <button onclick="window.print()"><i class="fa-solid fa-print"></i>خروجی چاپی</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <!-- aside اول در DOM می‌آید تا در RTL سمت راست بنشیند -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="mark" src="{% static 'images/logo.svg' %}" alt="سایپا یدک">
+        <div class="company">سایپا یدک</div>
+        <div class="office">اداره مطالعات و توسعه استراتژیک</div>
+      </div>
+      <nav class="nav">
+        <div class="nav-label">کار روزانه</div>
+        <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه</a>
+        <a class="nav-item {% if active_page == 'research' %}active{% endif %}" href="{% url 'strategic:research' %}"><i class="fa-solid fa-book"></i>کتابخانه مطالعات</a>
+        <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>نقشه راه ابتکارات</a>
+        <div class="nav-label">تحلیل‌های استراتژیک</div>
+        <a class="nav-item {% if active_page == 'market' %}active{% endif %}" href="{% url 'strategic:market' %}"><i class="fa-solid fa-chart-line"></i>هوش رقابتی و بازار</a>
+        <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل PESTEL</a>
+        <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
+        <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT</a>
+        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک</a>
+      </nav>
+      <div class="sidebar-footer">نسخه داخلی — تیر ۱۴۰۵</div>
+    </aside>
+
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

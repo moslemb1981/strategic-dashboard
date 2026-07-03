@@ -1,0 +1,88 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}تحلیل SWOT{% endblock %}
+{% block crumb %}تحلیل SWOT{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>تحلیل SWOT</h1><div class="sub">ماتریس عوامل داخلی/خارجی و مثبت/منفی</div></div>
+</div>
+
+<div class="swot-axis-top">
+  <div></div>
+  <div class="ax">عوامل مثبت</div>
+  <div class="ax">عوامل منفی</div>
+</div>
+<div class="swot-frame">
+  <div class="swot-axis-side" style="grid-row:1;">عوامل داخلی</div>
+  <div class="swot-grid">
+    <div class="swot-cell s">
+      <h4><i class="fa-solid fa-circle-plus"></i>نقاط قوت</h4>
+      <div class="sub">عوامل داخلی مثبت</div>
+      <ul class="swot-list">
+        {% for it in s_items %}
+        <li><span class="code">S{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+        </li>
+        {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
+      </ul>
+      <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="s"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+    </div>
+    <div class="swot-cell w">
+      <h4><i class="fa-solid fa-circle-minus"></i>نقاط ضعف</h4>
+      <div class="sub">عوامل داخلی منفی</div>
+      <ul class="swot-list">
+        {% for it in w_items %}
+        <li><span class="code">W{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+        </li>
+        {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
+      </ul>
+      <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="w"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+    </div>
+  </div>
+  <div class="swot-axis-side" style="grid-row:2;">عوامل خارجی</div>
+  <div class="swot-grid">
+    <div class="swot-cell o">
+      <h4><i class="fa-solid fa-lightbulb"></i>فرصت‌ها</h4>
+      <div class="sub">عوامل خارجی مثبت</div>
+      <ul class="swot-list">
+        {% for it in o_items %}
+        <li><span class="code">O{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+        </li>
+        {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
+      </ul>
+      <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="o"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+    </div>
+    <div class="swot-cell t">
+      <h4><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</h4>
+      <div class="sub">عوامل خارجی منفی</div>
+      <ul class="swot-list">
+        {% for it in t_items %}
+        <li><span class="code">T{{ forloop.counter }}</span><span class="txt">{{ it.text }}</span><span class="impact-pill {{ it.impact }}">{{ it.get_impact_display }}</span>
+          <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+        </li>
+        {% empty %}<li style="opacity:.6">موردی ثبت نشده</li>{% endfor %}
+      </ul>
+      <form class="swot-add" method="post">{% csrf_token %}<input type="hidden" name="category" value="t"><input type="hidden" name="impact" value="med"><input type="text" name="text" placeholder="مورد جدید..."><button type="submit">+</button></form>
+    </div>
+  </div>
+</div>
+
+<div class="section-title" style="margin-top:22px;">استراتژی‌های ترکیبی (ماتریس TOWS)</div>
+<div class="tows-grid">
+  <div class="tows-card so"><span class="tag">SO — تهاجمی</span>
+    <h5>توسعه با تکیه بر نقاط قوت</h5>
+    <p>با اتکا به شبکه توزیع سراسری، سهم بازار رو به رشد آفترمارکت هدف‌گذاری شود.</p></div>
+  <div class="tows-card st"><span class="tag">ST — تدافعی</span>
+    <h5>مقابله با تهدیدها</h5>
+    <p>از اعتبار برند برای مقابله با گسترش بازار غیررسمی و قطعات تقلبی استفاده شود.</p></div>
+  <div class="tows-card wo"><span class="tag">WO — بازنگری</span>
+    <h5>رفع ضعف با فرصت‌ها</h5>
+    <p>با دیجیتالی‌سازی زنجیره تأمین، وابستگی به تأمین‌کنندگان محدود کاهش یابد.</p></div>
+  <div class="tows-card wt"><span class="tag">WT — اجتنابی</span>
+    <h5>کاهش آسیب‌پذیری</h5>
+    <p>فرآیندهای تصمیم‌گیری چابک‌تر شود تا اثر نوسان ارز کنترل‌پذیرتر باشد.</p></div>
+</div>
+{% endblock %}

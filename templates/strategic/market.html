@@ -1,0 +1,49 @@
+{% extends "strategic/base.html" %}
+{% block title %}هوش رقابتی و بازار{% endblock %}
+{% block crumb %}هوش رقابتی و بازار{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>هوش رقابتی و بازار</h1><div class="sub">رصد بازیگران بازار قطعات یدکی و روندهای صنعت</div></div>
+</div>
+<span class="demo-tag"><i class="fa-solid fa-circle-info"></i>نام‌ها و اعداد نمونه‌اند — در نسخه نهایی با داده واقعی اداره جایگزین می‌شوند</span>
+
+<div class="competitor-grid">
+  <div class="competitor-card">
+    <div class="head"><h4>تولیدکنندگان داخلی OEM</h4><span class="share">۳۸٪</span></div>
+    <div class="share-track"><div class="share-fill" style="width:38%"></div></div>
+    <div class="sw-row">
+      <div class="sw-col pos"><span class="t">قوت</span><ul><li>شبکه توزیع گسترده</li><li>هزینه تولید پایین‌تر</li></ul></div>
+      <div class="sw-col neg"><span class="t">ضعف</span><ul><li>تنوع محدود قطعات</li></ul></div>
+    </div>
+    <div class="move-row"><i class="fa-solid fa-arrow-trend-up"></i>افزایش ظرفیت تولید در فصل اخیر</div>
+  </div>
+  <div class="competitor-card">
+    <div class="head"><h4>واردکنندگان رسمی</h4><span class="share">۲۷٪</span></div>
+    <div class="share-track"><div class="share-fill" style="width:27%"></div></div>
+    <div class="sw-row">
+      <div class="sw-col pos"><span class="t">قوت</span><ul><li>کیفیت و برند شناخته‌شده</li></ul></div>
+      <div class="sw-col neg"><span class="t">ضعف</span><ul><li>حساس به نوسان ارز</li><li>زمان تحویل طولانی‌تر</li></ul></div>
+    </div>
+    <div class="move-row"><i class="fa-solid fa-arrow-trend-down"></i>کاهش سفارش به دلیل تعرفه جدید</div>
+  </div>
+  <div class="competitor-card">
+    <div class="head"><h4>بازار غیررسمی/تقلبی</h4><span class="share">۲۰٪</span></div>
+    <div class="share-track"><div class="share-fill" style="width:20%"></div></div>
+    <div class="sw-row">
+      <div class="sw-col pos"><span class="t">قوت</span><ul><li>قیمت بسیار پایین</li></ul></div>
+      <div class="sw-col neg"><span class="t">ضعف</span><ul><li>کیفیت و ضمانت نامطمئن</li></ul></div>
+    </div>
+    <div class="move-row"><i class="fa-solid fa-triangle-exclamation"></i>ریسک برای اعتبار برند در بازار</div>
+  </div>
+  <div class="competitor-card">
+    <div class="head"><h4>سایر تولیدکنندگان داخلی</h4><span class="share">۱۵٪</span></div>
+    <div class="share-track"><div class="share-fill" style="width:15%"></div></div>
+    <div class="sw-row">
+      <div class="sw-col pos"><span class="t">قوت</span><ul><li>انعطاف در سفارش‌های کوچک</li></ul></div>
+      <div class="sw-col neg"><span class="t">ضعف</span><ul><li>ظرفیت تولید محدود</li></ul></div>
+    </div>
+    <div class="move-row"><i class="fa-solid fa-circle"></i>بدون تغییر محسوس در سه‌ماهه اخیر</div>
+  </div>
+</div>
+{% endblock %}

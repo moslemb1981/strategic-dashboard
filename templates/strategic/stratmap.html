@@ -1,0 +1,117 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}نقشه استراتژیک{% endblock %}
+{% block crumb %}نقشه استراتژیک{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>نقشه استراتژیک</h1><div class="sub">مدل کارت امتیازی متوازن (BSC) — چهار منظر × سه محور استراتژیک</div></div>
+  <button class="btn accent" onclick="newObjective()"><i class="fa-solid fa-plus"></i>افزودن هدف</button>
+</div>
+
+<div class="stratmap-vision">
+  <div class="label">چشم‌انداز اداره مطالعات و توسعه استراتژیک</div>
+  <div class="text">تبدیل شدن به بازوی تحلیلی و آینده‌نگر سایپا یدک برای تصمیم‌گیری مبتنی بر داده، در راستای تثبیت جایگاه پیشرو در بازار قطعات یدکی کشور</div>
+</div>
+<div class="stratmap-note">هر ستون یک <strong>محور استراتژیک</strong> است و هر ردیف یک <strong>منظر BSC</strong>. برای جابه‌جا کردن یک هدف بین منظر/محورها یا تغییر ترتیبش، روی آیکون مداد کلیک کنید و در فرم، منظر/محور/ترتیب جدید را انتخاب کنید — نیازی به پنل ادمین نیست.</div>
+
+<div class="stratmap-grid">
+  <div></div>
+  {% for t in themes_header %}
+  <div class="theme-head" style="--tc:{{ t.color }}"><span class="dot"></span><span class="name">{{ t.label }}</span></div>
+  {% endfor %}
+
+  {% for row in grid %}
+    <div class="persp-label" style="background:{{ row.bg }};color:{{ row.color }};grid-row:{{ row.grid_row }};">{{ row.label }}</div>
+    {% for cell in row.cells %}
+    <div style="grid-column:{{ cell.grid_col }};grid-row:{{ row.grid_row }};display:flex;flex-direction:column;gap:8px;">
+      {% for obj in cell.objectives %}
+      <div class="obj-card" style="--tc:{{ obj.theme_css }};">
+        <div class="top-row">
+          <span class="obj-code">{{ obj.code }}</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span class="status-dot {{ obj.status }}"></span>
+            <button type="button" onclick="editObjective(this)"
+              data-id="{{ obj.pk }}" data-code="{{ obj.code }}" data-perspective="{{ obj.perspective }}"
+              data-theme="{{ obj.theme }}" data-title="{{ obj.title }}" data-kpi="{{ obj.kpi }}"
+              data-status="{{ obj.status }}" data-order="{{ obj.order }}"
+              style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <form method="post" action="{% url 'strategic:objective_delete' obj.pk %}" style="margin:0;" onsubmit="return confirm('این هدف حذف شود؟');">
+              {% csrf_token %}
+              <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
+            </form>
+          </span>
+        </div>
+        <h5>{{ obj.title }}</h5>
+        <div class="obj-kpi"><i class="fa-solid fa-bullseye"></i>{% if obj.kpi %}KPI: {{ obj.kpi }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    {% if not forloop.last %}
+    <div class="connector-row" style="grid-column:2;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
+    <div class="connector-row" style="grid-column:3;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
+    <div class="connector-row" style="grid-column:4;grid-row:{{ row.grid_row|add:1 }};"><i class="fa-solid fa-arrow-up"></i></div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<div class="stratmap-legend">
+  <span><span class="status-dot on"></span>در مسیر هدف</span>
+  <span><span class="status-dot watch"></span>نیازمند پیگیری</span>
+  <span><span class="status-dot risk"></span>در معرض ریسک</span>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3 id="modalTitle">افزودن هدف استراتژیک</h3>
+    <form method="post" id="objForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>کد</label>{{ form.code }}</div>
+      <div class="field-group"><label>منظر BSC</label>{{ form.perspective }}</div>
+      <div class="field-group"><label>محور استراتژیک</label>{{ form.theme }}</div>
+      <div class="field-group"><label>عنوان هدف</label>{{ form.title }}</div>
+      <div class="field-group"><label>KPI</label>{{ form.kpi }}</div>
+      <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
+      <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="objSubmitBtn">ثبت هدف</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newObjective(){
+    document.getElementById('objForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن هدف استراتژیک';
+    document.getElementById('objSubmitBtn').textContent = 'ثبت هدف';
+    openModal();
+  }
+
+  function editObjective(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_code').value = d.code;
+    document.getElementById('id_perspective').value = d.perspective;
+    document.getElementById('id_theme').value = d.theme;
+    document.getElementById('id_title').value = d.title;
+    document.getElementById('id_kpi').value = d.kpi;
+    document.getElementById('id_status').value = d.status;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('modalTitle').textContent = 'ویرایش هدف استراتژیک';
+    document.getElementById('objSubmitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}نقشه راه ابتکارات{% endblock %}
+{% block crumb %}نقشه راه ابتکارات{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>نقشه راه ابتکارات</h1><div class="sub">زمان‌بندی ابتکارات تحول اداره، هم‌راستا با محورهای نقشه استراتژیک</div></div>
+  <button class="btn accent" onclick="openModal()"><i class="fa-solid fa-plus"></i>افزودن ابتکار</button>
+</div>
+
+<div class="roadmap-gantt-wrap">
+  {% if initiatives %}
+  <div id="gantt"></div>
+  {% else %}
+  <div class="empty"><i class="fa-solid fa-route"></i>هنوز ابتکاری ثبت نشده — از دکمه «افزودن ابتکار» شروع کنید</div>
+  {% endif %}
+</div>
+
+<div class="roadmap-legend">
+  <span><span class="sw" style="background:#3E7A52"></span>در حال اجرا</span>
+  <span><span class="sw" style="background:#2E5C8A"></span>در مسیر</span>
+  <span><span class="sw" style="background:#C97A2B"></span>نیازمند پیگیری</span>
+  <span><span class="sw" style="background:#6C56A3"></span>ابتکار دیجیتال</span>
+  <span><span class="sw" style="background:#8B93A1"></span>تکمیل‌شده</span>
+</div>
+
+<div class="section-title" style="margin-top:22px;">فهرست ابتکارات</div>
+<div class="rec-list">
+  {% for i in initiatives %}
+  <div class="rec-item">
+    <div class="field">{{ i.progress }}٪</div>
+    <div class="body"><h4>{{ i.title }}</h4><div class="meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }} · {{ i.start_date }} تا {{ i.end_date }}</div></div>
+    <span class="status-pill progress">{{ i.get_status_display }}</span>
+    <form method="post" action="{% url 'strategic:initiative_delete' i.pk %}" onsubmit="return confirm('این ابتکار حذف شود؟');">
+      {% csrf_token %}
+      <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3>افزودن ابتکار جدید</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field-group"><label>عنوان ابتکار</label>{{ form.title }}</div>
+      <div class="field-group"><label>واحد مسئول</label>{{ form.owner }}</div>
+      <div class="field-group"><label>تاریخ شروع</label>{{ form.start_date }}</div>
+      <div class="field-group"><label>تاریخ پایان</label>{{ form.end_date }}</div>
+      <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
+      <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت ابتکار</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/frappe-gantt/frappe-gantt.css' %}">
+<style>
+  .gantt .bar-green .bar{fill:#3E7A52;}
+  .gantt .bar-blue .bar{fill:#2E5C8A;}
+  .gantt .bar-amber .bar{fill:#C97A2B;}
+  .gantt .bar-purple .bar{fill:#6C56A3;}
+  .gantt .bar-gray .bar{fill:#8B93A1;}
+  .gantt .bar-progress{fill:rgba(0,0,0,.15);}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/frappe-gantt/frappe-gantt.min.js' %}"></script>
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+  {% if initiatives %}
+  const tasks = [
+    {% for i in initiatives %}
+    {id:'t{{ i.pk }}', name:"{{ i.title|escapejs }}", start:'{{ i.start_date|date:"Y-m-d" }}', end:'{{ i.end_date|date:"Y-m-d" }}', progress:{{ i.progress }}, custom_class:'{{ i.bar_class }}'},
+    {% endfor %}
+  ];
+  document.addEventListener('DOMContentLoaded', function(){
+    new Gantt("#gantt", tasks, { view_mode: 'Month', language: 'en', bar_height: 26, padding: 20 });
+  });
+  {% endif %}
+</script>
+{% endblock %}

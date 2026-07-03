@@ -1,0 +1,36 @@
+    /* static/css/admin_custom.css */
+
+    /* تنظیمات برای جدول لیست تغییرات (changelist) */
+    #changelist table thead th,
+    #changelist table tbody td {
+        white-space: nowrap; /* جلوگیری از شکستن متن به خط بعدی */
+        padding: 8px 5px; /* تنظیم فاصله داخلی سلول‌ها */
+        font-size: 0.9em; /* کاهش جزئی اندازه فونت */
+        vertical-align: middle; /* هم‌ترازی عمودی متن در وسط سلول */
+    }
+
+    /* اگر نیاز به تنظیم دقیق‌تر برای ستون خاصی مثل 'unit' دارید */
+    /* #changelist table td.field-unit,
+    #changelist table th.column-unit {
+        max-width: 150px;  /* حداکثر عرض برای ستون واحد */
+        /* overflow: hidden;
+        text-overflow: ellipsis;
+    } */
+
+    /* تنظیم عرض برای ستون‌های خاص اگر CSS بالا کافی نبود */
+    /* مثال برای ستون unique_code */
+    /* #changelist table td.field-unique_code,
+    #changelist table th.column-unique_code {
+        width: 120px;
+    } */
+
+    /* مثال برای ستون title */
+    /* #changelist table td.field-title,
+    #changelist table th.column-title {
+        width: 250px;
+        white-space: normal; /* اجازه شکستن عنوان در صورت نیاز */
+        /* font-size: 0.85em; /* اگر عنوان خیلی طولانی شد، فونت را کمتر کن */
+    /* } */
+
+    /* اگر عنوانی هنوز دو خطی شد، می‌توانید از جاوا اسکریپت استفاده کنید،
+       اما معمولاً `white-space: nowrap;` و تنظیم عرض کافی است. */
