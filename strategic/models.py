@@ -182,6 +182,10 @@ class SWOTItem(models.Model):
     text = models.CharField(max_length=300, verbose_name="متن")
     impact = models.CharField(max_length=10, choices=IMPACT_CHOICES, default="med", verbose_name="اهمیت")
     weight = models.PositiveSmallIntegerField(choices=WEIGHT_CHOICES, default=3, verbose_name="وزن اهمیت (۱ تا ۵)")
+    business_unit = models.ForeignKey(
+        "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="کسب‌وکار",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -204,6 +208,10 @@ class TOWSStrategy(models.Model):
     category = models.CharField(max_length=2, choices=CATEGORY_CHOICES, verbose_name="نوع راهبرد")
     text = models.CharField(max_length=300, verbose_name="متن راهبرد")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    business_unit = models.ForeignKey(
+        "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="tows_strategies", verbose_name="کسب‌وکار",
+    )
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -215,6 +223,45 @@ class TOWSStrategy(models.Model):
         return f"{self.get_category_display()} — {self.text}"
 
 
+class BusinessUnit(models.Model):
+    ARCHETYPE_CHOICES = [
+        ("intimacy", "صمیمیت با مشتری"),
+        ("excellence", "برتری عملیاتی"),
+        ("exclusive", "ایجاد فضای انحصاری"),
+        ("other", "سایر"),
+    ]
+
+    name = models.CharField(max_length=150, verbose_name="نام کسب‌وکار")
+    archetype = models.CharField(max_length=20, choices=ARCHETYPE_CHOICES, default="other", verbose_name="رویکرد استراتژیک")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["order", "name"]
+        verbose_name = "کسب‌وکار"
+        verbose_name_plural = "کسب‌وکارها"
+
+    def __str__(self):
+        return self.name
+
+
+class StrategyTheme(models.Model):
+    """محور استراتژیک — ستون‌های نقشه، مخصوص هر کسب‌وکار (نه یک لیست ثابت سراسری)."""
+    business_unit = models.ForeignKey(
+        BusinessUnit, on_delete=models.CASCADE, related_name="themes", verbose_name="کسب‌وکار",
+    )
+    name = models.CharField(max_length=100, verbose_name="نام محور")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["business_unit", "order"]
+        verbose_name = "محور نقشه استراتژیک"
+        verbose_name_plural = "محورهای نقشه استراتژیک"
+
+    def __str__(self):
+        return f"{self.business_unit.name} — {self.name}"
+
+
 class StrategicObjective(models.Model):
     PERSPECTIVE_CHOICES = [
         ("financial", "مالی"),
@@ -222,25 +269,18 @@ class StrategicObjective(models.Model):
         ("process", "فرآیندهای داخلی"),
         ("learning", "یادگیری و رشد"),
     ]
-    THEME_CHOICES = [
-        ("operational", "تعالی عملیاتی و کیفیت"),
-        ("growth", "رشد بازار و سودآوری"),
-        ("digital", "نوآوری و تحول دیجیتال"),
-    ]
     STATUS_CHOICES = [
         ("on", "در مسیر هدف"),
         ("watch", "نیازمند پیگیری"),
         ("risk", "در معرض ریسک"),
     ]
-    THEME_COLOR = {
-        "operational": "var(--success)",
-        "growth": "var(--primary)",
-        "digital": "var(--purple)",
-    }
 
     code = models.CharField(max_length=10, verbose_name="کد (مثل F1، C2)")
     perspective = models.CharField(max_length=20, choices=PERSPECTIVE_CHOICES, verbose_name="منظر BSC")
-    theme = models.CharField(max_length=20, choices=THEME_CHOICES, verbose_name="محور استراتژیک")
+    theme = models.ForeignKey(
+        StrategyTheme, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="objectives", verbose_name="محور استراتژیک",
+    )
     title = models.CharField(max_length=300, verbose_name="عنوان هدف")
     kpi = models.CharField(max_length=300, verbose_name="KPI", blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="on", verbose_name="وضعیت")
@@ -248,6 +288,10 @@ class StrategicObjective(models.Model):
     feeds_into = models.ManyToManyField(
         "self", blank=True, symmetrical=False, related_name="fed_by",
         verbose_name="این هدف به کدام هدف(ها) کمک می‌کند",
+    )
+    business_unit = models.ForeignKey(
+        BusinessUnit, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="objectives", verbose_name="کسب‌وکار",
     )
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -258,10 +302,6 @@ class StrategicObjective(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.title}"
-
-    @property
-    def theme_css(self):
-        return self.THEME_COLOR.get(self.theme, "var(--primary)")
 
 
 class Competitor(models.Model):

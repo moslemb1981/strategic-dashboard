@@ -20,6 +20,9 @@ urlpatterns = [
     path("pestel/delete/<int:pk>/", views.pestel_delete, name="pestel_delete"),
     path("stratmap/", views.stratmap, name="stratmap"),
     path("stratmap/delete/<int:pk>/", views.objective_delete, name="objective_delete"),
+    path("stratmap/theme/add/", views.theme_add, name="theme_add"),
+    path("stratmap/theme/delete/<int:pk>/", views.theme_delete, name="theme_delete"),
+    path("business-unit/add/", views.business_unit_add, name="business_unit_add"),
 
     path("swot/", views.swot, name="swot"),
     path("swot/delete/<int:pk>/", views.swot_delete, name="swot_delete"),

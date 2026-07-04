@@ -1,6 +1,9 @@
 import datetime
 from django import forms
-from .models import Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor
+from .models import (
+    Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
+    StrategyTheme, BusinessUnit,
+)
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
 
@@ -106,13 +109,28 @@ class StrategicObjectiveForm(forms.ModelForm):
             "feeds_into": forms.SelectMultiple(attrs={"size": 6}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, business_unit=None, **kwargs):
         super().__init__(*args, **kwargs)
-        qs = StrategicObjective.objects.all()
+        bu = business_unit or (self.instance.business_unit if self.instance and self.instance.pk else None)
+
+        feeds_qs = StrategicObjective.objects.filter(business_unit=bu) if bu else StrategicObjective.objects.none()
         if self.instance and self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        self.fields["feeds_into"].queryset = qs
+            feeds_qs = feeds_qs.exclude(pk=self.instance.pk)
+        self.fields["feeds_into"].queryset = feeds_qs
         self.fields["feeds_into"].required = False
+
+        self.fields["theme"].queryset = StrategyTheme.objects.filter(business_unit=bu) if bu else StrategyTheme.objects.none()
+        self.fields["theme"].required = False
+
+
+class StrategyThemeForm(forms.ModelForm):
+    class Meta:
+        model = StrategyTheme
+        fields = ["business_unit", "name", "order"]
+        widgets = {
+            "business_unit": forms.HiddenInput(),
+            "name": forms.TextInput(attrs={"placeholder": "مثلاً: تعالی عملیاتی و کیفیت"}),
+        }
 
 
 class CompetitorForm(forms.ModelForm):

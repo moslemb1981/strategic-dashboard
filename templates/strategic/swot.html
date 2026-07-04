@@ -85,6 +85,18 @@
   .stw .strat .addrow2 input{flex:1;font-size:.72rem;border:1px solid var(--hair);border-radius:6px;padding:5px 8px;}
   .stw .strat .addrow2 button{border:none;background:var(--ink);color:#fff;border-radius:6px;padding:0 10px;cursor:pointer;}
   .stw .empty-note{color:rgba(255,255,255,.6);font-size:.7rem;}
+
+  .stw .bu-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem;}
+  .stw .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--hair);
+    background:#fff;color:var(--muted);white-space:nowrap;}
+  .stw .bu-tab:hover{border-color:var(--brake);color:var(--brake);}
+  .stw .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .stw .bu-tag{font-size:.6rem;opacity:.7;margin-right:4px;}
+  .stw .bu-add-btn{font-size:.76rem;font-weight:600;padding:.4rem .8rem;border-radius:8px;border:1px dashed var(--hair);
+    background:transparent;color:var(--muted);cursor:pointer;}
+  .stw .bu-add-btn:hover{border-color:var(--brake);color:var(--brake);}
+  .stw .bu-empty{padding:2.5rem;text-align:center;color:var(--muted);font-size:.85rem;background:#fff;
+    border:1px dashed var(--hair);border-radius:12px;margin-bottom:1rem;}
 </style>
 {% endblock %}
 
@@ -93,7 +105,21 @@
   <div class="topbar">
     <div><h1>تحلیل SWOT و ماتریس TOWS</h1><div class="sub">از تحلیل عوامل درونی و بیرونی تا راهبردهای تقاطعی و موقعیت استراتژیک</div></div>
   </div>
-  <p style="font-size:.78rem;color:var(--ink-soft);margin:-10px 0 16px;">↳ روی هر ربع کلیک کنید تا راهبردهای مرتبط در ماتریس TOWS روشن شود · نقاط کنار هر مورد = وزن اهمیت</p>
+
+  <div class="bu-bar">
+    {% for bu in business_units %}
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}<span class="bu-tag">· {{ bu.get_archetype_display }}</span></a>
+    {% endfor %}
+    {% if perms.strategic.add_businessunit %}
+    <button type="button" class="bu-add-btn" onclick="document.getElementById('buOverlay').classList.add('open')"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>
+    {% endif %}
+  </div>
+
+  {% if not current_bu %}
+  <div class="bu-empty">هنوز هیچ کسب‌وکاری تعریف نشده — از دکمه «کسب‌وکار جدید» بالا شروع کنید.</div>
+  {% endif %}
+
+  <p style="font-size:.78rem;color:var(--ink-soft);margin:-4px 0 16px;">↳ روی هر ربع کلیک کنید تا راهبردهای مرتبط در ماتریس TOWS روشن شود · نقاط کنار هر مورد = وزن اهمیت</p>
 
   <div class="grid">
     <div class="swot" id="swotGrid">
@@ -111,7 +137,7 @@
           {% endif %}
         </div>
         {% empty %}<div class="empty-note">موردی ثبت نشده</div>{% endfor %}
-        {% if perms.strategic.add_swotitem %}
+        {% if current_bu and perms.strategic.add_swotitem %}
         <form class="addrow" method="post">{% csrf_token %}<input type="hidden" name="category" value="s">
           <input type="text" name="text" placeholder="مورد جدید..." style="flex:1;">
           <select name="weight"><option value="1">۱</option><option value="2">۲</option><option value="3" selected>۳</option><option value="4">۴</option><option value="5">۵</option></select>
@@ -133,7 +159,7 @@
           {% endif %}
         </div>
         {% empty %}<div class="empty-note">موردی ثبت نشده</div>{% endfor %}
-        {% if perms.strategic.add_swotitem %}
+        {% if current_bu and perms.strategic.add_swotitem %}
         <form class="addrow" method="post">{% csrf_token %}<input type="hidden" name="category" value="w">
           <input type="text" name="text" placeholder="مورد جدید..." style="flex:1;">
           <select name="weight"><option value="1">۱</option><option value="2">۲</option><option value="3" selected>۳</option><option value="4">۴</option><option value="5">۵</option></select>
@@ -155,7 +181,7 @@
           {% endif %}
         </div>
         {% empty %}<div class="empty-note">موردی ثبت نشده</div>{% endfor %}
-        {% if perms.strategic.add_swotitem %}
+        {% if current_bu and perms.strategic.add_swotitem %}
         <form class="addrow" method="post">{% csrf_token %}<input type="hidden" name="category" value="o">
           <input type="text" name="text" placeholder="مورد جدید..." style="flex:1;">
           <select name="weight"><option value="1">۱</option><option value="2">۲</option><option value="3" selected>۳</option><option value="4">۴</option><option value="5">۵</option></select>
@@ -177,7 +203,7 @@
           {% endif %}
         </div>
         {% empty %}<div class="empty-note">موردی ثبت نشده</div>{% endfor %}
-        {% if perms.strategic.add_swotitem %}
+        {% if current_bu and perms.strategic.add_swotitem %}
         <form class="addrow" method="post">{% csrf_token %}<input type="hidden" name="category" value="t">
           <input type="text" name="text" placeholder="مورد جدید..." style="flex:1;">
           <select name="weight"><option value="1">۱</option><option value="2">۲</option><option value="3" selected>۳</option><option value="4">۴</option><option value="5">۵</option></select>
@@ -219,7 +245,7 @@
           <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
-        {% if perms.strategic.add_towsstrategy %}
+        {% if current_bu and perms.strategic.add_towsstrategy %}
         <form class="addrow2" method="post">{% csrf_token %}<input type="hidden" name="category" value="so"><input type="hidden" name="order" value="0">
           <input type="text" name="text" placeholder="راهبرد جدید..."><button type="submit">+</button></form>
         {% endif %}
@@ -231,7 +257,7 @@
           <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
-        {% if perms.strategic.add_towsstrategy %}
+        {% if current_bu and perms.strategic.add_towsstrategy %}
         <form class="addrow2" method="post">{% csrf_token %}<input type="hidden" name="category" value="wo"><input type="hidden" name="order" value="0">
           <input type="text" name="text" placeholder="راهبرد جدید..."><button type="submit">+</button></form>
         {% endif %}
@@ -245,7 +271,7 @@
           <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
-        {% if perms.strategic.add_towsstrategy %}
+        {% if current_bu and perms.strategic.add_towsstrategy %}
         <form class="addrow2" method="post">{% csrf_token %}<input type="hidden" name="category" value="st"><input type="hidden" name="order" value="0">
           <input type="text" name="text" placeholder="راهبرد جدید..."><button type="submit">+</button></form>
         {% endif %}
@@ -257,12 +283,35 @@
           <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
-        {% if perms.strategic.add_towsstrategy %}
+        {% if current_bu and perms.strategic.add_towsstrategy %}
         <form class="addrow2" method="post">{% csrf_token %}<input type="hidden" name="category" value="wt"><input type="hidden" name="order" value="0">
           <input type="text" name="text" placeholder="راهبرد جدید..."><button type="submit">+</button></form>
         {% endif %}
       </div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="buOverlay">
+  <div class="modal-card" style="max-width:360px;">
+    <h3>افزودن کسب‌وکار جدید</h3>
+    <form method="post" action="{% url 'strategic:business_unit_add' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="strategic:swot">
+      <div class="field-group"><label>نام کسب‌وکار</label><input type="text" name="name" placeholder="مثلاً: کسب‌وکار آپشن" required></div>
+      <div class="field-group"><label>رویکرد استراتژیک</label>
+        <select name="archetype">
+          <option value="intimacy">صمیمیت با مشتری</option>
+          <option value="excellence">برتری عملیاتی</option>
+          <option value="exclusive">ایجاد فضای انحصاری</option>
+          <option value="other">سایر</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('buOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ثبت کسب‌وکار</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

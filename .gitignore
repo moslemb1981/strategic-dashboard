@@ -28,3 +28,6 @@ Thumbs.db
 # لاگ‌ها
 *.log
 logs/*.log
+
+*.zip
+config_settings_*.py

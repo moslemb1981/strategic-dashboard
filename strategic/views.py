@@ -3,13 +3,15 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
+    BusinessUnit, StrategyTheme,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
-    CompetitorForm, PestelFactorForm,
+    CompetitorForm, PestelFactorForm, StrategyThemeForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -244,24 +246,52 @@ def pestel_delete(request, pk):
 
 # ---------------- Strategic map (BSC) ----------------
 
+THEME_PALETTE = ["#0f8a6a", "#1183c9", "#7b5cd6", "#d08a1f", "#17a3a3", "#d6402f", "#8a5a44", "#5a6474"]
+
+
 @login_required
 def stratmap(request):
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.POST.get("business_unit") or request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+
+    themes = list(StrategyTheme.objects.filter(business_unit=current_bu)) if current_bu else []
+    theme_color = {}
+    for i, t in enumerate(themes):
+        t.color = THEME_PALETTE[i % len(THEME_PALETTE)]
+        theme_color[t.pk] = t.color
+
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_strategicobjective" if obj_id else "strategic.add_strategicobjective"
         if _has_perm(request, perm):
             instance = get_object_or_404(StrategicObjective, pk=obj_id) if obj_id else None
-            form = StrategicObjectiveForm(request.POST, instance=instance)
+            form = StrategicObjectiveForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
-                form.save()
-                _log_action(request, "UPDATE StrategicObjective" if obj_id else "CREATE StrategicObjective", str(form.instance))
-                return redirect("strategic:stratmap")
+                obj = form.save(commit=False)
+                if not obj_id and current_bu:
+                    obj.business_unit = current_bu
+                obj.save()
+                form.save_m2m()
+                _log_action(request, "UPDATE StrategicObjective" if obj_id else "CREATE StrategicObjective", str(obj))
+                bu_param = f"?bu={current_bu.pk}" if current_bu else ""
+                return redirect(reverse("strategic:stratmap") + bu_param)
         else:
-            form = StrategicObjectiveForm()
+            form = StrategicObjectiveForm(business_unit=current_bu)
     else:
-        form = StrategicObjectiveForm()
+        form = StrategicObjectiveForm(business_unit=current_bu)
 
-    objectives = list(StrategicObjective.objects.all().prefetch_related("feeds_into"))
+    objectives = list(
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        if current_bu else StrategicObjective.objects.none()
+    )
+    for o in objectives:
+        o.theme_color = theme_color.get(o.theme_id, "var(--ink-faint)")
+        o.theme_name = o.theme.name if o.theme_id else "بدون محور"
 
     PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
     bands = []
@@ -276,12 +306,36 @@ def stratmap(request):
         for target in o.feeds_into.all():
             links.append([f"obj-{o.pk}", f"obj-{target.pk}"])
 
-    all_objectives = objectives  # for the feeds_into picker list in the modal
-
     return render(request, "strategic/stratmap.html", {
         "active_page": "stratmap", "bands": bands, "form": form,
-        "links": links, "all_objectives": all_objectives,
+        "links": links, "business_units": business_units, "current_bu": current_bu,
+        "themes": themes, "theme_form": StrategyThemeForm(),
     })
+
+
+@login_required
+def theme_add(request):
+    if request.method == "POST" and _has_perm(request, "strategic.add_strategytheme"):
+        bu_id = request.POST.get("business_unit")
+        bu = get_object_or_404(BusinessUnit, pk=bu_id)
+        name = request.POST.get("name", "").strip()
+        if name:
+            StrategyTheme.objects.create(business_unit=bu, name=name, order=bu.themes.count())
+            _log_action(request, "CREATE StrategyTheme", f"{bu.name} — {name}")
+        return redirect(reverse("strategic:stratmap") + f"?bu={bu.pk}")
+    return redirect("strategic:stratmap")
+
+
+@login_required
+def theme_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_strategytheme"):
+        _obj = get_object_or_404(StrategyTheme, pk=pk)
+        bu_pk = _obj.business_unit_id
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE StrategyTheme", _label)
+        return redirect(reverse("strategic:stratmap") + f"?bu={bu_pk}")
+    return redirect("strategic:stratmap")
 
 
 @login_required
@@ -289,8 +343,25 @@ def objective_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_strategicobjective"):
         _obj = get_object_or_404(StrategicObjective, pk=pk)
         _label = str(_obj)
+        bu_pk = _obj.business_unit_id
         _obj.delete()
         _log_action(request, "DELETE StrategicObjective", _label)
+        if bu_pk:
+            return redirect(reverse("strategic:stratmap") + f"?bu={bu_pk}")
+    return redirect("strategic:stratmap")
+
+
+@login_required
+def business_unit_add(request):
+    if request.method == "POST" and _has_perm(request, "strategic.add_businessunit"):
+        name = request.POST.get("name", "").strip()
+        archetype = request.POST.get("archetype", "other")
+        next_page = request.POST.get("next", "strategic:stratmap")
+        if name:
+            bu = BusinessUnit.objects.create(name=name, archetype=archetype, order=BusinessUnit.objects.count())
+            _log_action(request, "CREATE BusinessUnit", name)
+            return redirect(reverse(next_page) + f"?bu={bu.pk}")
+        return redirect(next_page)
     return redirect("strategic:stratmap")
 
 
@@ -298,27 +369,43 @@ def objective_delete(request, pk):
 
 @login_required
 def swot(request):
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.POST.get("business_unit") or request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+    bu_param = f"?bu={current_bu.pk}" if current_bu else ""
+
     if request.method == "POST":
         cat = request.POST.get("category", "")
         if cat in ("s", "w", "o", "t"):
             if _has_perm(request, "strategic.add_swotitem"):
                 form = SWOTItemForm(request.POST)
                 if form.is_valid():
-                    form.save()
-                    _log_action(request, "CREATE SWOTItem", str(form.instance))
-                    return redirect("strategic:swot")
+                    obj = form.save(commit=False)
+                    obj.business_unit = current_bu
+                    obj.save()
+                    _log_action(request, "CREATE SWOTItem", str(obj))
+                    return redirect(reverse("strategic:swot") + bu_param)
         elif cat in ("so", "st", "wo", "wt"):
             if _has_perm(request, "strategic.add_towsstrategy"):
                 tform = TOWSStrategyForm(request.POST)
                 if tform.is_valid():
-                    tform.save()
-                    _log_action(request, "CREATE TOWSStrategy", str(tform.instance))
-                    return redirect("strategic:swot")
+                    tobj = tform.save(commit=False)
+                    tobj.business_unit = current_bu
+                    tobj.save()
+                    _log_action(request, "CREATE TOWSStrategy", str(tobj))
+                    return redirect(reverse("strategic:swot") + bu_param)
 
-    s_items = list(SWOTItem.objects.filter(category="s"))
-    w_items = list(SWOTItem.objects.filter(category="w"))
-    o_items = list(SWOTItem.objects.filter(category="o"))
-    t_items = list(SWOTItem.objects.filter(category="t"))
+    if current_bu:
+        s_items = list(SWOTItem.objects.filter(category="s", business_unit=current_bu))
+        w_items = list(SWOTItem.objects.filter(category="w", business_unit=current_bu))
+        o_items = list(SWOTItem.objects.filter(category="o", business_unit=current_bu))
+        t_items = list(SWOTItem.objects.filter(category="t", business_unit=current_bu))
+    else:
+        s_items = w_items = o_items = t_items = []
 
     def avg_w(items):
         return round(sum(i.weight for i in items) / len(items), 1) if items else 0
@@ -343,10 +430,11 @@ def swot(request):
 
     tows = {}
     for key, _ in TOWSStrategy.CATEGORY_CHOICES:
-        tows[key] = list(TOWSStrategy.objects.filter(category=key))
+        tows[key] = list(TOWSStrategy.objects.filter(category=key, business_unit=current_bu)) if current_bu else []
 
     return render(request, "strategic/swot.html", {
         "active_page": "swot",
+        "business_units": business_units, "current_bu": current_bu,
         "s_items": s_items, "w_items": w_items, "o_items": o_items, "t_items": t_items,
         "s_score": s_score, "w_score": w_score, "o_score": o_score, "t_score": t_score,
         "pos_x": pos_x, "pos_y": pos_y, "posture": posture, "posture_color": posture_color,
@@ -363,8 +451,11 @@ def swot_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_swotitem"):
         _obj = get_object_or_404(SWOTItem, pk=pk)
         _label = str(_obj)
+        bu_pk = _obj.business_unit_id
         _obj.delete()
         _log_action(request, "DELETE SWOTItem", _label)
+        if bu_pk:
+            return redirect(reverse("strategic:swot") + f"?bu={bu_pk}")
     return redirect("strategic:swot")
 
 
@@ -373,8 +464,11 @@ def tows_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_towsstrategy"):
         _obj = get_object_or_404(TOWSStrategy, pk=pk)
         _label = str(_obj)
+        bu_pk = _obj.business_unit_id
         _obj.delete()
         _log_action(request, "DELETE TOWSStrategy", _label)
+        if bu_pk:
+            return redirect(reverse("strategic:swot") + f"?bu={bu_pk}")
     return redirect("strategic:swot")
 
 

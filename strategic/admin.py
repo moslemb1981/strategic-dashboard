@@ -1,5 +1,23 @@
 from django.contrib import admin
-from .models import Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor
+from .models import (
+    Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
+    Competitor, PestelFactor, BusinessUnit, StrategyTheme,
+)
+
+
+@admin.register(BusinessUnit)
+class BusinessUnitAdmin(admin.ModelAdmin):
+    list_display = ("name", "archetype", "order")
+    list_editable = ("order",)
+    search_fields = ("name",)
+
+
+@admin.register(StrategyTheme)
+class StrategyThemeAdmin(admin.ModelAdmin):
+    list_display = ("name", "business_unit", "order")
+    list_editable = ("order",)
+    list_filter = ("business_unit",)
+    search_fields = ("name",)
 
 
 @admin.register(Study)
@@ -25,9 +43,9 @@ class RiskAdmin(admin.ModelAdmin):
 
 @admin.register(SWOTItem)
 class SWOTItemAdmin(admin.ModelAdmin):
-    list_display = ("text", "category", "weight", "created_at")
+    list_display = ("text", "category", "weight", "business_unit", "created_at")
     list_editable = ("weight",)
-    list_filter = ("category",)
+    list_filter = ("business_unit", "category")
     search_fields = ("text",)
 
 
@@ -35,7 +53,7 @@ class SWOTItemAdmin(admin.ModelAdmin):
 class TOWSStrategyAdmin(admin.ModelAdmin):
     list_display = ("category", "text", "order")
     list_editable = ("order",)
-    list_filter = ("category",)
+    list_filter = ("business_unit", "category")
     search_fields = ("text",)
     ordering = ("category", "order")
 
@@ -45,7 +63,7 @@ class StrategicObjectiveAdmin(admin.ModelAdmin):
     list_display = ("code", "perspective", "theme", "title", "kpi", "status", "order")
     list_display_links = ("code", "title")
     list_editable = ("status", "order")
-    list_filter = ("perspective", "theme", "status")
+    list_filter = ("business_unit", "perspective", "theme", "status")
     search_fields = ("code", "title", "kpi")
     ordering = ("perspective", "theme", "order", "code")
     filter_horizontal = ("feeds_into",)

@@ -41,6 +41,29 @@
   .sm .toolbar .spacer{flex:1;}
   .sm #sm-status{font-size:.74rem;color:var(--sm-muted);font-weight:500;}
 
+  .sm .bu-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem;}
+  .sm .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--sm-hair);
+    background:#fff;color:var(--sm-muted);white-space:nowrap;}
+  .sm .bu-tab:hover{border-color:var(--sm-brake);color:var(--sm-brake);}
+  .sm .bu-tab.active{background:var(--sm-ink);color:#fff;border-color:var(--sm-ink);}
+  .sm .bu-tag{font-size:.6rem;opacity:.7;margin-right:4px;}
+  .sm .bu-add-btn{font-size:.76rem;font-weight:600;padding:.4rem .8rem;border-radius:8px;border:1px dashed var(--sm-hair);
+    background:transparent;color:var(--sm-muted);cursor:pointer;}
+  .sm .bu-add-btn:hover{border-color:var(--sm-brake);color:var(--sm-brake);}
+  .sm .bu-empty{padding:2.5rem;text-align:center;color:var(--sm-muted);font-size:.85rem;background:#fff;
+    border:1px dashed var(--sm-hair);border-radius:12px;margin-bottom:1rem;}
+
+  .sm .theme-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.76rem;}
+  .sm .theme-bar-lbl{color:var(--sm-muted);font-weight:600;}
+  .sm .theme-bar-empty{color:var(--sm-muted);font-style:italic;}
+  .sm .theme-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.32rem .7rem;border-radius:20px;
+    border:1px solid;font-weight:600;}
+  .sm .theme-chip button{border:none;background:none;color:inherit;cursor:pointer;font-size:.68rem;opacity:.7;padding:0;}
+  .sm .theme-chip button:hover{opacity:1;}
+  .sm .theme-add-form{display:flex;gap:4px;}
+  .sm .theme-add-form input{font-size:.74rem;border:1px solid var(--sm-hair);border-radius:7px;padding:.3rem .6rem;width:130px;}
+  .sm .theme-add-form button{border:none;background:var(--sm-ink);color:#fff;border-radius:7px;padding:.3rem .7rem;cursor:pointer;}
+
   .sm .panel{position:relative;border-radius:14px;overflow:hidden;
     background:radial-gradient(120% 100% at 50% -10%,#12294a 0%,#0c1a30 55%,#0a1626 100%);
     box-shadow:0 30px 60px -25px rgba(13,27,46,.6),inset 0 0 0 1px rgba(120,160,220,.08);}
@@ -83,6 +106,7 @@
     color:#0c1a30;background:var(--ng);padding:.08rem .42rem;border-radius:4px;}
   .sm .node .ttl{font-size:.8rem;font-weight:600;line-height:1.45;}
   .sm .node .kpi{font-size:.64rem;color:#9fb2cb;font-weight:400;display:flex;align-items:center;gap:.35rem;margin-top:auto;}
+  .sm .node .theme-badge{font-size:.58rem;font-weight:700;padding:.12rem .5rem;border-radius:5px;display:inline-block;width:fit-content;}
   .sm .node .kpi::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ng);flex-shrink:0;box-shadow:0 0 6px var(--ng);}
   .sm .node.selected{border-color:var(--sm-brake);box-shadow:0 0 0 2px var(--sm-brake),0 16px 34px -10px rgba(214,69,40,.5);transform:translateY(-4px);}
   .sm.focusing .node:not(.hot){opacity:.22;}
@@ -120,6 +144,45 @@
       <p class="sub">مدل کارت امتیازی متوازن — جریان خلق ارزش از زیربنای سازمانی تا نتیجه مالی</p>
     </header>
 
+    <div class="bu-bar">
+      {% for bu in business_units %}
+      <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}<span class="bu-tag">· {{ bu.get_archetype_display }}</span></a>
+      {% endfor %}
+      {% if perms.strategic.add_businessunit %}
+      <button type="button" class="bu-add-btn" onclick="openBuModal()"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>
+      {% endif %}
+    </div>
+
+    {% if not current_bu %}
+    <div class="bu-empty">هنوز هیچ کسب‌وکاری تعریف نشده — از دکمه «کسب‌وکار جدید» بالا شروع کنید.</div>
+    {% endif %}
+
+    {% if current_bu %}
+    <div class="theme-bar">
+      <span class="theme-bar-lbl">محورهای «{{ current_bu.name }}»:</span>
+      {% for t in themes %}
+      <span class="theme-chip" style="background:{{ t.color }}22;color:{{ t.color }};border-color:{{ t.color }}55;">
+        {{ t.name }}
+        {% if perms.strategic.delete_strategytheme %}
+        <form method="post" action="{% url 'strategic:theme_delete' t.pk %}" style="display:inline;margin:0;" onsubmit="return confirm('این محور حذف شود؟ (اهداف مرتبط بدون‌محور می‌مانند)');">
+          {% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </span>
+      {% empty %}
+      <span class="theme-bar-empty">هنوز محوری تعریف نشده</span>
+      {% endfor %}
+      {% if perms.strategic.add_strategytheme %}
+      <form method="post" action="{% url 'strategic:theme_add' %}" class="theme-add-form">
+        {% csrf_token %}
+        <input type="hidden" name="business_unit" value="{{ current_bu.pk }}">
+        <input type="text" name="name" placeholder="محور جدید...">
+        <button type="submit">+</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <div class="vision">
       <span class="lbl">چشم‌انداز</span>
       <span class="txt">تبدیل شدن به بازوی تحلیلی و آینده‌نگر سایپا یدک برای تصمیم‌گیری مبتنی بر داده، در راستای تثبیت جایگاه پیشرو در بازار قطعات یدکی کشور</span>
@@ -130,7 +193,7 @@
       <button type="button" id="flowBtn" class="flow-toggle on">جریان ارزش: روشن</button>
       <span class="hint">↳ روی هر هدف کلیک کنید تا زنجیره علّی آن روشن شود</span>
       <span class="spacer"></span>
-      {% if perms.strategic.add_strategicobjective %}
+      {% if current_bu and perms.strategic.add_strategicobjective %}
       <button type="button" class="accent-btn" onclick="newObjective()"><i class="fa-solid fa-plus"></i> افزودن هدف</button>
       {% endif %}
       <span id="sm-status">همه ارتباطات نمایش داده می‌شوند</span>
@@ -147,13 +210,13 @@
             <div class="band-label">{{ band.label }}{% if band.key == "learning" %}<small>زیربنا</small>{% endif %}</div>
             <div class="band-inner">
               {% for n in band.nodes %}
-              <div class="node n-{{ band.css }}" id="obj-{{ n.pk }}" data-persp="{{ band.css }}">
+              <div class="node n-{{ band.css }}" id="obj-{{ n.pk }}" data-persp="{{ band.css }}" style="--ng:{{ n.theme_color }};">
                 <span class="code">{{ n.code }}</span>
                 {% if perms.strategic.change_strategicobjective or perms.strategic.delete_strategicobjective %}
                 <div class="node-actions">
                   {% if perms.strategic.change_strategicobjective %}
                   <button type="button" onclick="event.stopPropagation(); editObjective(this)"
-                    data-id="{{ n.pk }}" data-code="{{ n.code }}" data-perspective="{{ n.perspective }}" data-theme="{{ n.theme }}"
+                    data-id="{{ n.pk }}" data-code="{{ n.code }}" data-perspective="{{ n.perspective }}" data-theme="{{ n.theme_id|default:'' }}"
                     data-title="{{ n.title }}" data-kpi="{{ n.kpi }}" data-status="{{ n.status }}" data-order="{{ n.order }}"
                     data-feeds="{% for t in n.feeds_into.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
                     <i class="fa-solid fa-pen"></i>
@@ -169,6 +232,7 @@
                 </div>
                 {% endif %}
                 <div class="ttl">{{ n.title }}</div>
+                <div class="theme-badge" style="background:{{ n.theme_color }}22;color:{{ n.theme_color }};">{{ n.theme_name }}</div>
                 <div class="kpi">{{ n.kpi|default:"—" }}</div>
               </div>
               {% empty %}
@@ -230,6 +294,29 @@
     </form>
   </div>
 </div>
+
+<div class="overlay" id="buOverlay">
+  <div class="modal-card" style="max-width:360px;">
+    <h3>افزودن کسب‌وکار جدید</h3>
+    <form method="post" action="{% url 'strategic:business_unit_add' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="strategic:stratmap">
+      <div class="field-group"><label>نام کسب‌وکار</label><input type="text" name="name" placeholder="مثلاً: کسب‌وکار آپشن" required></div>
+      <div class="field-group"><label>رویکرد استراتژیک</label>
+        <select name="archetype">
+          <option value="intimacy">صمیمیت با مشتری</option>
+          <option value="excellence">برتری عملیاتی</option>
+          <option value="exclusive">ایجاد فضای انحصاری</option>
+          <option value="other">سایر</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeBuModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت کسب‌وکار</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -237,6 +324,8 @@
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+  function openBuModal(){ document.getElementById('buOverlay').classList.add('open'); }
+  function closeBuModal(){ document.getElementById('buOverlay').classList.remove('open'); }
 
   function applyKpiTemplate(){
     const sel = document.getElementById('kpi_template');
