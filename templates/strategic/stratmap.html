@@ -1,5 +1,6 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}نقشه استراتژیک{% endblock %}
 {% block crumb %}نقشه استراتژیک{% endblock %}
 
@@ -129,12 +130,56 @@
     display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;font-size:.72rem;color:var(--sm-muted);}
   .sm .legend{display:flex;gap:1.1rem;flex-wrap:wrap;}
   .sm .legend span{display:inline-flex;align-items:center;gap:.4rem;font-weight:500;}
-  .sm .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .print-header{display:none;}
+</style>
+
+<style media="print">
+  body{background:#fff !important;}
+  .shell{border:none !important;}
+  .topheader, .sidebar, .toolbar, .theme-bar .theme-add-form, .theme-chip form,
+  .node-actions, #overlay, #buOverlay, .bu-bar .bu-add-btn, .bu-tab{display:none !important;}
+  .bu-bar{display:none !important;}
+  .main{padding:0 !important;}
+  .sm .wrap{max-width:100% !important;}
+
+  .print-header{display:block !important;margin-bottom:16px;border-bottom:2px solid #d64528;padding-bottom:10px;}
+  .print-header .ph-brand{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .print-header .ph-brand img{height:30px;}
+  .print-header .ph-brand span{font-weight:800;font-size:13px;color:#0d1b2e;}
+  .print-header h2{font-size:18px;margin:0 0 2px;color:#0d1b2e;}
+  .print-header h3{font-size:13px;margin:0 0 4px;color:#d64528;font-weight:700;}
+  .print-header .ph-date{font-size:11px;color:#5a6474;}
+
+  .sm header, .sm .theme-bar-empty{display:none !important;}
+  .sm .vision{background:#f5f4ef !important;color:#0d1b2e !important;box-shadow:none !important;border:1px solid #ddd;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .sm .vision .lbl{background:#fff;color:#d64528;border-color:#d64528;}
+
+  .sm .theme-bar{background:#f7f7f5;border-radius:8px;padding:8px 10px;}
+  .sm .theme-chip{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+  .sm .panel{background:#fff !important;box-shadow:none !important;border:1px solid #ddd;padding:.6rem;}
+  .sm .grid-bg, .sm svg.wires{display:none !important;}
+  .sm .band{border-bottom:1px solid #eee;}
+  .sm .band-label{background:none !important;color:#0d1b2e !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .sm .node{opacity:1 !important;transform:none !important;background:#fff !important;color:#0d1b2e !important;
+    border:1px solid #ccc !important;box-shadow:none !important;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .sm .node .ttl{color:#0d1b2e !important;}
+  .sm .node .kpi{color:#5a6474 !important;}
+  .sm .node .kpi::before{box-shadow:none !important;}
+  .sm .node .code{color:#fff !important;}
+  .sm .foot{color:#5a6474;}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="sm" id="smRoot">
+  <div class="print-header">
+    <div class="ph-brand"><img src="{% static 'images/logo.svg' %}" alt=""><span>سایپا یدک</span></div>
+    <h2>نقشه استراتژیک</h2>
+    <h3>کسب‌وکار: {{ current_bu.name|default:"—" }}</h3>
+    <div class="ph-date">تاریخ گزارش: {% jalali_now %}</div>
+  </div>
   <div class="wrap">
     <header>
       <div>
@@ -195,6 +240,9 @@
       <span class="spacer"></span>
       {% if current_bu and perms.strategic.add_strategicobjective %}
       <button type="button" class="accent-btn" onclick="newObjective()"><i class="fa-solid fa-plus"></i> افزودن هدف</button>
+      {% endif %}
+      {% if current_bu %}
+      <a href="{% url 'strategic:stratmap_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
       {% endif %}
       <span id="sm-status">همه ارتباطات نمایش داده می‌شوند</span>
     </div>

@@ -1,5 +1,6 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}تحلیل SWOT{% endblock %}
 {% block crumb %}تحلیل SWOT{% endblock %}
 
@@ -97,13 +98,46 @@
   .stw .bu-add-btn:hover{border-color:var(--brake);color:var(--brake);}
   .stw .bu-empty{padding:2.5rem;text-align:center;color:var(--muted);font-size:.85rem;background:#fff;
     border:1px dashed var(--hair);border-radius:12px;margin-bottom:1rem;}
+  .print-header{display:none;}
+</style>
+
+<style media="print">
+  body{background:#fff !important;}
+  .shell{border:none !important;}
+  .topheader, .sidebar, .topbar, .bu-bar .bu-add-btn, .bu-tab,
+  .stw .addrow, .stw .addrow2, .stw .fdel, .stw .strat li button{display:none !important;}
+  .bu-bar{display:none !important;}
+  .main{padding:0 !important;}
+
+  .print-header{display:block !important;margin-bottom:16px;border-bottom:2px solid #d64528;padding-bottom:10px;}
+  .print-header .ph-brand{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .print-header .ph-brand img{height:30px;}
+  .print-header .ph-brand span{font-weight:800;font-size:13px;color:#0d1b2e;}
+  .print-header h2{font-size:18px;margin:0 0 2px;color:#0d1b2e;}
+  .print-header h3{font-size:13px;margin:0 0 4px;color:#d64528;font-weight:700;}
+  .print-header .ph-date{font-size:11px;color:#5a6474;}
+
+  .stw .grid{grid-template-columns:1fr 1fr !important;}
+  .stw .quad{box-shadow:none !important;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .stw .card, .stw .tows{box-shadow:none !important;border:1px solid #ddd;break-inside:avoid;}
+  .stw .factor{break-inside:avoid;}
+  .stw .tows-grid{break-inside:avoid;}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="stw" id="stwRoot">
+  <div class="print-header">
+    <div class="ph-brand"><img src="{% static 'images/logo.svg' %}" alt=""><span>سایپا یدک</span></div>
+    <h2>تحلیل SWOT و ماتریس TOWS</h2>
+    <h3>کسب‌وکار: {{ current_bu.name|default:"—" }}</h3>
+    <div class="ph-date">تاریخ گزارش: {% jalali_now %}</div>
+  </div>
   <div class="topbar">
     <div><h1>تحلیل SWOT و ماتریس TOWS</h1><div class="sub">از تحلیل عوامل درونی و بیرونی تا راهبردهای تقاطعی و موقعیت استراتژیک</div></div>
+    {% if current_bu %}
+    <a href="{% url 'strategic:swot_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button" class="btn ghost"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
+    {% endif %}
   </div>
 
   <div class="bu-bar">

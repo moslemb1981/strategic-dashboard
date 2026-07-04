@@ -1,0 +1,136 @@
+{% load static %}
+{% load jalali_tags %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تحلیل SWOT — {{ current_bu.name|default:"سایپا یدک" }}</title>
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<style>
+  @page{ size: A4 landscape; margin: 10mm 12mm; }
+  *{box-sizing:border-box;}
+  body{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;margin:0;padding:14px 16px;color:#14202f;
+       background:#fff;direction:rtl;font-size:11px;}
+  .toolbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;}
+  .toolbar button{font-family:inherit;font-size:12px;font-weight:600;border:1px solid #dcdfe4;background:#f7f8fa;
+       color:#14202f;padding:7px 14px;border-radius:8px;cursor:pointer;}
+  .toolbar button:hover{background:#eef0f3;}
+  .toolbar .status{font-size:11px;color:#8b93a1;align-self:center;margin-inline-end:auto;}
+
+  header{display:flex;align-items:center;gap:10px;padding-bottom:7px;border-bottom:2px solid #C97A2B;margin-bottom:10px;}
+  header img{height:26px;}
+  header .co{font-size:9px;font-weight:700;color:#5a6474;}
+  .bu-name{font-size:16px;font-weight:900;color:#14202f;margin:0;line-height:1.15;}
+  .bu-sub{font-size:9.5px;color:#C97A2B;font-weight:700;}
+  header .meta{margin-inline-start:auto;text-align:left;font-size:8px;color:#8b93a1;}
+
+  .layout{display:grid;grid-template-columns:1.05fr 1fr;gap:14px;align-items:start;}
+
+  .swot-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .quad{border-radius:9px;padding:7px 9px;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .quad.s{background:#e7f4ee;} .quad.w{background:#fbeeea;} .quad.o{background:#e7f0f8;} .quad.t{background:#fdece9;}
+  .quad h3{margin:0 0 1px;font-size:10.5px;}
+  .quad.s h3{color:#0f8a6a;} .quad.w h3{color:#c0392b;} .quad.o h3{color:#1183c9;} .quad.t h3{color:#c0392b;}
+  .quad .tag{font-size:7.5px;color:#8b93a1;margin-bottom:4px;display:block;}
+  .quad ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;}
+  .quad li{font-size:8px;line-height:1.35;background:rgba(255,255,255,.7);border-radius:5px;padding:4px 7px;
+    display:flex;justify-content:space-between;gap:6px;}
+  .quad li b{font-size:7.5px;opacity:.55;flex:none;}
+
+  .tows-col .tows-title{font-size:11px;font-weight:800;margin:0 0 6px;}
+  .tows-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;}
+  .tstrat{border:1px solid #e2e5ea;border-radius:8px;padding:6px 8px;break-inside:avoid;}
+  .tstrat .badge{display:inline-block;font-size:8px;font-weight:800;padding:2px 7px;border-radius:5px;color:#fff;margin-bottom:5px;}
+  .tstrat.so .badge{background:#0f8a6a;} .tstrat.st .badge{background:#d08a1f;}
+  .tstrat.wo .badge{background:#1183c9;} .tstrat.wt .badge{background:#c0392b;}
+  .tstrat ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+  .tstrat li{font-size:7.5px;line-height:1.4;}
+  .empty{font-size:8px;color:#8b93a1;}
+
+  footer{margin-top:10px;padding-top:6px;border-top:1px solid #e2e5ea;font-size:7.5px;color:#8b93a1;text-align:center;}
+
+  @media print{
+    .toolbar{display:none;}
+    body{padding:0;}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="status" id="status">در حال آماده‌سازی...</span>
+    <button onclick="window.print()">چاپ / ذخیره PDF</button>
+    <button onclick="window.close()">بستن</button>
+  </div>
+
+  <header>
+    <img src="{% static 'images/logo.svg' %}" alt="">
+    <div>
+      <div class="co">سایپا یدک</div>
+      <div class="bu-name">{{ current_bu.name|default:"—" }}</div>
+      <div class="bu-sub">تحلیل SWOT و ماتریس TOWS</div>
+    </div>
+    <div class="meta">تاریخ گزارش<br>{% jalali_now %}</div>
+  </header>
+
+  <div id="canvas">
+    <div class="layout">
+      <div class="swot-grid">
+        <div class="quad s">
+          <h3>نقاط قوت</h3><span class="tag">عوامل داخلی مثبت</span>
+          <ul>{% for it in s_items %}<li><span>{{ it.text }}</span><b>وزن {{ it.weight }}</b></li>{% empty %}<li class="empty">موردی ثبت نشده</li>{% endfor %}</ul>
+        </div>
+        <div class="quad w">
+          <h3>نقاط ضعف</h3><span class="tag">عوامل داخلی منفی</span>
+          <ul>{% for it in w_items %}<li><span>{{ it.text }}</span><b>وزن {{ it.weight }}</b></li>{% empty %}<li class="empty">موردی ثبت نشده</li>{% endfor %}</ul>
+        </div>
+        <div class="quad o">
+          <h3>فرصت‌ها</h3><span class="tag">عوامل خارجی مثبت</span>
+          <ul>{% for it in o_items %}<li><span>{{ it.text }}</span><b>وزن {{ it.weight }}</b></li>{% empty %}<li class="empty">موردی ثبت نشده</li>{% endfor %}</ul>
+        </div>
+        <div class="quad t">
+          <h3>تهدیدها</h3><span class="tag">عوامل خارجی منفی</span>
+          <ul>{% for it in t_items %}<li><span>{{ it.text }}</span><b>وزن {{ it.weight }}</b></li>{% empty %}<li class="empty">موردی ثبت نشده</li>{% endfor %}</ul>
+        </div>
+      </div>
+
+      <div class="tows-col">
+        <div class="tows-title">راهبردهای ترکیبی (ماتریس TOWS)</div>
+        <div class="tows-grid">
+          <div class="tstrat so"><span class="badge">SO — تهاجمی</span>
+            <ul>{% for st in tows.so %}<li>{{ st.text }}</li>{% empty %}<li class="empty">راهبردی ثبت نشده</li>{% endfor %}</ul></div>
+          <div class="tstrat wo"><span class="badge">WO — بازنگری</span>
+            <ul>{% for st in tows.wo %}<li>{{ st.text }}</li>{% empty %}<li class="empty">راهبردی ثبت نشده</li>{% endfor %}</ul></div>
+          <div class="tstrat st"><span class="badge">ST — تنوع</span>
+            <ul>{% for st in tows.st %}<li>{{ st.text }}</li>{% empty %}<li class="empty">راهبردی ثبت نشده</li>{% endfor %}</ul></div>
+          <div class="tstrat wt"><span class="badge">WT — تدافعی</span>
+            <ul>{% for st in tows.wt %}<li>{{ st.text }}</li>{% empty %}<li class="empty">راهبردی ثبت نشده</li>{% endfor %}</ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>سیستم مدیریت استراتژیک سایپا یدک — اداره مطالعات و توسعه استراتژیک</footer>
+
+  <script>
+    function fitToOnePage(){
+      const canvas = document.getElementById('canvas');
+      const MM = 3.7795;
+      const availH = (210 - 20 - 30) * MM; // حاشیه + هدر/فوتر کنار گذاشته می‌شود (لنداسکیپ A4: ارتفاع کاغذ ۲۱۰mm)
+      canvas.style.zoom = 1;
+      const contentH = canvas.scrollHeight;
+      if (contentH > availH){
+        const scale = Math.max(availH / contentH, 0.55);
+        canvas.style.zoom = scale;
+      }
+    }
+    window.addEventListener('load', function(){
+      fitToOnePage();
+      setTimeout(function(){
+        document.getElementById('status').style.display = 'none';
+        window.print();
+      }, 250);
+    });
+    window.addEventListener('resize', fitToOnePage);
+  </script>
+</body>
+</html>

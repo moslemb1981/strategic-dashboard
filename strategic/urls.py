@@ -19,12 +19,14 @@ urlpatterns = [
     path("pestel/", views.pestel, name="pestel"),
     path("pestel/delete/<int:pk>/", views.pestel_delete, name="pestel_delete"),
     path("stratmap/", views.stratmap, name="stratmap"),
+    path("stratmap/print/", views.stratmap_print, name="stratmap_print"),
     path("stratmap/delete/<int:pk>/", views.objective_delete, name="objective_delete"),
     path("stratmap/theme/add/", views.theme_add, name="theme_add"),
     path("stratmap/theme/delete/<int:pk>/", views.theme_delete, name="theme_delete"),
     path("business-unit/add/", views.business_unit_add, name="business_unit_add"),
 
     path("swot/", views.swot, name="swot"),
+    path("swot/print/", views.swot_print, name="swot_print"),
     path("swot/delete/<int:pk>/", views.swot_delete, name="swot_delete"),
     path("swot/tows/delete/<int:pk>/", views.tows_delete, name="tows_delete"),
 

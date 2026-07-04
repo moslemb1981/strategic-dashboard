@@ -31,6 +31,8 @@
         {% csrf_token %}
         <button type="submit"><i class="fa-solid fa-right-from-bracket"></i>خروج</button>
       </form>
+      {% else %}
+      <a href="{% url 'strategic:login' %}?next={{ request.path|urlencode }}"><button type="button"><i class="fa-solid fa-right-to-bracket"></i>ورود برای دسترسی کامل</button></a>
       {% endif %}
       <button onclick="window.print()"><i class="fa-solid fa-print"></i>خروجی چاپی</button>
     </div>
@@ -53,8 +55,8 @@
         <a class="nav-item {% if active_page == 'market' %}active{% endif %}" href="{% url 'strategic:market' %}"><i class="fa-solid fa-chart-line"></i>هوش رقابتی و بازار</a>
         <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل PESTEL</a>
         <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
-        <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT</a>
-        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک</a>
+        <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
       </nav>
       <div class="sidebar-footer">نسخه داخلی — تیر ۱۴۰۵</div>
     </aside>

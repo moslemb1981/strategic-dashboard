@@ -1,0 +1,182 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>نقشه استراتژیک — {{ current_bu.name|default:"سایپا یدک" }}</title>
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<style>
+  @page{ size: A4 landscape; margin: 8mm 10mm; }
+  *{box-sizing:border-box;}
+  body{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;margin:0;padding:14px 16px;color:#14202f;
+       background:#fff;direction:rtl;font-size:11px;}
+  .toolbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;}
+  .toolbar button{font-family:inherit;font-size:12px;font-weight:600;border:1px solid #dcdfe4;background:#f7f8fa;
+       color:#14202f;padding:7px 14px;border-radius:8px;cursor:pointer;}
+  .toolbar button:hover{background:#eef0f3;}
+  .toolbar .status{font-size:11px;color:#8b93a1;align-self:center;margin-inline-end:auto;}
+
+  header{display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:2px solid #C97A2B;margin-bottom:8px;}
+  header img{height:24px;}
+  header .co{font-size:9px;font-weight:700;color:#5a6474;}
+  .bu-name{font-size:15px;font-weight:900;color:#14202f;margin:0;line-height:1.15;}
+  .bu-sub{font-size:9px;color:#C97A2B;font-weight:700;}
+  header .meta{margin-inline-start:auto;text-align:left;font-size:8px;color:#8b93a1;}
+
+  #canvas{position:relative;}
+  svg#arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+
+  .persp{margin-bottom:16px;position:relative;z-index:2;}
+  .persp-head{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+  .persp-bar{width:4px;height:11px;border-radius:2px;}
+  .persp-title{font-size:10px;font-weight:800;}
+  .persp-count{font-size:7.5px;color:#8b93a1;font-weight:600;}
+
+  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 4px;row-gap:12px;}
+  .card{border:1px solid #e2e5ea;border-radius:5px;padding:4px 6px;break-inside:avoid;background:#fbfbfa;position:relative;}
+  .card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
+  .card .code{font-size:7px;font-weight:800;color:#fff;border-radius:3px;padding:1px 4px;}
+  .card .ttl{font-size:8px;font-weight:700;line-height:1.25;}
+  .card .kpi{font-size:6.8px;color:#5a6474;line-height:1.25;margin-top:2px;}
+  .empty{font-size:8px;color:#8b93a1;padding:4px 0;}
+
+  .fin .persp-bar{background:#0f8a6a;} .fin .code{background:#0f8a6a;}
+  .cust .persp-bar{background:#1183c9;} .cust .code{background:#1183c9;}
+  .proc .persp-bar{background:#7b5cd6;} .proc .code{background:#7b5cd6;}
+  .learn .persp-bar{background:#d08a1f;} .learn .code{background:#d08a1f;}
+
+  footer{margin-top:6px;padding-top:4px;border-top:1px solid #e2e5ea;font-size:7px;color:#8b93a1;text-align:center;position:relative;z-index:2;}
+
+  @media print{
+    .toolbar{display:none;}
+    body{padding:0;}
+    .card{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .persp-bar, .code{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    svg#arrows{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="status" id="status">در حال آماده‌سازی خطوط ارتباط...</span>
+    <button onclick="window.print()">چاپ / ذخیره PDF</button>
+    <button onclick="window.close()">بستن</button>
+  </div>
+
+  <header>
+    <img src="{% static 'images/logo.svg' %}" alt="">
+    <div>
+      <div class="co">سایپا یدک</div>
+      <div class="bu-name">{{ current_bu.name|default:"—" }}</div>
+      <div class="bu-sub">نقشه استراتژیک — مدل کارت امتیازی متوازن (BSC)</div>
+    </div>
+    <div class="meta">تاریخ گزارش<br>{% load jalali_tags %}{% jalali_now %}</div>
+  </header>
+
+  <div id="canvas">
+    <svg id="arrows"></svg>
+    {% for band in bands %}
+    <div class="persp {{ band.css }}">
+      <div class="persp-head">
+        <span class="persp-bar"></span>
+        <span class="persp-title">{{ band.label }}</span>
+        <span class="persp-count">({{ band.nodes|length }} هدف)</span>
+      </div>
+      <div class="cards">
+        {% for n in band.nodes %}
+        <div class="card" id="pcard-{{ n.pk }}">
+          <div class="top"><span class="code">{{ n.code }}</span></div>
+          <div class="ttl">{{ n.title }}</div>
+          {% if n.kpi %}<div class="kpi">{{ n.kpi }}</div>{% endif %}
+        </div>
+        {% empty %}
+        <div class="empty">هدفی در این منظر ثبت نشده</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <footer>سیستم مدیریت استراتژیک سایپا یدک — اداره مطالعات و توسعه استراتژیک · خطوط، رابطه علّی بین اهداف را نشان می‌دهند</footer>
+
+  {{ links|json_script:"links-data" }}
+  <script>
+    function drawArrows(){
+      const canvas = document.getElementById('canvas');
+      const svg = document.getElementById('arrows');
+      const links = JSON.parse(document.getElementById('links-data').textContent);
+      const cr = canvas.getBoundingClientRect();
+      svg.setAttribute('viewBox', `0 0 ${cr.width} ${cr.height}`);
+      svg.innerHTML = `<defs>
+        <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M1 1L9 5L1 9" fill="none" stroke="#3b4656" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>`;
+      links.forEach(([fromId, toId]) => {
+        const a = document.getElementById(fromId), b = document.getElementById(toId);
+        if (!a || !b) return;
+        const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+        const x1 = ar.left - cr.left + ar.width/2, y1 = ar.top - cr.top + ar.height/2;
+        const x2 = br.left - cr.left + br.width/2, y2 = br.top - cr.top + br.height/2;
+        const my = (y1 + y2) / 2;
+        const d = `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}`;
+        const halo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        halo.setAttribute('d', d);
+        halo.setAttribute('fill', 'none');
+        halo.setAttribute('stroke', '#ffffff');
+        halo.setAttribute('stroke-width', '3.2');
+        svg.appendChild(halo);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        line.setAttribute('d', d);
+        line.setAttribute('fill', 'none');
+        line.setAttribute('stroke', '#3b4656');
+        line.setAttribute('stroke-width', '1.3');
+        line.setAttribute('marker-end', 'url(#arrowhead)');
+        svg.appendChild(line);
+      });
+      return links.length;
+    }
+
+    function fitToPage(){
+      const canvas = document.getElementById('canvas');
+      const cardGrids = document.querySelectorAll('.cards');
+      // فضای قابل استفاده صفحه A4 افقی با حاشیه ۸/۱۰ میلی‌متر، تقریبی بر حسب پیکسل (۹۶dpi)
+      const MM = 3.7795;
+      const availW = (297 - 20) * MM;
+      const availH = (210 - 16 - 26) * MM; // ۲۶ میلی‌متر برای هدر/فوتر کنار گذاشته می‌شود
+
+      canvas.style.zoom = 1;
+      canvas.style.width = availW + 'px'; // محدود کردن عرض به عرض واقعی چاپ، نه عرض پنجره مرورگر
+
+      // جستجوی بهترین تعداد ستون تا محتوا دقیقاً با ارتفاع صفحه جفت شود
+      let bestN = 6, bestDiff = Infinity;
+      for (let n = 3; n <= 12; n++){
+        cardGrids.forEach(el => el.style.gridTemplateColumns = `repeat(${n},1fr)`);
+        const h = canvas.scrollHeight;
+        const diff = availH - h;
+        if (diff >= 0 && diff < bestDiff){ bestDiff = diff; bestN = n; }
+      }
+      cardGrids.forEach(el => el.style.gridTemplateColumns = `repeat(${bestN},1fr)`);
+
+      // یک تنظیم دقیق کوچک نهایی (حداکثر ۱۵٪) برای پر کردن باقی فاصله خالی
+      const finalH = canvas.scrollHeight;
+      let scale = Math.min(availH / finalH, 1.15);
+      scale = Math.max(scale, 0.85);
+      canvas.style.zoom = scale;
+    }
+
+    window.addEventListener('load', function(){
+      fitToPage();
+      requestAnimationFrame(function(){
+        const n = drawArrows();
+        document.getElementById('status').textContent = n + ' رابطه رسم شد';
+        setTimeout(function(){
+          document.getElementById('status').style.display = 'none';
+          window.print();
+        }, 300);
+      });
+    });
+    window.addEventListener('resize', function(){ fitToPage(); drawArrows(); });
+  </script>
+</body>
+</html>

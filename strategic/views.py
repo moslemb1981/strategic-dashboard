@@ -31,7 +31,6 @@ def _log_action(request, action, label):
     logger.info("%s: user=%s item=%r", action, request.user, label)
 
 
-@login_required
 def home(request):
     objectives = list(StrategicObjective.objects.all())
     obj_total = len(objectives)
@@ -57,17 +56,20 @@ def home(request):
     risk_pct = round(risk_high / risk_total * 100) if risk_total else 0
 
     # فید فعالیت‌های اخیر — از هر ۷ مدل، آخرین رکوردها را ترکیب می‌کند
+    # برای کاربر بدون‌لاگین، موارد ریسک و SWOT (حساس) از فید حذف می‌شوند
     activity = []
     for s in Study.objects.order_by("-created_at")[:5]:
         activity.append({"icon": "fa-book", "text": f"مطالعه «{s.title}» ثبت شد", "tag": "کتابخانه مطالعات", "dt": s.created_at})
     for i in Initiative.objects.order_by("-created_at")[:5]:
         activity.append({"icon": "fa-route", "text": f"ابتکار «{i.title}» ثبت شد", "tag": "نقشه راه", "dt": i.created_at})
-    for r in Risk.objects.order_by("-created_at")[:5]:
-        activity.append({"icon": "fa-triangle-exclamation", "text": f"ریسک «{r.title}» ثبت شد", "tag": "نقشه ریسک", "dt": r.created_at})
+    if request.user.is_authenticated:
+        for r in Risk.objects.order_by("-created_at")[:5]:
+            activity.append({"icon": "fa-triangle-exclamation", "text": f"ریسک «{r.title}» ثبت شد", "tag": "نقشه ریسک", "dt": r.created_at})
     for o in StrategicObjective.objects.order_by("-created_at")[:5]:
         activity.append({"icon": "fa-map", "text": f"هدف «{o.code} — {o.title}» ثبت شد", "tag": "نقشه استراتژیک", "dt": o.created_at})
-    for it in SWOTItem.objects.order_by("-created_at")[:5]:
-        activity.append({"icon": "fa-table-cells", "text": f"مورد SWOT «{it.text}» ثبت شد", "tag": "SWOT", "dt": it.created_at})
+    if request.user.is_authenticated:
+        for it in SWOTItem.objects.order_by("-created_at")[:5]:
+            activity.append({"icon": "fa-table-cells", "text": f"مورد SWOT «{it.text}» ثبت شد", "tag": "SWOT", "dt": it.created_at})
     for c in Competitor.objects.order_by("-created_at")[:5]:
         activity.append({"icon": "fa-chart-line", "text": f"بازیگر «{c.name}» ثبت شد", "tag": "هوش رقابتی", "dt": c.created_at})
     for f in PestelFactor.objects.order_by("-created_at")[:5]:
@@ -91,7 +93,6 @@ def home(request):
 
 # ---------------- Research library ----------------
 
-@login_required
 def research(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -133,7 +134,6 @@ def study_delete(request, pk):
 
 # ---------------- Roadmap / initiatives ----------------
 
-@login_required
 def roadmap(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -168,7 +168,6 @@ def initiative_delete(request, pk):
 
 # ---------------- Market / competitive intelligence ----------------
 
-@login_required
 def market(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -203,7 +202,6 @@ def competitor_delete(request, pk):
 
 # ---------------- PESTEL ----------------
 
-@login_required
 def pestel(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -249,7 +247,6 @@ def pestel_delete(request, pk):
 THEME_PALETTE = ["#0f8a6a", "#1183c9", "#7b5cd6", "#d08a1f", "#17a3a3", "#d6402f", "#8a5a44", "#5a6474"]
 
 
-@login_required
 def stratmap(request):
     business_units = list(BusinessUnit.objects.all())
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
@@ -311,6 +308,35 @@ def stratmap(request):
         "links": links, "business_units": business_units, "current_bu": current_bu,
         "themes": themes, "theme_form": StrategyThemeForm(),
     })
+
+
+def stratmap_print(request):
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+
+    objectives = list(
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        if current_bu else StrategicObjective.objects.none()
+    )
+    links = []
+    for o in objectives:
+        o.theme_name = o.theme.name if o.theme_id else ""
+        targets = list(o.feeds_into.all())
+        o.feeds_codes = [t.code for t in targets]
+        for t in targets:
+            links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+
+    bands = []
+    PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
+    for p_key, p_label in StrategicObjective.PERSPECTIVE_CHOICES:
+        bands.append({"label": p_label, "css": PERSP_KEYS[p_key], "nodes": [o for o in objectives if o.perspective == p_key]})
+
+    return render(request, "strategic/stratmap_print.html", {"current_bu": current_bu, "bands": bands, "links": links})
 
 
 @login_required
@@ -443,6 +469,34 @@ def swot(request):
         "tows": tows,
         "form": SWOTItemForm(),
         "tows_form": TOWSStrategyForm(),
+    })
+
+
+@login_required
+def swot_print(request):
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+
+    if current_bu:
+        s_items = list(SWOTItem.objects.filter(category="s", business_unit=current_bu))
+        w_items = list(SWOTItem.objects.filter(category="w", business_unit=current_bu))
+        o_items = list(SWOTItem.objects.filter(category="o", business_unit=current_bu))
+        t_items = list(SWOTItem.objects.filter(category="t", business_unit=current_bu))
+        tows = {key: list(TOWSStrategy.objects.filter(category=key, business_unit=current_bu))
+                for key, _ in TOWSStrategy.CATEGORY_CHOICES}
+    else:
+        s_items = w_items = o_items = t_items = []
+        tows = {}
+
+    return render(request, "strategic/swot_print.html", {
+        "current_bu": current_bu,
+        "s_items": s_items, "w_items": w_items, "o_items": o_items, "t_items": t_items,
+        "tows": tows,
     })
 
 

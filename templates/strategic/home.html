@@ -25,9 +25,19 @@
     <div class="gauge-meta"><div class="label">نرخ تکمیل مطالعات</div><div class="value">{{ study_done }} از {{ study_total }} مطالعه تکمیل‌شده</div><div class="trend">بر اساس وضعیت واقعی کتابخانه مطالعات</div></div>
   </div>
   <div class="gauge-card">
-    <div class="gauge-holder" id="gauge-risk"></div>
-    <div class="gauge-meta"><div class="label">ریسک‌های استراتژیک باز</div><div class="value">{{ risk_total }} ریسک فعال</div>
+    <div class="gauge-holder" id="gauge-risk" {% if not user.is_authenticated %}style="display:none;"{% endif %}></div>
+    {% if not user.is_authenticated %}
+    <div class="gauge-holder" style="display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:50%;color:var(--ink-faint);font-size:20px;"><i class="fa-solid fa-lock"></i></div>
+    {% endif %}
+    <div class="gauge-meta">
+      <div class="label">ریسک‌های استراتژیک باز</div>
+      {% if user.is_authenticated %}
+      <div class="value">{{ risk_total }} ریسک فعال</div>
       {% if risk_high %}<div class="trend down">{{ risk_high }} ریسک با شدت بالا</div>{% else %}<div class="trend up">ریسک با شدت بالا ثبت نشده</div>{% endif %}
+      {% else %}
+      <div class="value" style="color:var(--ink-faint);">نیاز به ورود</div>
+      <div class="trend">این بخش برای کاربران لاگین‌کرده در دسترس است</div>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -54,6 +64,7 @@
     <div class="icon"><i class="fa-solid fa-map"></i></div>
     <h3>نقشه استراتژیک</h3><p>اهداف در قالب کارت امتیازی متوازن</p>
     <div class="stat">۴ منظر، {{ obj_total }} هدف</div></a>
+  {% if user.is_authenticated %}
   <a class="module-card" href="{% url 'strategic:swot' %}">
     <div class="icon"><i class="fa-solid fa-table-cells"></i></div>
     <h3>تحلیل SWOT</h3><p>ماتریس عوامل به‌همراه استراتژی TOWS</p>
@@ -62,6 +73,16 @@
     <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
     <h3>نقشه ریسک استراتژیک</h3><p>ماتریس احتمال × شدت اثر ریسک‌ها</p>
     <div class="stat">{{ risk_total }} ریسک ثبت‌شده</div></a>
+  {% else %}
+  <a class="module-card" href="{% url 'strategic:login' %}?next={% url 'strategic:swot' %}" style="opacity:.55;">
+    <div class="icon" style="background:var(--bg);color:var(--ink-faint);"><i class="fa-solid fa-lock"></i></div>
+    <h3>تحلیل SWOT</h3><p>برای مشاهده این بخش وارد شوید</p>
+    <div class="stat" style="color:var(--ink-faint);">نیاز به ورود</div></a>
+  <a class="module-card" href="{% url 'strategic:login' %}?next={% url 'strategic:risk' %}" style="opacity:.55;">
+    <div class="icon" style="background:var(--bg);color:var(--ink-faint);"><i class="fa-solid fa-lock"></i></div>
+    <h3>نقشه ریسک استراتژیک</h3><p>برای مشاهده این بخش وارد شوید</p>
+    <div class="stat" style="color:var(--ink-faint);">نیاز به ورود</div></a>
+  {% endif %}
 </div>
 
 <div class="section-title">آخرین فعالیت‌ها</div>
