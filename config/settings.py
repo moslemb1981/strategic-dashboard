@@ -44,6 +44,11 @@ ROOT_URLCONF = 'config.urls'
 LOGIN_URL = "strategic:login"
 LOGIN_REDIRECT_URL = "strategic:home"
 
+# خروج خودکار: با بستن مرورگر، یا بعد از ۱ ساعت عدم فعالیت (هرکدوم زودتر برسه)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 3600  # ۱ ساعت بر حسب ثانیه
+SESSION_SAVE_EVERY_REQUEST = True  # هر درخواست، تایمر ۱ ساعت رو ریست می‌کنه (idle timeout)
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

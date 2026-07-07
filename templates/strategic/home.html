@@ -100,14 +100,24 @@
 <script src="{% static 'js/justgage.min.js' %}"></script>
 <script>
   function mkGauge(id, value, color){
-    return new JustGage({
+    const g = new JustGage({
       id: id, value: value, min: 0, max: 100,
       symbol: '%', reverseTextDirection: true,
-      relativeGaugeSize: true, gaugeWidthScale: 0.55,
+      relativeGaugeSize: true, gaugeWidthScale: 0.4,
       levelColors: [color], counter: true,
       valueFontColor: '#1B2430', labelFontColor: '#8B93A1',
       pointer: false
     });
+    // فقط متن مقدار مرکزی (شامل ٪) را بزرگ می‌کنیم، برچسب‌های کمینه/بیشینه کنار میله دست‌نخورده می‌مانند
+    setTimeout(function(){
+      document.querySelectorAll('#' + id + ' svg text').forEach(function(t){
+        if (t.textContent.indexOf('%') !== -1){
+          t.style.fontSize = '22px';
+          t.style.fontWeight = '800';
+        }
+      });
+    }, 0);
+    return g;
   }
   document.addEventListener('DOMContentLoaded', function(){
     mkGauge('gauge-goals', {{ obj_score }}, '#2E5C8A');

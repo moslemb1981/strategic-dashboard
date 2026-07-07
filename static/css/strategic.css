@@ -55,7 +55,7 @@ button,input,select{font-family:inherit;font-size:inherit;}
 
 .gauge-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
 .gauge-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);}
-.gauge-holder{width:64px;height:64px;flex:none;}
+.gauge-holder{width:88px;height:88px;flex:none;}
 .gauge-meta .label{font-size:10.5px;color:var(--ink-soft);}
 .gauge-meta .value{font-size:13px;font-weight:600;margin-top:2px;}
 .gauge-meta .trend{font-size:10px;margin-top:2px;}
