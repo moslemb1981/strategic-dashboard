@@ -2,7 +2,7 @@ import datetime
 from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    StrategyTheme, BusinessUnit,
+    StrategyTheme, BusinessUnit, PorterForce,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -149,7 +149,17 @@ class CompetitorForm(forms.ModelForm):
 class PestelFactorForm(forms.ModelForm):
     class Meta:
         model = PestelFactor
-        fields = ["category", "text", "order"]
+        fields = ["category", "kind", "text", "order"]
         widgets = {
-            "text": forms.TextInput(attrs={"placeholder": "عامل محیطی جدید"}),
+            "text": forms.TextInput(attrs={"placeholder": "متن عامل / فرصت / تهدید"}),
+        }
+
+
+class PorterForceForm(forms.ModelForm):
+    class Meta:
+        model = PorterForce
+        fields = ["level", "reasons", "conclusion"]
+        widgets = {
+            "reasons": forms.Textarea(attrs={"rows": 5, "placeholder": "هر خط یک دلیل"}),
+            "conclusion": forms.Textarea(attrs={"rows": 2, "placeholder": "نتیجه‌گیری"}),
         }

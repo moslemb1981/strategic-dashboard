@@ -3,54 +3,153 @@
 {% block title %}تحلیل PESTEL{% endblock %}
 {% block crumb %}تحلیل PESTEL{% endblock %}
 
+{% block extra_css %}
+<style>
+  .pestel-cat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+  .pestel-cat .cat-head{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--pcs);}
+  .pestel-cat .cat-head .icon{width:34px;height:34px;border-radius:9px;background:var(--pc);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;}
+  .pestel-cat .cat-head h4{margin:0;font-size:15px;color:var(--pc);}
+  .pestel-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;}
+  .pestel-col{padding:14px 16px;}
+  .pestel-col:not(:last-child){border-left:1px solid var(--border);}
+  .pestel-col .col-lbl{font-size:11px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .pestel-col.factor .col-lbl{color:var(--ink-soft);}
+  .pestel-col.opportunity .col-lbl{color:var(--success);}
+  .pestel-col.threat .col-lbl{color:var(--coral, #C0392B);}
+  .pestel-item{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;font-size:12.5px;
+    line-height:1.7;padding:7px 0;border-top:1px solid var(--border);}
+  .pestel-item:first-child{border-top:none;padding-top:0;}
+  .pestel-item .txt{flex:1;}
+  .pestel-item .acts{display:flex;gap:5px;flex:none;margin-top:2px;}
+  .pestel-item .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;}
+  .pestel-empty{font-size:11.5px;color:var(--ink-faint);}
+  @media(max-width:900px){.pestel-cols{grid-template-columns:1fr;}
+    .pestel-col:not(:last-child){border-left:none;border-bottom:1px solid var(--border);}}
+
+  /* --- هدر بصری خلاصه (سبک یادداشت‌های چسبان) --- */
+  .pestel-hero{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;border-radius:var(--radius-lg);
+    overflow:hidden;margin-bottom:22px;box-shadow:var(--shadow);}
+  .pestel-hero-col{background:var(--pcs);padding:0 0 14px;display:flex;flex-direction:column;align-items:stretch;}
+  .pestel-hero-col .letter-band{background:var(--pc);color:#fff;text-align:center;padding:14px 6px 10px;}
+  .pestel-hero-col .letter-band .letter{font-size:30px;font-weight:900;line-height:1;display:block;}
+  .pestel-hero-col .letter-band .cat-name{font-size:10.5px;font-weight:600;opacity:.92;margin-top:4px;}
+  .pestel-hero-notes{padding:10px 8px;display:flex;flex-direction:column;gap:7px;flex:1;}
+  .sticky-note{font-size:10.5px;font-weight:600;line-height:1.5;padding:8px 9px;border-radius:3px;
+    box-shadow:1px 2px 5px rgba(0,0,0,.14);transform:rotate(var(--rot));color:#3a3a3a;background:#fff8c9;}
+  .sticky-note.kind-opportunity{background:#d8f3df;}
+  .sticky-note.kind-threat{background:#ffd9d2;}
+  .sticky-edit-btn{position:absolute;top:3px;left:3px;border:none;background:rgba(255,255,255,.75);color:#5a5a5a;
+    width:16px;height:16px;border-radius:4px;font-size:8px;cursor:pointer;display:flex;align-items:center;
+    justify-content:center;opacity:0;transition:opacity .15s;}
+  .sticky-note:hover .sticky-edit-btn{opacity:1;}
+  .sticky-edit-btn:hover{background:#fff;color:var(--sm-brake,#d64528);}
+  .sticky-add-btn{margin-top:2px;border:1px dashed rgba(0,0,0,.2);background:transparent;color:var(--ink-soft);
+    font-size:10px;font-weight:600;padding:7px 6px;border-radius:5px;cursor:pointer;font-family:inherit;}
+  .sticky-add-btn:hover{border-color:var(--pc);color:var(--pc);background:rgba(255,255,255,.4);}
+  .pestel-hero-empty{font-size:10px;color:var(--ink-faint);text-align:center;padding:6px;}
+  @media(max-width:1000px){.pestel-hero{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:600px){.pestel-hero{grid-template-columns:repeat(2,1fr);}}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="topbar">
-  <div><h1>تحلیل PESTEL</h1><div class="sub">روندهای کلان محیطی مؤثر بر صنعت قطعات یدکی خودرو</div></div>
+  <div><h1>تحلیل PESTEL</h1><div class="sub">روندهای کلان محیطی مؤثر بر کسب‌وکار سایپا یدک</div></div>
   {% if perms.strategic.add_pestelfactor %}
-  <button class="btn accent" onclick="newFactor()"><i class="fa-solid fa-plus"></i>افزودن عامل</button>
+  <button class="btn accent" onclick="newFactor()"><i class="fa-solid fa-plus"></i>افزودن مورد</button>
   {% endif %}
 </div>
 
-<div class="pestel-grid">
+<div class="pestel-hero">
   {% for group in grouped %}
-  <div class="pestel-card" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
-    <div class="head"><div class="icon"><i class="fa-solid {{ group.icon }}"></i></div><h4>{{ group.label }}</h4></div>
-    <ul>
-      {% for item in group.items %}
-      <li style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-        <span>{{ item.text }}</span>
-        <span style="display:flex;align-items:center;gap:6px;flex:none;">
-          {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)"
-            data-id="{{ item.pk }}" data-category="{{ item.category }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
-            style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;">
-            <i class="fa-solid fa-pen"></i>
-          </button>
-          {% endif %}
-          {% if perms.strategic.delete_pestelfactor %}
-          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">
-            {% csrf_token %}
-            <button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;"><i class="fa-solid fa-xmark"></i></button>
-          </form>
-          {% endif %}
-        </span>
-      </li>
+  <div class="pestel-hero-col" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
+    <div class="letter-band"><span class="letter">{{ group.letter }}</span><span class="cat-name">{{ group.label }}</span></div>
+    <div class="pestel-hero-notes">
+      {% for item in group.summary %}
+      <div class="sticky-note kind-{{ item.kind }}" title="{{ item.text }}" style="--rot:{% cycle '-2deg' '1.5deg' '-1deg' '2deg' '-1.5deg' '1deg' %};position:relative;">
+        {{ item.text|truncatechars:34 }}
+        {% if user.is_superuser %}
+        <button type="button" class="sticky-edit-btn" onclick="editFactor(this)"
+          data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        {% endif %}
+      </div>
       {% empty %}
-      <li style="opacity:.6;">موردی ثبت نشده</li>
+      <div class="pestel-hero-empty">موردی ثبت نشده</div>
       {% endfor %}
-    </ul>
+      {% if user.is_superuser %}
+      <button type="button" class="sticky-add-btn" onclick="newFactorFor('{{ group.key }}')"><i class="fa-solid fa-plus"></i> افزودن برچسب</button>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
 </div>
 
+{% for group in grouped %}
+<div class="pestel-cat" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
+  <div class="cat-head"><div class="icon"><i class="fa-solid {{ group.icon }}"></i></div><h4>{{ group.label }}</h4></div>
+  <div class="pestel-cols">
+    <div class="pestel-col factor">
+      <div class="col-lbl"><i class="fa-solid fa-circle-info"></i>عوامل محیطی</div>
+      {% for item in group.factors %}
+      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+        <span class="acts">
+          {% if perms.strategic.change_pestelfactor %}
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          {% endif %}
+          {% if perms.strategic.delete_pestelfactor %}
+          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
+        </span>
+      </div>
+      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
+    </div>
+    <div class="pestel-col opportunity">
+      <div class="col-lbl"><i class="fa-solid fa-arrow-trend-up"></i>فرصت‌ها</div>
+      {% for item in group.opportunities %}
+      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+        <span class="acts">
+          {% if perms.strategic.change_pestelfactor %}
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          {% endif %}
+          {% if perms.strategic.delete_pestelfactor %}
+          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
+        </span>
+      </div>
+      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
+    </div>
+    <div class="pestel-col threat">
+      <div class="col-lbl"><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</div>
+      {% for item in group.threats %}
+      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+        <span class="acts">
+          {% if perms.strategic.change_pestelfactor %}
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          {% endif %}
+          {% if perms.strategic.delete_pestelfactor %}
+          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+          {% endif %}
+        </span>
+      </div>
+      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+
 <div class="overlay" id="overlay">
   <div class="modal-card">
-    <h3 id="modalTitle">افزودن عامل PESTEL</h3>
+    <h3 id="modalTitle">افزودن مورد PESTEL</h3>
     <form method="post" id="pestelForm">
       {% csrf_token %}
       <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>بُعد</label>{{ form.category }}</div>
-      <div class="field-group"><label>عامل محیطی</label>{{ form.text }}</div>
+      <div class="field-group"><label>نوع</label>{{ form.kind }}</div>
+      <div class="field-group"><label>متن</label>{{ form.text }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
@@ -69,18 +168,24 @@
   function newFactor(){
     document.getElementById('pestelForm').reset();
     document.getElementById('obj_id').value = '';
-    document.getElementById('modalTitle').textContent = 'افزودن عامل PESTEL';
+    document.getElementById('modalTitle').textContent = 'افزودن مورد PESTEL';
     document.getElementById('submitBtn').textContent = 'ثبت مورد';
     openModal();
+  }
+
+  function newFactorFor(category){
+    newFactor();
+    document.getElementById('id_category').value = category;
   }
 
   function editFactor(btn){
     const d = btn.dataset;
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_category').value = d.category;
+    document.getElementById('id_kind').value = d.kind;
     document.getElementById('id_text').value = d.text;
     document.getElementById('id_order').value = d.order;
-    document.getElementById('modalTitle').textContent = 'ویرایش عامل PESTEL';
+    document.getElementById('modalTitle').textContent = 'ویرایش مورد PESTEL';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();
   }

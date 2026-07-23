@@ -18,6 +18,7 @@ urlpatterns = [
 
     path("pestel/", views.pestel, name="pestel"),
     path("pestel/delete/<int:pk>/", views.pestel_delete, name="pestel_delete"),
+    path("porter/", views.porter, name="porter"),
     path("stratmap/", views.stratmap, name="stratmap"),
     path("stratmap/print/", views.stratmap_print, name="stratmap_print"),
     path("stratmap/delete/<int:pk>/", views.objective_delete, name="objective_delete"),

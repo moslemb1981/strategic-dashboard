@@ -348,8 +348,15 @@ class PestelFactor(models.Model):
         "legal": ("var(--coral)", "var(--coral-soft)", "fa-gavel"),
     }
 
+    KIND_CHOICES = [
+        ("factor", "عامل محیطی"),
+        ("opportunity", "فرصت"),
+        ("threat", "تهدید"),
+    ]
+
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="بُعد")
-    text = models.CharField(max_length=300, verbose_name="عامل محیطی")
+    kind = models.CharField(max_length=15, choices=KIND_CHOICES, default="factor", verbose_name="نوع")
+    text = models.CharField(max_length=500, verbose_name="متن")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -360,3 +367,39 @@ class PestelFactor(models.Model):
 
     def __str__(self):
         return f"{self.get_category_display()} — {self.text}"
+
+
+class PorterForce(models.Model):
+    FORCE_CHOICES = [
+        ("rivalry", "شدت رقابت موجود"),
+        ("buyer_power", "قدرت چانه‌زنی مشتریان"),
+        ("supplier_power", "قدرت چانه‌زنی تأمین‌کنندگان"),
+        ("new_entrants", "تهدید ورود رقبای جدید"),
+        ("substitutes", "تهدید کالاها/خدمات جایگزین"),
+    ]
+    LEVEL_CHOICES = [
+        ("low", "کم"), ("medium", "متوسط"), ("high", "زیاد"), ("very_high", "بسیار زیاد"),
+    ]
+    LEVEL_COLOR = {"low": "var(--success)", "medium": "var(--accent)", "high": "#B0413E", "very_high": "#7B1E1E"}
+
+    force = models.CharField(max_length=20, choices=FORCE_CHOICES, unique=True, verbose_name="نیرو")
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default="medium", verbose_name="شدت")
+    reasons = models.TextField(blank=True, verbose_name="دلایل (هر خط یک مورد)")
+    conclusion = models.TextField(blank=True, verbose_name="نتیجه")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["force"]
+        verbose_name = "نیروی پورتر"
+        verbose_name_plural = "تحلیل پنج نیروی پورتر"
+
+    def __str__(self):
+        return self.get_force_display()
+
+    @property
+    def reasons_list(self):
+        return [r.strip() for r in self.reasons.splitlines() if r.strip()]
+
+    @property
+    def level_color(self):
+        return self.LEVEL_COLOR.get(self.level, "var(--ink-faint)")

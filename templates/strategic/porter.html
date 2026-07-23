@@ -1,0 +1,109 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}پنج نیروی پورتر{% endblock %}
+{% block crumb %}پنج نیروی پورتر{% endblock %}
+
+{% block extra_css %}
+<style>
+  .porter-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .porter-chip{flex:1;min-width:150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:10px 14px;box-shadow:var(--shadow);border-top:3px solid var(--lc);}
+  .porter-chip .lbl{font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .porter-chip .val{font-size:13px;font-weight:800;color:var(--lc);}
+
+  .porter-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:900px){.porter-grid{grid-template-columns:1fr;}}
+  .porter-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow);overflow:hidden;}
+  .porter-card .p-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+    border-bottom:1px solid var(--border);background:color-mix(in srgb, var(--lc) 8%, transparent);}
+  .porter-card .p-title{font-size:14px;font-weight:800;color:var(--ink);}
+  .porter-card .p-level{font-size:11px;font-weight:800;color:#fff;background:var(--lc);padding:4px 12px;border-radius:20px;}
+  .porter-card .p-body{padding:14px 18px;}
+  .porter-card .reasons-lbl{font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+  .porter-card ul{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .porter-card li{font-size:12.5px;line-height:1.6;padding-right:14px;position:relative;color:var(--ink);}
+  .porter-card li::before{content:"";position:absolute;right:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--lc);}
+  .porter-conclusion{background:color-mix(in srgb, var(--lc) 10%, transparent);border-radius:8px;padding:10px 12px;
+    font-size:12.5px;line-height:1.7;color:var(--ink);}
+  .porter-conclusion b{color:var(--lc);font-weight:800;}
+  .porter-edit{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;}
+  .porter-edit:hover{color:var(--sm-brake,#d64528);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>تحلیل پنج نیروی پورتر</h1><div class="sub">ساختار رقابتی صنعت قطعات و خدمات پس از فروش خودرو</div></div>
+</div>
+
+<div class="porter-summary">
+  {% for f in forces %}
+  <div class="porter-chip" style="--lc:{{ f.level_color }};">
+    <div class="lbl">{{ f.get_force_display }}</div>
+    <div class="val">{{ f.get_level_display }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="porter-grid">
+  {% for f in forces %}
+  <div class="porter-card" style="--lc:{{ f.level_color }};">
+    <div class="p-head">
+      <span class="p-title">{{ f.get_force_display }}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span class="p-level">{{ f.get_level_display }}</span>
+        {% if perms.strategic.change_porterforce %}
+        <button type="button" class="porter-edit" onclick="editForce(this)"
+          data-id="{{ f.pk }}" data-level="{{ f.level }}" data-reasons="{{ f.reasons }}" data-conclusion="{{ f.conclusion }}">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        {% endif %}
+      </span>
+    </div>
+    <div class="p-body">
+      <div class="reasons-lbl">دلایل</div>
+      <ul>
+        {% for r in f.reasons_list %}<li>{{ r }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}
+      </ul>
+      {% if f.conclusion %}
+      <div class="porter-conclusion"><b>نتیجه:</b> {{ f.conclusion }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3 id="modalTitle">ویرایش نیرو</h3>
+    <form method="post" id="porterForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>شدت</label>{{ form.level }}</div>
+      <div class="field-group"><label>دلایل (هر خط یک مورد)</label>{{ form.reasons }}</div>
+      <div class="field-group"><label>نتیجه</label>{{ form.conclusion }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ذخیره تغییرات</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function editForce(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_level').value = d.level;
+    document.getElementById('id_reasons').value = d.reasons;
+    document.getElementById('id_conclusion').value = d.conclusion;
+    openModal();
+  }
+</script>
+{% endblock %}

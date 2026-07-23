@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
-    Competitor, PestelFactor, BusinessUnit, StrategyTheme,
+    Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
 )
 
 
@@ -79,8 +79,14 @@ class CompetitorAdmin(admin.ModelAdmin):
 
 @admin.register(PestelFactor)
 class PestelFactorAdmin(admin.ModelAdmin):
-    list_display = ("category", "text", "order")
-    list_filter = ("category",)
+    list_display = ("category", "kind", "text", "order")
+    list_filter = ("category", "kind")
     list_editable = ("order",)
     search_fields = ("text",)
-    ordering = ("category", "order")
+    ordering = ("category", "kind", "order")
+
+
+@admin.register(PorterForce)
+class PorterForceAdmin(admin.ModelAdmin):
+    list_display = ("force", "level", "updated_at")
+    list_editable = ("level",)

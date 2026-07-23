@@ -7,11 +7,11 @@ from django.urls import reverse
 
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    BusinessUnit, StrategyTheme,
+    BusinessUnit, StrategyTheme, PorterForce,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
-    CompetitorForm, PestelFactorForm, StrategyThemeForm,
+    CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -86,6 +86,7 @@ def home(request):
         "risk_total": risk_total, "risk_high": risk_high, "risk_pct": risk_pct,
         "competitor_count": Competitor.objects.count(),
         "pestel_count": PestelFactor.objects.count(),
+        "porter_count": PorterForce.objects.count(),
         "swot_count": SWOTItem.objects.count(),
         "activity": activity,
     })
@@ -218,13 +219,21 @@ def pestel(request):
     else:
         form = PestelFactorForm()
 
+    LETTERS = {"political": "P", "economic": "E", "social": "S",
+               "technological": "T", "environmental": "E", "legal": "L"}
+
     factors = PestelFactor.objects.all()
     grouped = []
     for key, label in PestelFactor.CATEGORY_CHOICES:
         color, soft, icon = PestelFactor.CATEGORY_STYLE[key]
+        cat_items = [f for f in factors if f.category == key]
         grouped.append({
             "key": key, "label": label, "color": color, "soft": soft, "icon": icon,
-            "items": [f for f in factors if f.category == key],
+            "letter": LETTERS[key],
+            "factors": [f for f in cat_items if f.kind == "factor"],
+            "opportunities": [f for f in cat_items if f.kind == "opportunity"],
+            "threats": [f for f in cat_items if f.kind == "threat"],
+            "summary": cat_items[:6],
         })
 
     return render(request, "strategic/pestel.html", {
@@ -240,6 +249,33 @@ def pestel_delete(request, pk):
         _obj.delete()
         _log_action(request, "DELETE PestelFactor", _label)
     return redirect("strategic:pestel")
+
+
+# ---------------- Porter's Five Forces ----------------
+
+def porter(request):
+    # مطمئن می‌شویم هر ۵ نیرو همیشه یک رکورد دارند
+    for key, _ in PorterForce.FORCE_CHOICES:
+        PorterForce.objects.get_or_create(force=key)
+
+    if request.method == "POST":
+        force_id = request.POST.get("obj_id")
+        if _has_perm(request, "strategic.change_porterforce"):
+            instance = get_object_or_404(PorterForce, pk=force_id)
+            form = PorterForceForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE PorterForce", str(instance))
+                return redirect("strategic:porter")
+
+    forces = list(PorterForce.objects.all())
+    level_rank = {"low": 1, "medium": 2, "high": 3, "very_high": 4}
+    forces.sort(key=lambda f: list(dict(PorterForce.FORCE_CHOICES).keys()).index(f.force))
+    overall = round(sum(level_rank.get(f.level, 2) for f in forces) / len(forces), 1) if forces else 0
+
+    return render(request, "strategic/porter.html", {
+        "active_page": "porter", "forces": forces, "overall": overall, "form": PorterForceForm(),
+    })
 
 
 # ---------------- Strategic map (BSC) ----------------
