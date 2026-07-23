@@ -49,6 +49,7 @@
       <nav class="nav">
         <div class="nav-label">کار روزانه</div>
         <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه</a>
+        <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان</a>
         <a class="nav-item {% if active_page == 'research' %}active{% endif %}" href="{% url 'strategic:research' %}"><i class="fa-solid fa-book"></i>کتابخانه مطالعات</a>
         <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>نقشه راه ابتکارات</a>
         <div class="nav-label">تحلیل‌های استراتژیک</div>

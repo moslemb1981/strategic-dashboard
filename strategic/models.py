@@ -403,3 +403,47 @@ class PorterForce(models.Model):
     @property
     def level_color(self):
         return self.LEVEL_COLOR.get(self.level, "var(--ink-faint)")
+
+
+class OrgIdentity(models.Model):
+    """رکورد تکی (singleton) برای چشم‌انداز، مأموریت و امضای مدیریت ارشد."""
+    vision = models.TextField(blank=True, verbose_name="چشم‌انداز")
+    mission = models.TextField(blank=True, verbose_name="مأموریت")
+    signed_by = models.CharField(max_length=150, blank=True, verbose_name="امضاکننده")
+    signed_role = models.CharField(max_length=150, blank=True, verbose_name="سمت امضاکننده")
+    signed_date = models.CharField(max_length=50, blank=True, verbose_name="تاریخ امضا (شمسی، متن آزاد)")
+
+    class Meta:
+        verbose_name = "چشم‌انداز و مأموریت"
+        verbose_name_plural = "چشم‌انداز و مأموریت"
+
+    def __str__(self):
+        return "چشم‌انداز و مأموریت سازمان"
+
+
+class OrgValue(models.Model):
+    text = models.CharField(max_length=150, verbose_name="ارزش سازمانی")
+    is_center = models.BooleanField(default=False, verbose_name="آیا مرکز چرخ است؟")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "ارزش سازمانی"
+        verbose_name_plural = "ارزش‌های سازمانی"
+
+    def __str__(self):
+        return self.text
+
+
+class QualityPolicyPoint(models.Model):
+    number = models.PositiveSmallIntegerField(verbose_name="شماره بند")
+    text = models.TextField(verbose_name="متن بند")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "بند خط‌مشی کیفیت"
+        verbose_name_plural = "بندهای خط‌مشی کیفیت"
+
+    def __str__(self):
+        return f"بند {self.number}"

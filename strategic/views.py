@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    BusinessUnit, StrategyTheme, PorterForce,
+    BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -339,10 +339,12 @@ def stratmap(request):
         for target in o.feeds_into.all():
             links.append([f"obj-{o.pk}", f"obj-{target.pk}"])
 
+    org_identity, _ = OrgIdentity.objects.get_or_create(pk=1)
+
     return render(request, "strategic/stratmap.html", {
         "active_page": "stratmap", "bands": bands, "form": form,
         "links": links, "business_units": business_units, "current_bu": current_bu,
-        "themes": themes, "theme_form": StrategyThemeForm(),
+        "themes": themes, "theme_form": StrategyThemeForm(), "org_vision": org_identity.vision,
     })
 
 
@@ -638,3 +640,76 @@ def risk_delete(request, pk):
         _obj.delete()
         _log_action(request, "DELETE Risk", _label)
     return redirect("strategic:risk")
+
+
+# ---------------- چشم‌انداز، مأموریت و ارزش‌های سازمانی ----------------
+# ویرایش این بخش فقط برای ادمین اصلی (Superuser) مجاز است، نه گروه «ویرایشگران».
+
+def org_identity(request):
+    identity, _ = OrgIdentity.objects.get_or_create(pk=1)
+
+    if request.method == "POST" and request.user.is_superuser:
+        form_kind = request.POST.get("form_kind")
+
+        if form_kind == "identity":
+            identity.vision = request.POST.get("vision", "").strip()
+            identity.mission = request.POST.get("mission", "").strip()
+            identity.signed_by = request.POST.get("signed_by", "").strip()
+            identity.signed_role = request.POST.get("signed_role", "").strip()
+            identity.signed_date = request.POST.get("signed_date", "").strip()
+            identity.save()
+            _log_action(request, "UPDATE OrgIdentity", "چشم‌انداز/مأموریت")
+            return redirect("strategic:org_identity")
+
+        elif form_kind == "value":
+            obj_id = request.POST.get("obj_id")
+            text = request.POST.get("text", "").strip()
+            is_center = bool(request.POST.get("is_center"))
+            if text:
+                if obj_id:
+                    OrgValue.objects.filter(pk=obj_id).update(text=text, is_center=is_center)
+                else:
+                    OrgValue.objects.create(text=text, is_center=is_center, order=OrgValue.objects.count())
+                _log_action(request, "UPDATE OrgValue" if obj_id else "CREATE OrgValue", text)
+            return redirect("strategic:org_identity")
+
+        elif form_kind == "policy":
+            obj_id = request.POST.get("obj_id")
+            number = request.POST.get("number") or 0
+            text = request.POST.get("text", "").strip()
+            if text:
+                if obj_id:
+                    QualityPolicyPoint.objects.filter(pk=obj_id).update(number=number, text=text)
+                else:
+                    QualityPolicyPoint.objects.create(number=number, text=text, order=QualityPolicyPoint.objects.count())
+                _log_action(request, "UPDATE QualityPolicyPoint" if obj_id else "CREATE QualityPolicyPoint", text)
+            return redirect("strategic:org_identity")
+
+    values = list(OrgValue.objects.all())
+    outer_values = [v for v in values if not v.is_center]
+    center_value = next((v for v in values if v.is_center), None)
+    policy_points = list(QualityPolicyPoint.objects.all())
+
+    return render(request, "strategic/org_identity.html", {
+        "active_page": "org_identity", "identity": identity,
+        "outer_values": outer_values, "center_value": center_value,
+        "policy_points": policy_points,
+    })
+
+
+def org_value_delete(request, pk):
+    if request.method == "POST" and request.user.is_superuser:
+        obj = get_object_or_404(OrgValue, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE OrgValue", label)
+    return redirect("strategic:org_identity")
+
+
+def policy_point_delete(request, pk):
+    if request.method == "POST" and request.user.is_superuser:
+        obj = get_object_or_404(QualityPolicyPoint, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE QualityPolicyPoint", label)
+    return redirect("strategic:org_identity")

@@ -6,6 +6,9 @@ app_name = "strategic"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("identity/", views.org_identity, name="org_identity"),
+    path("identity/value/delete/<int:pk>/", views.org_value_delete, name="org_value_delete"),
+    path("identity/policy/delete/<int:pk>/", views.policy_point_delete, name="policy_point_delete"),
 
     path("research/", views.research, name="research"),
     path("research/delete/<int:pk>/", views.study_delete, name="study_delete"),

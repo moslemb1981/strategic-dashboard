@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
+    OrgIdentity, OrgValue, QualityPolicyPoint,
 )
 
 
@@ -90,3 +91,20 @@ class PestelFactorAdmin(admin.ModelAdmin):
 class PorterForceAdmin(admin.ModelAdmin):
     list_display = ("force", "level", "updated_at")
     list_editable = ("level",)
+
+
+@admin.register(OrgIdentity)
+class OrgIdentityAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "signed_by", "signed_date")
+
+
+@admin.register(OrgValue)
+class OrgValueAdmin(admin.ModelAdmin):
+    list_display = ("text", "is_center", "order")
+    list_editable = ("order", "is_center")
+
+
+@admin.register(QualityPolicyPoint)
+class QualityPolicyPointAdmin(admin.ModelAdmin):
+    list_display = ("number", "text", "order")
+    list_editable = ("order",)
