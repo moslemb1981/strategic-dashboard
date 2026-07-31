@@ -120,6 +120,10 @@ class Risk(models.Model):
         "StrategicObjective", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="risks", verbose_name="هدف استراتژیک تهدیدشده",
     )
+    related_scenario = models.ForeignKey(
+        "Scenario", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="risks", verbose_name="سناریوی مرتبط",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

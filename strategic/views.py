@@ -311,7 +311,7 @@ def pestel(request):
     LETTERS = {"political": "P", "economic": "E", "social": "S",
                "technological": "T", "environmental": "E", "legal": "L"}
 
-    factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit")
+    factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors")
     grouped = []
     for key, label in PestelFactor.CATEGORY_CHOICES:
         color, soft, icon = PestelFactor.CATEGORY_STYLE[key]
@@ -939,7 +939,7 @@ def risk(request):
     else:
         form = RiskForm()
 
-    risks = list(Risk.objects.all())
+    risks = list(Risk.objects.all().select_related("related_scenario"))
     risks_sorted = sorted(risks, key=lambda r: -r.residual_score)
     for idx, r in enumerate(risks_sorted, start=1):
         r.display_no = idx  # runtime-only, used for bubble/row numbering
@@ -1099,7 +1099,7 @@ def scenarios(request):
                     _log_action(request, "UPDATE ScenarioAxes", "محورهای سناریو")
                     return redirect("strategic:scenarios")
 
-    scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit")}
+    scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks")}
     return render(request, "strategic/scenarios.html", {
         "active_page": "scenarios", "scenario_map": scenario_map, "axes": axes,
         "scenario_form": ScenarioForm(), "axes_form": ScenarioAxesForm(instance=axes),

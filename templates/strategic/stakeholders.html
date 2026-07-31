@@ -22,6 +22,11 @@
 
   .sk-table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;}
   .sk-table th{background:var(--bg);text-align:right;padding:8px 10px;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .sk-livesearch-row th{padding:5px 8px 8px;border-bottom:2px solid var(--primary);}
+  .sk-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;background:#fff;}
+  .sk-live-input:focus{outline:none;border-color:var(--primary);}
+  .sk-table tr.sk-hidden{display:none;}
+  .sk-table mark{background:var(--accent-soft);color:#7A4711;border-radius:3px;padding:0 1px;}
   .sk-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;white-space:normal;word-break:break-word;}
   .sk-table tr:hover td{background:var(--bg);}
   .sk-badge{display:inline-block;font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 8px;color:#fff;}
@@ -72,8 +77,21 @@
   </colgroup>
   <thead><tr>
     <th>واحد</th><th>ذینفع</th><th>نیاز/انتظار</th><th>ریسک</th><th>فرصت</th><th>اقدام</th><th></th>
-  </tr></thead>
-  <tbody>
+  </tr>
+  <tr class="sk-livesearch-row">
+    <th><input type="text" id="liveDept" class="sk-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveName" class="sk-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveNeed" class="sk-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveRisk" class="sk-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveOpp" class="sk-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveAction" class="sk-live-input" placeholder="جستجو..."></th>
+    <th style="font-size:10.5px;color:var(--ink-faint);font-weight:400;">
+      <span id="liveCount"></span>
+      <button type="button" id="liveClear" style="display:none;border:none;background:none;color:var(--primary);cursor:pointer;font-size:10.5px;margin-inline-start:8px;">پاک کردن</button>
+    </th>
+  </tr>
+  </thead>
+  <tbody id="stakeholderBody">
     {% for i in items %}
     <tr>
       <td>{{ i.department|default:"—" }}</td>
@@ -134,6 +152,55 @@
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  (function(){
+    const deptInput = document.getElementById('liveDept');
+    const nameInput = document.getElementById('liveName');
+    const needInput = document.getElementById('liveNeed');
+    const riskInput = document.getElementById('liveRisk');
+    const oppInput = document.getElementById('liveOpp');
+    const actionInput = document.getElementById('liveAction');
+    const clearBtn = document.getElementById('liveClear');
+    const countEl = document.getElementById('liveCount');
+    const rows = Array.from(document.querySelectorAll('#stakeholderBody tr'));
+    if (!deptInput) return;
+
+    function applyLiveFilter(){
+      const d = deptInput.value.trim().toLowerCase();
+      const n = nameInput.value.trim().toLowerCase();
+      const q = needInput.value.trim().toLowerCase();
+      const r = riskInput.value.trim().toLowerCase();
+      const o = oppInput.value.trim().toLowerCase();
+      const a = actionInput.value.trim().toLowerCase();
+      const anyActive = d || n || q || r || o || a;
+      let visible = 0;
+      rows.forEach(function(row){
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 6){ return; }
+        const deptTxt = cells[0].textContent.toLowerCase();
+        const nameTxt = cells[1].textContent.toLowerCase();
+        const needTxt = cells[2].textContent.toLowerCase();
+        const riskTxt = cells[3].textContent.toLowerCase();
+        const oppTxt = cells[4].textContent.toLowerCase();
+        const actionTxt = cells[5].textContent.toLowerCase();
+        const match = (!d || deptTxt.includes(d)) && (!n || nameTxt.includes(n)) && (!q || needTxt.includes(q))
+          && (!r || riskTxt.includes(r)) && (!o || oppTxt.includes(o)) && (!a || actionTxt.includes(a));
+        row.classList.toggle('sk-hidden', !match);
+        if (match) visible++;
+      });
+      clearBtn.style.display = anyActive ? 'inline' : 'none';
+      countEl.textContent = anyActive ? ('یافت‌شده: ' + visible + ' مورد مشابه') : '';
+    }
+
+    [deptInput, nameInput, needInput, riskInput, oppInput, actionInput].forEach(function(inp){
+      inp.addEventListener('input', applyLiveFilter);
+    });
+    clearBtn.addEventListener('click', function(){
+      deptInput.value = ''; nameInput.value = ''; needInput.value = '';
+      riskInput.value = ''; oppInput.value = ''; actionInput.value = '';
+      applyLiveFilter();
+    });
+  })();
 
   function newStakeholder(){
     document.getElementById('skForm').reset();

@@ -78,7 +78,7 @@ class RiskForm(forms.ModelForm):
             "inherent_likelihood", "inherent_impact",
             "likelihood", "impact",
             "target_likelihood", "target_impact",
-            "response_strategy", "trend", "kri", "mitigation", "linked_objective",
+            "response_strategy", "trend", "kri", "mitigation", "linked_objective", "related_scenario",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: افزایش شدید نرخ ارز"}),

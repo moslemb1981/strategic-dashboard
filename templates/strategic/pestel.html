@@ -133,7 +133,7 @@
     <div class="pestel-col factor">
       <div class="col-lbl"><i class="fa-solid fa-circle-info"></i>عوامل محیطی</div>
       {% for item in group.factors %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
           <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
@@ -158,7 +158,7 @@
     <div class="pestel-col opportunity">
       <div class="col-lbl"><i class="fa-solid fa-arrow-trend-up"></i>فرصت‌ها</div>
       {% for item in group.opportunities %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
           <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
@@ -183,7 +183,7 @@
     <div class="pestel-col threat">
       <div class="col-lbl"><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</div>
       {% for item in group.threats %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
           <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"

@@ -83,6 +83,8 @@
   .rd .rowbtn:hover{color:var(--brake);}
   .rd .empty-note{padding:2rem;text-align:center;color:var(--muted);font-size:.8rem;}
   .rd .th3{font-size:.55rem;opacity:.75;display:block;font-weight:400;}
+  .scenario-badge{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;
+    background:var(--accent-soft,#FDF3E7);color:#7A4711;border-radius:5px;padding:2px 7px;margin-inline-start:6px;white-space:nowrap;}
 </style>
 {% endblock %}
 
@@ -188,7 +190,7 @@
           {% for r in risks %}
           <tr>
             <td><span class="td-id" style="background:{{ r.category_color }}">{{ forloop.counter|fanum }}</span></td>
-            <td style="white-space:normal;word-break:break-word;" title="{% if r.cause %}علت: {{ r.cause }}{% endif %}{% if r.consequence %}&#10;پیامد: {{ r.consequence }}{% endif %}">{{ r.title }}</td>
+            <td style="white-space:normal;word-break:break-word;" title="{% if r.cause %}علت: {{ r.cause }}{% endif %}{% if r.consequence %}&#10;پیامد: {{ r.consequence }}{% endif %}">{{ r.title }}{% if r.related_scenario %}<span class="scenario-badge" title="سناریوی مرتبط: {{ r.related_scenario.display_title }}"><i class="fa-solid fa-road"></i> {{ r.related_scenario.display_title }}</span>{% endif %}</td>
             <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ r.category_color }};" title="{{ r.get_category_display }}"></span></td>
             <td style="white-space:normal;word-break:break-word;">
               {% if r.mitigation_list %}
@@ -213,7 +215,7 @@
                 data-l="{{ r.likelihood }}" data-i="{{ r.impact }}"
                 data-tl="{{ r.target_likelihood }}" data-ti="{{ r.target_impact }}"
                 data-response="{{ r.response_strategy }}" data-trend="{{ r.trend }}" data-kri="{{ r.kri }}"
-                data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}">
+                data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}" data-scenario="{{ r.related_scenario_id|default:'' }}">
                 <i class="fa-solid fa-pen"></i>
               </button>
               {% endif %}
@@ -263,6 +265,7 @@
       <div class="field-group"><label>روند نسبت به دوره قبل</label>{{ form.trend }}</div>
       <div class="field-group"><label>شاخص کلیدی ریسک (KRI)</label>{{ form.kri }}</div>
       <div class="field-group"><label>هدف استراتژیک تهدیدشده</label>{{ form.linked_objective }}</div>
+      <div class="field-group"><label>سناریوی مرتبط</label>{{ form.related_scenario }}</div>
       <div class="field-group"><label>اقدامات کنترلی (هر خط یک مورد)</label>{{ form.mitigation }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
@@ -306,6 +309,7 @@
     document.getElementById('id_kri').value = d.kri;
     document.getElementById('id_mitigation').value = d.mitigation;
     document.getElementById('id_linked_objective').value = d.linked || '';
+    document.getElementById('id_related_scenario').value = d.scenario || '';
     document.getElementById('modalTitle').textContent = 'ویرایش ریسک';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

@@ -14,6 +14,7 @@
   .ci-cards{display:flex;flex-direction:column;gap:6px;flex:1;}
   .ci-card{background:rgba(255,255,255,.92);border-radius:8px;padding:8px 10px;font-size:11.5px;font-weight:600;
     color:var(--ink);display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+  .ci-badge{display:inline-flex;align-items:center;font-size:9.5px;color:var(--primary);margin-inline-start:5px;}
   .ci-card .acts{display:flex;gap:4px;flex:none;}
   .ci-card .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;}
   .ci-empty{font-size:11px;color:rgba(255,255,255,.75);}
@@ -45,7 +46,7 @@
       <div class="q-head"><div><div class="q-title">پیشران‌های کلیدی</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.driver %}
-        <div class="ci-card"><span>{{ f.text }}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -60,7 +61,7 @@
       <div class="q-head"><div><div class="q-title">متغیرهای دووجهی</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.relay %}
-        <div class="ci-card"><span>{{ f.text }}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -75,7 +76,7 @@
       <div class="q-head"><div><div class="q-title">دیده‌بانی</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.watch %}
-        <div class="ci-card"><span>{{ f.text }}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -90,7 +91,7 @@
       <div class="q-head"><div><div class="q-title">متغیرهای نتیجه</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.resultant %}
-        <div class="ci-card"><span>{{ f.text }}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
