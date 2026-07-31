@@ -1,0 +1,104 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}زنجیره ارزش پورتر{% endblock %}
+{% block crumb %}زنجیره ارزش پورتر{% endblock %}
+
+{% block extra_css %}
+<style>
+  .vc-note{font-size:11.5px;color:var(--ink-faint);background:var(--accent-soft);color:#7A4711;
+    padding:8px 14px;border-radius:8px;margin-bottom:18px;}
+
+  .vc-support{display:flex;flex-direction:column;gap:2px;margin-bottom:2px;}
+  .vc-band{background:var(--primary-soft);border:1px solid var(--border);border-radius:10px 10px 0 0;
+    padding:12px 16px;position:relative;}
+  .vc-band:last-child{border-radius:0 0 10px 10px;border-top:none;}
+  .vc-band .b-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .vc-band .b-title{font-size:12.5px;font-weight:800;color:var(--primary-dark);}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
+    background:#fff;color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
+  .vc-band ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:5px 16px;}
+  .vc-band li{font-size:11px;line-height:1.6;color:var(--ink-soft);padding-right:10px;position:relative;}
+  .vc-band li::before{content:"";position:absolute;right:0;top:.55em;width:4px;height:4px;border-radius:50%;background:var(--primary);}
+
+  .vc-primary{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-top:2px;}
+  .vc-p-card{background:var(--success-soft);border:1px solid var(--border);padding:12px 10px;position:relative;}
+  .vc-p-card:first-child{border-radius:0 0 0 10px;}
+  .vc-p-card:last-child{border-radius:0 0 10px 0;}
+  .vc-p-card .b-title{font-size:11.5px;font-weight:800;color:var(--success);margin-bottom:6px;text-align:center;}
+  .vc-p-card ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+  .vc-p-card li{font-size:10px;line-height:1.55;color:var(--ink-soft);padding-right:9px;position:relative;}
+  .vc-p-card li::before{content:"";position:absolute;right:0;top:.5em;width:4px;height:4px;border-radius:50%;background:var(--success);}
+  .vc-arrow{grid-column:1/-1;text-align:center;font-size:10px;color:var(--ink-faint);padding:4px 0;font-weight:700;
+    background:#fff;border:1px solid var(--border);border-top:none;}
+
+  .vc-edit{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;}
+  .vc-edit:hover{color:var(--sm-brake,#d64528);}
+  @media(max-width:900px){.vc-primary{grid-template-columns:1fr 1fr;} .vc-p-card:first-child,.vc-p-card:last-child{border-radius:0;}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>زنجیره ارزش پورتر</h1><div class="sub">بخشی از گزارش «تحلیل محیطی» سازمان — فعالیت‌های خلق ارزش داخلی</div></div>
+</div>
+
+<div class="vc-note"><i class="fa-solid fa-circle-info"></i> فعالیت‌های پشتیبان (بالا) کل زنجیره را پوشش می‌دهند؛ فعالیت‌های اصلی (پایین) مسیر مستقیم خلق ارزش برای مشتری‌اند.</div>
+
+<div class="vc-support">
+  {% for a in support %}
+  <div class="vc-band">
+    <div class="b-head">
+      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
+      {% if perms.strategic.change_valuechainactivity %}
+      <button type="button" class="vc-edit" onclick="editActivity(this)" data-id="{{ a.pk }}" data-content="{{ a.content }}"><i class="fa-solid fa-pen"></i></button>
+      {% endif %}
+    </div>
+    <ul>{% for c in a.content_list %}<li>{{ c }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="vc-primary">
+  {% for a in primary %}
+  <div class="vc-p-card">
+    <div class="b-head" style="justify-content:center;position:relative;">
+      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
+      {% if perms.strategic.change_valuechainactivity %}
+      <button type="button" class="vc-edit" onclick="editActivity(this)" data-id="{{ a.pk }}" data-content="{{ a.content }}" style="position:absolute;left:0;top:0;"><i class="fa-solid fa-pen"></i></button>
+      {% endif %}
+    </div>
+    <ul>{% for c in a.content_list %}<li>{{ c }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+  <div class="vc-arrow">فعالیت‌های اصلی ← جهت خلق ارزش برای مشتری</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3>ویرایش محتوا</h3>
+    <form method="post" id="vcForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>اقدامات/محتوا (هر خط یک مورد)</label>{{ form.content }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ذخیره تغییرات</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function editActivity(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_content').value = d.content;
+    openModal();
+  }
+</script>
+{% endblock %}

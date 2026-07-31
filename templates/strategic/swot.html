@@ -38,6 +38,10 @@
   .stw .fdots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);}
   .stw .fdots i.on{background:#fff;}
   .stw .fdel{border:none;background:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.7rem;flex-shrink:0;}
+  .stw .fedit{border:none;background:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.68rem;flex-shrink:0;}
+  .stw .fedit:hover,.stw .fdel:hover{color:#fff;}
+  .stw .src-badge{display:inline-flex;align-items:center;gap:3px;font-size:.56rem;font-weight:700;
+    background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
   .stw .fdel:hover{color:#fff;}
   .stw .addrow{display:flex;gap:5px;margin-top:.5rem;}
   .stw .addrow input,.stw .addrow select{font-size:.68rem;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:4px 7px;}
@@ -99,13 +103,21 @@
   .stw .bu-empty{padding:2.5rem;text-align:center;color:var(--muted);font-size:.85rem;background:#fff;
     border:1px dashed var(--hair);border-radius:12px;margin-bottom:1rem;}
   .print-header{display:none;}
+
+  .picker-box{max-height:180px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--hair);border-radius:8px;
+    padding:6px 10px;background:#fff;margin-top:4px;}
+  .picker-box label{display:block;font-size:.76rem;line-height:1.6;color:var(--ink,#1B2430);
+    padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+  .picker-box label:hover{background:var(--bg,#F5F4EF);}
+  .picker-box label.picked{background:rgba(214,69,40,.12);border-color:rgba(214,69,40,.35);font-weight:600;}
+  .picker-box input[type="radio"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
 </style>
 
 <style media="print">
   body{background:#fff !important;}
   .shell{border:none !important;}
   .topheader, .sidebar, .topbar, .bu-bar .bu-add-btn, .bu-tab,
-  .stw .addrow, .stw .addrow2, .stw .fdel, .stw .strat li button{display:none !important;}
+  .stw .addrow, .stw .addrow2, .stw .fdel, .stw .fedit, .stw .strat li button{display:none !important;}
   .bu-bar{display:none !important;}
   .main{padding:0 !important;}
 
@@ -164,8 +176,17 @@
           <div class="q-score"><b>{{ s_score }}</b><small>میانگین وزن</small></div>
         </div>
         {% for it in s_items %}
-        <div class="factor"><span class="f-code">S{{ forloop.counter }}</span><span style="flex:1">{{ it.text }}</span>
+        <div class="factor"><span class="f-code">S{{ forloop.counter }}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
+          {% if perms.strategic.change_swotitem %}
+          <button type="button" class="fedit" onclick="editSwotItem(this)"
+            data-id="{{ it.pk }}" data-category="s" data-text="{{ it.text }}" data-weight="{{ it.weight }}"
+            data-pestel="{{ it.source_pestel_id|default:'' }}" data-porter="{{ it.source_porter_id|default:'' }}" data-stakeholder="{{ it.source_stakeholder_id|default:'' }}" data-scenario="{{ it.source_scenario_id|default:'' }}"
+            data-s7="{{ it.source_7s_id|default:'' }}" data-vc="{{ it.source_value_chain_id|default:'' }}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          {% endif %}
           {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit" class="fdel"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
@@ -186,8 +207,17 @@
           <div class="q-score"><b>{{ w_score }}</b><small>میانگین وزن</small></div>
         </div>
         {% for it in w_items %}
-        <div class="factor"><span class="f-code">W{{ forloop.counter }}</span><span style="flex:1">{{ it.text }}</span>
+        <div class="factor"><span class="f-code">W{{ forloop.counter }}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
+          {% if perms.strategic.change_swotitem %}
+          <button type="button" class="fedit" onclick="editSwotItem(this)"
+            data-id="{{ it.pk }}" data-category="w" data-text="{{ it.text }}" data-weight="{{ it.weight }}"
+            data-pestel="{{ it.source_pestel_id|default:'' }}" data-porter="{{ it.source_porter_id|default:'' }}" data-stakeholder="{{ it.source_stakeholder_id|default:'' }}" data-scenario="{{ it.source_scenario_id|default:'' }}"
+            data-s7="{{ it.source_7s_id|default:'' }}" data-vc="{{ it.source_value_chain_id|default:'' }}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          {% endif %}
           {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit" class="fdel"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
@@ -208,8 +238,17 @@
           <div class="q-score"><b>{{ o_score }}</b><small>میانگین وزن</small></div>
         </div>
         {% for it in o_items %}
-        <div class="factor"><span class="f-code">O{{ forloop.counter }}</span><span style="flex:1">{{ it.text }}</span>
+        <div class="factor"><span class="f-code">O{{ forloop.counter }}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
+          {% if perms.strategic.change_swotitem %}
+          <button type="button" class="fedit" onclick="editSwotItem(this)"
+            data-id="{{ it.pk }}" data-category="o" data-text="{{ it.text }}" data-weight="{{ it.weight }}"
+            data-pestel="{{ it.source_pestel_id|default:'' }}" data-porter="{{ it.source_porter_id|default:'' }}" data-stakeholder="{{ it.source_stakeholder_id|default:'' }}" data-scenario="{{ it.source_scenario_id|default:'' }}"
+            data-s7="{{ it.source_7s_id|default:'' }}" data-vc="{{ it.source_value_chain_id|default:'' }}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          {% endif %}
           {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit" class="fdel"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
@@ -230,8 +269,17 @@
           <div class="q-score"><b>{{ t_score }}</b><small>میانگین وزن</small></div>
         </div>
         {% for it in t_items %}
-        <div class="factor"><span class="f-code">T{{ forloop.counter }}</span><span style="flex:1">{{ it.text }}</span>
+        <div class="factor"><span class="f-code">T{{ forloop.counter }}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
+          {% if perms.strategic.change_swotitem %}
+          <button type="button" class="fedit" onclick="editSwotItem(this)"
+            data-id="{{ it.pk }}" data-category="t" data-text="{{ it.text }}" data-weight="{{ it.weight }}"
+            data-pestel="{{ it.source_pestel_id|default:'' }}" data-porter="{{ it.source_porter_id|default:'' }}" data-stakeholder="{{ it.source_stakeholder_id|default:'' }}" data-scenario="{{ it.source_scenario_id|default:'' }}"
+            data-s7="{{ it.source_7s_id|default:'' }}" data-vc="{{ it.source_value_chain_id|default:'' }}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          {% endif %}
           {% if perms.strategic.delete_swotitem %}
           <form method="post" action="{% url 'strategic:swot_delete' it.pk %}" style="margin:0;">{% csrf_token %}<button type="submit" class="fdel"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
@@ -276,7 +324,12 @@
         <span class="badge" style="background:var(--s)">SO · راهبرد تهاجمی</span>
         <ul>
           {% for st in tows.so %}
-          <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+            <span style="display:flex;gap:4px;flex-shrink:0;">
+            {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="so" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+            </span>
+          </li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
         {% if current_bu and perms.strategic.add_towsstrategy %}
@@ -288,7 +341,12 @@
         <span class="badge" style="background:var(--o)">WO · راهبرد بازنگری</span>
         <ul>
           {% for st in tows.wo %}
-          <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+            <span style="display:flex;gap:4px;flex-shrink:0;">
+            {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wo" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+            </span>
+          </li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
         {% if current_bu and perms.strategic.add_towsstrategy %}
@@ -302,7 +360,12 @@
         <span class="badge" style="background:var(--w)">ST · راهبرد تنوع</span>
         <ul>
           {% for st in tows.st %}
-          <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+            <span style="display:flex;gap:4px;flex-shrink:0;">
+            {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="st" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+            </span>
+          </li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
         {% if current_bu and perms.strategic.add_towsstrategy %}
@@ -314,7 +377,12 @@
         <span class="badge" style="background:var(--t)">WT · راهبرد تدافعی</span>
         <ul>
           {% for st in tows.wt %}
-          <li><span>{{ st.text }}</span>{% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}</li>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+            <span style="display:flex;gap:4px;flex-shrink:0;">
+            {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wt" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+            </span>
+          </li>
           {% empty %}<li style="opacity:.6;">راهبردی ثبت نشده</li>{% endfor %}
         </ul>
         {% if current_bu and perms.strategic.add_towsstrategy %}
@@ -348,10 +416,163 @@
     </form>
   </div>
 </div>
+
+<div class="overlay" id="swotEditOverlay">
+  <div class="modal-card" style="max-width:420px;">
+    <h3>ویرایش مورد SWOT</h3>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="swi_obj_id" value="">
+      <input type="hidden" name="category" id="swi_category" value="">
+      <div class="field-group"><label>متن</label><textarea name="text" id="swi_text" rows="2" required></textarea></div>
+      <div class="field-group"><label>وزن اهمیت</label>
+        <select name="weight" id="swi_weight">
+          <option value="1">۱</option><option value="2">۲</option><option value="3">۳</option><option value="4">۴</option><option value="5">۵</option>
+        </select>
+      </div>
+      <div class="field-group" id="swi_ot_sources">
+        <label>عامل محیطی مرتبط (PESTEL)</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_pestel" value="" id="swi_source_pestel_none" checked> — بدون ارتباط —</label>
+          {% for f in pestel_factors %}<label><input type="radio" name="source_pestel" value="{{ f.pk }}"> {{ f.get_category_display }} — {{ f.text }}</label>{% endfor %}
+        </div>
+        <label style="margin-top:8px;">نیروی پورتر مرتبط</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_porter" value="" checked> — بدون ارتباط —</label>
+          {% for pf in porter_forces %}<label><input type="radio" name="source_porter" value="{{ pf.pk }}"> {{ pf.get_force_display }}</label>{% endfor %}
+        </div>
+        <label style="margin-top:8px;">ذینفع مرتبط</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_stakeholder" value="" checked> — بدون ارتباط —</label>
+          {% for sh in stakeholders_list %}<label><input type="radio" name="source_stakeholder" value="{{ sh.pk }}"> {{ sh.name }}{% if sh.department %} ({{ sh.department }}){% endif %}</label>{% endfor %}
+        </div>
+        <label style="margin-top:8px;">سناریوی مرتبط</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_scenario" value="" checked> — بدون ارتباط —</label>
+          {% for sc in scenarios_list %}<label><input type="radio" name="source_scenario" value="{{ sc.pk }}"> {{ sc.display_title }}{% if sc.is_selected %} (مبنا){% endif %}</label>{% endfor %}
+        </div>
+      </div>
+      <div class="field-group" id="swi_sw_sources">
+        <label>مؤلفه McKinsey 7S مرتبط</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_7s" value="" checked> — بدون ارتباط —</label>
+          {% for c in s7_components %}<label><input type="radio" name="source_7s" value="{{ c.pk }}"> {{ c.get_component_display }}</label>{% endfor %}
+        </div>
+        <label style="margin-top:8px;">فعالیت زنجیره ارزش مرتبط</label>
+        <div class="picker-box">
+          <label style="display:block;"><input type="radio" name="source_value_chain" value="" checked> — بدون ارتباط —</label>
+          {% for a in vc_activities %}<label><input type="radio" name="source_value_chain" value="{{ a.pk }}"> {{ a.get_activity_display }}</label>{% endfor %}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('swotEditOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ذخیره تغییرات</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{ swot_items_data|json_script:"swot-items-data" }}
+
+<div class="overlay" id="towsEditOverlay">
+  <div class="modal-card" style="max-width:420px;">
+    <h3>ویرایش راهبرد TOWS</h3>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="tows_obj_id" value="">
+      <input type="hidden" name="category" id="tows_category" value="">
+      <input type="hidden" name="order" id="tows_order" value="0">
+      <div class="field-group"><label>متن راهبرد</label><textarea name="text" id="tows_text" rows="2" required></textarea></div>
+      <div class="field-group">
+        <label>موارد SWOT مبنا (اختیاری)</label>
+        <select name="source_items" id="tows_source_items" multiple size="6" style="width:100%;"></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('towsEditOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ذخیره تغییرات</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  function setRadioGroup(name, value){
+    document.querySelectorAll('input[name="' + name + '"]').forEach(r => { r.checked = (r.value === (value || '')); });
+  }
+
+  function editSwotItem(btn){
+    const d = btn.dataset;
+    document.getElementById('swi_obj_id').value = d.id;
+    document.getElementById('swi_category').value = d.category;
+    document.getElementById('swi_text').value = d.text;
+    document.getElementById('swi_weight').value = d.weight;
+    setRadioGroup('source_pestel', d.pestel);
+    setRadioGroup('source_porter', d.porter);
+    setRadioGroup('source_stakeholder', d.stakeholder);
+    setRadioGroup('source_scenario', d.scenario);
+    setRadioGroup('source_7s', d.s7);
+    setRadioGroup('source_value_chain', d.vc);
+    syncPickerLabels();
+    const isOT = (d.category === 'o' || d.category === 't');
+    document.getElementById('swi_ot_sources').style.display = isOT ? '' : 'none';
+    document.getElementById('swi_sw_sources').style.display = isOT ? 'none' : '';
+    document.getElementById('swotEditOverlay').classList.add('open');
+  }
+
+  function syncPickerLabels(){
+    document.querySelectorAll('.picker-box label').forEach(function(lbl){
+      const input = lbl.querySelector('input[type="radio"]');
+      if (input) lbl.classList.toggle('picked', input.checked && input.value !== '');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.picker-box label').forEach(function(lbl){
+      const input = lbl.querySelector('input[type="radio"]');
+      if (!input) return;
+      lbl.addEventListener('click', function(e){
+        if (e.target === input) return;
+        e.preventDefault();
+        input.checked = true;
+        syncPickerLabels();
+      });
+    });
+  });
+
+  const SWOT_ITEMS = JSON.parse(document.getElementById('swot-items-data').textContent);
+  const CATEGORY_LETTERS = {so: ['s','o'], st: ['s','t'], wo: ['w','o'], wt: ['w','t']};
+
+  function editTows(btn){
+    const d = btn.dataset;
+    document.getElementById('tows_obj_id').value = d.id;
+    document.getElementById('tows_category').value = d.category;
+    document.getElementById('tows_text').value = d.text;
+    document.getElementById('tows_order').value = d.order;
+    const letters = CATEGORY_LETTERS[d.category] || [];
+    const selected = (d.sources || '').split(',').filter(Boolean);
+    const sel = document.getElementById('tows_source_items');
+    sel.innerHTML = '';
+    SWOT_ITEMS.filter(it => letters.includes(it.cat)).forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.id;
+      opt.textContent = `${it.code} — ${it.text}`;
+      if (selected.includes(String(it.id))) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    document.getElementById('towsEditOverlay').classList.add('open');
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.tows-src-badge').forEach(function(badge){
+      const ids = (badge.dataset.sources || '').split(',').filter(Boolean).map(Number);
+      if (!ids.length) return;
+      const codes = SWOT_ITEMS.filter(it => ids.includes(it.id)).map(it => it.code);
+      if (codes.length){ badge.textContent = codes.join('، '); badge.style.display = ''; }
+    });
+  });
+
   (function(){
     let sel = null;
     function focusQ(qs){

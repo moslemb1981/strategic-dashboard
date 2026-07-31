@@ -22,11 +22,33 @@
     line-height:1.7;padding:7px 0;border-top:1px solid var(--border);}
   .pestel-item:first-child{border-top:none;padding-top:0;}
   .pestel-item .txt{flex:1;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
+    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
   .pestel-item .acts{display:flex;gap:5px;flex:none;margin-top:2px;}
   .pestel-item .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;}
   .pestel-empty{font-size:11.5px;color:var(--ink-faint);}
   @media(max-width:900px){.pestel-cols{grid-template-columns:1fr;}
     .pestel-col:not(:last-child){border-left:none;border-bottom:1px solid var(--border);}}
+
+  /* --- برچسب‌های فشرده تحلیل آینده‌پژوهی (اثر/احتمال/عدم‌قطعیت/افق/روند) --- */
+  .pfx-tags{display:flex;gap:3px;margin-top:4px;flex-wrap:nowrap;align-items:center;overflow-x:auto;}
+  .pfx-tag{display:inline-flex;align-items:center;gap:2px;font-size:9px;font-weight:700;
+    padding:1.5px 5px;border-radius:4px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--border);
+    line-height:1.5;white-space:nowrap;flex-shrink:0;}
+  .pfx-tag.pri{color:#fff;border-color:transparent;}
+  .pfx-tag i{font-size:7.5px;}
+
+  /* --- کارت عوامل کلیدی (برترین‌ها بر اساس اثر×احتمال) --- */
+  .pestel-top{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden;}
+  .pestel-top .head{padding:10px 16px;font-size:13px;font-weight:800;color:var(--ink);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:8px;}
+  .pestel-top .grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+  .pestel-top .cell{background:var(--surface);padding:6px 12px;display:flex;align-items:center;gap:9px;cursor:default;}
+  .pestel-top .cell .sc{flex:none;width:24px;height:24px;border-radius:50%;color:#fff;font-size:11px;font-weight:900;
+    display:flex;align-items:center;justify-content:center;}
+  .pestel-top .cell .tx{font-size:11px;color:var(--ink);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
+  @media(max-width:900px){.pestel-top .grid{grid-template-columns:1fr;}}
 
   /* --- هدر بصری خلاصه (سبک یادداشت‌های چسبان) --- */
   .pestel-hero{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;border-radius:var(--radius-lg);
@@ -62,6 +84,20 @@
   {% endif %}
 </div>
 
+<div class="pestel-top">
+  <div class="head"><i class="fa-solid fa-crosshairs"></i> عوامل کلیدی (بر اساس اثر × احتمال وقوع)</div>
+  <div class="grid">
+    {% for f in top_factors %}
+    <div class="cell" title="{{ f.text }}">
+      <span class="sc" style="background:{% if f.priority_score >= 15 %}#B0413E{% elif f.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};">{{ f.priority_score }}</span>
+      <span class="tx">{{ f.text|truncatechars:55 }}</span>
+    </div>
+    {% empty %}
+    <div class="cell"><span class="tx">هنوز امتیازی ثبت نشده</span></div>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="pestel-hero">
   {% for group in grouped %}
   <div class="pestel-hero-col" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
@@ -72,7 +108,9 @@
         {{ item.text|truncatechars:34 }}
         {% if user.is_superuser %}
         <button type="button" class="sticky-edit-btn" onclick="editFactor(this)"
-          data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}">
+          data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+          data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+          data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}">
           <i class="fa-solid fa-pen"></i>
         </button>
         {% endif %}
@@ -95,45 +133,75 @@
     <div class="pestel-col factor">
       <div class="col-lbl"><i class="fa-solid fa-circle-info"></i>عوامل محیطی</div>
       {% for item in group.factors %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
           {% endif %}
           {% if perms.strategic.delete_pestelfactor %}
           <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
         </span>
+      </div>
+      <div class="pfx-tags">
+        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
+        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
+        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
+        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
+        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
+        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
       </div>
       {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
     </div>
     <div class="pestel-col opportunity">
       <div class="col-lbl"><i class="fa-solid fa-arrow-trend-up"></i>فرصت‌ها</div>
       {% for item in group.opportunities %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
           {% endif %}
           {% if perms.strategic.delete_pestelfactor %}
           <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
         </span>
       </div>
+      <div class="pfx-tags">
+        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
+        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
+        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
+        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
+        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
+        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
+      </div>
       {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
     </div>
     <div class="pestel-col threat">
       <div class="col-lbl"><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</div>
       {% for item in group.threats %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}</span>
+      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}</span>
         <span class="acts">
           {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
           {% endif %}
           {% if perms.strategic.delete_pestelfactor %}
           <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
           {% endif %}
         </span>
+      </div>
+      <div class="pfx-tags">
+        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
+        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
+        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
+        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
+        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
+        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
       </div>
       {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
     </div>
@@ -151,6 +219,13 @@
       <div class="field-group"><label>نوع</label>{{ form.kind }}</div>
       <div class="field-group"><label>متن</label>{{ form.text }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field-group"><label>میزان اثر</label>{{ form.impact_level }}</div>
+        <div class="field-group"><label>احتمال وقوع</label>{{ form.probability }}</div>
+        <div class="field-group"><label>عدم‌قطعیت</label>{{ form.uncertainty }}</div>
+        <div class="field-group"><label>افق زمانی</label>{{ form.horizon }}</div>
+      </div>
+      <div class="field-group"><label>روند تغییر</label>{{ form.trend }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="submitBtn">ثبت مورد</button>
@@ -185,6 +260,11 @@
     document.getElementById('id_kind').value = d.kind;
     document.getElementById('id_text').value = d.text;
     document.getElementById('id_order').value = d.order;
+    document.getElementById('id_impact_level').value = d.impact || 3;
+    document.getElementById('id_probability').value = d.probability || 3;
+    document.getElementById('id_uncertainty').value = d.uncertainty || 'medium';
+    document.getElementById('id_horizon').value = d.horizon || 'medium';
+    document.getElementById('id_trend').value = d.trend || 'flat';
     document.getElementById('modalTitle').textContent = 'ویرایش مورد PESTEL';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

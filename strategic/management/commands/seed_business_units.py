@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from strategic.models import BusinessUnit, StrategicObjective, SWOTItem, TOWSStrategy
+from strategic.models import BusinessUnit, StrategicObjective, SWOTItem, TOWSStrategy, Initiative
 
 BUSINESS_UNITS = [
     ("کسب و کار بسته خدمت", "intimacy", 1),
@@ -49,9 +49,11 @@ class Command(BaseCommand):
         obj_updated = StrategicObjective.objects.filter(business_unit__isnull=True).update(business_unit=parts_bu)
         swot_updated = SWOTItem.objects.filter(business_unit__isnull=True).update(business_unit=parts_bu)
         tows_updated = TOWSStrategy.objects.filter(business_unit__isnull=True).update(business_unit=parts_bu)
+        init_updated = Initiative.objects.filter(business_unit__isnull=True).update(business_unit=parts_bu)
 
         self.stdout.write(self.style.SUCCESS(
             f"{renamed} کسب‌وکار قدیمی به اسم درست تغییر یافت. {created} کسب‌وکار جدید ساخته شد (از ۵ مورد).\n"
             f"داده‌های بدون کسب‌وکار به «بازرگانی قطعات» وصل شدند: "
-            f"{obj_updated} هدف استراتژیک، {swot_updated} مورد SWOT، {tows_updated} راهبرد TOWS."
+            f"{obj_updated} هدف استراتژیک، {swot_updated} مورد SWOT، {tows_updated} راهبرد TOWS، "
+            f"{init_updated} پروژه تحول."
         ))

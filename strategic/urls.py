@@ -6,12 +6,17 @@ app_name = "strategic"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("documents/", views.documents, name="documents"),
+    path("documents/download/<int:pk>/", views.document_download, name="document_download"),
+    path("documents/delete/<int:pk>/", views.document_delete, name="document_delete"),
     path("identity/", views.org_identity, name="org_identity"),
     path("identity/value/delete/<int:pk>/", views.org_value_delete, name="org_value_delete"),
     path("identity/policy/delete/<int:pk>/", views.policy_point_delete, name="policy_point_delete"),
 
     path("research/", views.research, name="research"),
     path("research/delete/<int:pk>/", views.study_delete, name="study_delete"),
+    path("stakeholders/", views.stakeholders, name="stakeholders"),
+    path("stakeholders/delete/<int:pk>/", views.stakeholder_delete, name="stakeholder_delete"),
 
     path("roadmap/", views.roadmap, name="roadmap"),
     path("roadmap/delete/<int:pk>/", views.initiative_delete, name="initiative_delete"),
@@ -21,12 +26,23 @@ urlpatterns = [
 
     path("pestel/", views.pestel, name="pestel"),
     path("pestel/delete/<int:pk>/", views.pestel_delete, name="pestel_delete"),
+    path("cross-impact/", views.cross_impact, name="cross_impact"),
+    path("cross-impact/delete/<int:pk>/", views.cross_impact_delete, name="cross_impact_delete"),
+    path("cross-impact/matrix/", views.cross_impact_matrix, name="cross_impact_matrix"),
+    path("scenarios/", views.scenarios, name="scenarios"),
+    path("company-goals/", views.company_goals, name="company_goals"),
+    path("company-goals/objective/delete/<int:pk>/", views.company_objective_delete, name="company_objective_delete"),
+    path("company-goals/kpi/delete/<int:pk>/", views.company_kpi_delete, name="company_kpi_delete"),
     path("porter/", views.porter, name="porter"),
+    path("mckinsey7s/", views.mckinsey7s, name="mckinsey7s"),
+    path("value-chain/", views.value_chain, name="value_chain"),
     path("stratmap/", views.stratmap, name="stratmap"),
     path("stratmap/print/", views.stratmap_print, name="stratmap_print"),
     path("stratmap/delete/<int:pk>/", views.objective_delete, name="objective_delete"),
     path("stratmap/theme/add/", views.theme_add, name="theme_add"),
     path("stratmap/theme/delete/<int:pk>/", views.theme_delete, name="theme_delete"),
+    path("stratmap/kpi/save/", views.strategic_kpi_save, name="strategic_kpi_save"),
+    path("stratmap/kpi/delete/<int:pk>/", views.strategic_kpi_delete, name="strategic_kpi_delete"),
     path("business-unit/add/", views.business_unit_add, name="business_unit_add"),
 
     path("swot/", views.swot, name="swot"),

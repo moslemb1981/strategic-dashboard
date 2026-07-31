@@ -1,0 +1,151 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}ماتریس اثر متقابل{% endblock %}
+{% block crumb %}ماتریس اثر متقابل{% endblock %}
+
+{% block extra_css %}
+<style>
+  .ci-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:18px;}
+  .ci-board{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;min-height:420px;}
+  .ci-quad{border-radius:var(--radius-lg);padding:14px 16px;position:relative;display:flex;flex-direction:column;}
+  .ci-quad .q-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .ci-quad .q-title{font-size:13px;font-weight:800;color:#fff;}
+  .ci-quad .q-sub{font-size:9.5px;color:rgba(255,255,255,.8);margin-top:1px;}
+  .ci-cards{display:flex;flex-direction:column;gap:6px;flex:1;}
+  .ci-card{background:rgba(255,255,255,.92);border-radius:8px;padding:8px 10px;font-size:11.5px;font-weight:600;
+    color:var(--ink);display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+  .ci-card .acts{display:flex;gap:4px;flex:none;}
+  .ci-card .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;}
+  .ci-empty{font-size:11px;color:rgba(255,255,255,.75);}
+  .ci-add{align-self:flex-start;margin-top:6px;font-size:10.5px;border:1px dashed rgba(255,255,255,.6);background:transparent;
+    color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;}
+  .ci-add:hover{background:rgba(255,255,255,.15);}
+  .ci-axis-y{writing-mode:vertical-rl;text-align:center;font-size:10px;color:var(--ink-faint);font-weight:700;
+    display:flex;align-items:center;justify-content:center;}
+  .ci-grid-wrap{display:grid;grid-template-columns:20px 1fr;grid-template-rows:1fr 20px;gap:6px;}
+  .ci-axis-x{text-align:center;font-size:10px;color:var(--ink-faint);font-weight:700;grid-column:2;}
+  @media(max-width:800px){.ci-board{grid-template-columns:1fr;grid-template-rows:auto;}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>ماتریس اثر متقابل</h1><div class="sub">جای‌گذاری عوامل کلیدی PESTEL بر اساس میزان اثرگذاری و وابستگی (روش MICMAC)</div></div>
+  {% if perms.strategic.change_crossimpactfactor %}
+  <a href="{% url 'strategic:cross_impact_matrix' %}"><button class="btn accent"><i class="fa-solid fa-table-cells"></i> ماتریس ورودی و محاسبه</button></a>
+  {% endif %}
+</div>
+
+<div class="ci-note"><i class="fa-solid fa-circle-info"></i> محور عمودی = میزان اثرگذاری بر سایر عوامل · محور افقی = میزان وابستگی به سایر عوامل</div>
+
+<div class="ci-grid-wrap">
+  <div class="ci-axis-y">اثرگذاری زیاد ← کم</div>
+  <div class="ci-board">
+    <div class="ci-quad" style="background:#B0413E;">
+      <div class="q-head"><div><div class="q-title">پیشران‌های کلیدی</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
+      <div class="ci-cards">
+        {% for f in quadrants.driver %}
+        <div class="ci-card"><span>{{ f.text }}</span>
+          <span class="acts">
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </span>
+        </div>
+        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
+      </div>
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('driver')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+    </div>
+
+    <div class="ci-quad" style="background:#C97A2B;">
+      <div class="q-head"><div><div class="q-title">متغیرهای دووجهی</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
+      <div class="ci-cards">
+        {% for f in quadrants.relay %}
+        <div class="ci-card"><span>{{ f.text }}</span>
+          <span class="acts">
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </span>
+        </div>
+        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
+      </div>
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('relay')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+    </div>
+
+    <div class="ci-quad" style="background:#5a6474;">
+      <div class="q-head"><div><div class="q-title">دیده‌بانی</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
+      <div class="ci-cards">
+        {% for f in quadrants.watch %}
+        <div class="ci-card"><span>{{ f.text }}</span>
+          <span class="acts">
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </span>
+        </div>
+        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
+      </div>
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('watch')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+    </div>
+
+    <div class="ci-quad" style="background:#2E5C8A;">
+      <div class="q-head"><div><div class="q-title">متغیرهای نتیجه</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
+      <div class="ci-cards">
+        {% for f in quadrants.resultant %}
+        <div class="ci-card"><span>{{ f.text }}</span>
+          <span class="acts">
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </span>
+        </div>
+        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
+      </div>
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('resultant')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+    </div>
+  </div>
+  <div class="ci-axis-x">وابستگی کم ← زیاد</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3 id="modalTitle">افزودن عامل</h3>
+    <form method="post" id="ciForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>ناحیه</label>{{ form.quadrant }}</div>
+      <div class="field-group"><label>نام عامل</label>{{ form.text }}</div>
+      <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="field-group"><label>عامل PESTEL مرتبط (اختیاری)</label>{{ form.linked_pestel }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت عامل</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newFactorFor(q){
+    document.getElementById('ciForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('id_quadrant').value = q;
+    document.getElementById('modalTitle').textContent = 'افزودن عامل';
+    document.getElementById('submitBtn').textContent = 'ثبت عامل';
+    openModal();
+  }
+
+  function editFactor(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_text').value = d.text;
+    document.getElementById('id_quadrant').value = d.quadrant;
+    document.getElementById('id_linked_pestel').value = d.pestel || '';
+    document.getElementById('modalTitle').textContent = 'ویرایش عامل';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+</script>
+{% endblock %}

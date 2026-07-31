@@ -16,7 +16,7 @@
   </div>
   <div class="gauge-card">
     <div class="gauge-holder" id="gauge-initiatives"></div>
-    <div class="gauge-meta"><div class="label">ابتکارات در مسیر نقشه راه</div><div class="value">{{ init_on_track }} از {{ init_total }} ابتکار</div>
+    <div class="gauge-meta"><div class="label">پروژه‌های در مسیر تحول</div><div class="value">{{ init_on_track }} از {{ init_total }} پروژه</div>
       {% if init_behind %}<div class="trend down">↓ {{ init_behind }} ابتکار نیازمند پیگیری</div>{% else %}<div class="trend up">همه ابتکارات در مسیرند</div>{% endif %}
     </div>
   </div>
@@ -44,26 +44,46 @@
 
 <div class="section-title">ماژول‌ها</div>
 <div class="card-grid" style="margin-bottom:26px;">
-  <a class="module-card" href="{% url 'strategic:research' %}">
-    <div class="icon"><i class="fa-solid fa-book"></i></div>
-    <h3>کتابخانه مطالعات</h3><p>پژوهش‌ها و گزارش‌های تحلیلی اداره</p>
-    <div class="stat">{{ study_total }} مطالعه ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:documents' %}">
+    <div class="icon"><i class="fa-solid fa-folder-open"></i></div>
+    <h3>اسناد و دستورالعمل‌ها</h3><p>اسناد بالادستی و دستورالعمل‌های سازمانی</p>
+    <div class="stat">{{ document_count }} سند ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:stakeholders' %}">
+    <div class="icon"><i class="fa-solid fa-people-group"></i></div>
+    <h3>تحلیل ذینفعان</h3><p>نیازها، ریسک‌ها و فرصت‌های ذینفعان</p>
+    <div class="stat">{{ stakeholder_count }} ذینفع ثبت‌شده</div></a>
   <a class="module-card" href="{% url 'strategic:roadmap' %}">
     <div class="icon"><i class="fa-solid fa-route"></i></div>
-    <h3>نقشه راه ابتکارات</h3><p>زمان‌بندی فصلی پروژه‌های تحول</p>
+    <h3>پروژه‌های تحول</h3><p>زمان‌بندی و اهداف مرتبط</p>
     <div class="stat">{{ init_total }} ابتکار ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:market' %}">
-    <div class="icon"><i class="fa-solid fa-chart-line"></i></div>
-    <h3>هوش رقابتی و بازار</h3><p>سهم بازیگران و حرکات اخیر رقبا</p>
-    <div class="stat">{{ competitor_count }} بازیگر رصدشده</div></a>
   <a class="module-card" href="{% url 'strategic:pestel' %}">
     <div class="icon"><i class="fa-solid fa-earth-americas"></i></div>
     <h3>تحلیل PESTEL</h3><p>روندهای کلان محیط صنعت خودرو</p>
     <div class="stat">{{ pestel_count }} عامل ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:cross_impact' %}">
+    <div class="icon"><i class="fa-solid fa-arrows-turn-to-dots"></i></div>
+    <h3>ماتریس اثر متقابل</h3><p>جای‌گذاری عوامل کلیدی (MICMAC)</p>
+    <div class="stat">{{ cross_impact_count }} عامل جای‌گذاری‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:scenarios' %}">
+    <div class="icon"><i class="fa-solid fa-road"></i></div>
+    <h3>سناریوهای راهبردی</h3><p>۴ سناریو، بر پایه‌ی عدم‌قطعیت‌های کلیدی</p>
+    <div class="stat">مبنا: {{ scenario_selected.display_title|default:"تعیین‌نشده" }}</div></a>
   <a class="module-card" href="{% url 'strategic:porter' %}">
     <div class="icon"><i class="fa-solid fa-chess-knight"></i></div>
-    <h3>پنج نیروی پورتر</h3><p>ساختار رقابتی صنعت قطعات و خدمات</p>
+    <h3>پنج نیروی رقابتی Porter</h3><p>ساختار رقابتی صنعت قطعات و خدمات</p>
     <div class="stat">{{ porter_count }} از ۵ نیرو تحلیل‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:mckinsey7s' %}">
+    <div class="icon"><i class="fa-solid fa-diagram-project"></i></div>
+    <h3>تحلیل McKinsey 7S</h3><p>هماهنگی درونی سازمان از ۷ زاویه</p>
+    <div class="stat">{{ mckinsey7s_count }} از ۷ مؤلفه تحلیل‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:value_chain' %}">
+    <div class="icon"><i class="fa-solid fa-link"></i></div>
+    <h3>زنجیره ارزش پورتر</h3><p>فعالیت‌های اصلی و پشتیبان خلق ارزش</p>
+    <div class="stat">{{ value_chain_count }} از ۹ فعالیت تحلیل‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:company_goals' %}">
+    <div class="icon"><i class="fa-solid fa-bullseye"></i></div>
+    <h3>اهداف کلان و KPI شرکت</h3><p>اهداف سطح کل شرکت، مرتبط با گروه سایپا</p>
+    <div class="stat">{{ company_objective_count }} هدف، {{ company_kpi_count }} شاخص</div></a>
   <a class="module-card" href="{% url 'strategic:stratmap' %}">
     <div class="icon"><i class="fa-solid fa-map"></i></div>
     <h3>نقشه استراتژیک</h3><p>اهداف در قالب کارت امتیازی متوازن</p>

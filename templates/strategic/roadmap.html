@@ -1,22 +1,30 @@
 {% extends "strategic/base.html" %}
 {% load static %}
 {% load jalali_tags %}
-{% block title %}نقشه راه ابتکارات{% endblock %}
-{% block crumb %}نقشه راه ابتکارات{% endblock %}
+{% block title %}پروژه‌های تحول{% endblock %}
+{% block crumb %}پروژه‌های تحول{% endblock %}
 
 {% block content %}
 <div class="topbar">
-  <div><h1>نقشه راه ابتکارات</h1><div class="sub">زمان‌بندی ابتکارات تحول اداره، هم‌راستا با محورهای نقشه استراتژیک</div></div>
-  {% if perms.strategic.add_initiative %}
-  <button class="btn accent" onclick="newInitiative()"><i class="fa-solid fa-plus"></i>افزودن ابتکار</button>
+  <div><h1>پروژه‌های تحول</h1><div class="sub">زمان‌بندی پروژه‌های تحول، وصل به اهداف نقشه استراتژیک همان کسب‌وکار</div></div>
+  {% if current_bu and perms.strategic.add_initiative %}
+  <button class="btn accent" onclick="newInitiative()"><i class="fa-solid fa-plus"></i>افزودن پروژه</button>
   {% endif %}
+</div>
+
+<div class="bu-bar" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:16px;">
+  {% for bu in business_units %}
+  <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}</a>
+  {% empty %}
+  <span style="font-size:13px;color:var(--ink-faint);">هنوز کسب‌وکاری تعریف نشده</span>
+  {% endfor %}
 </div>
 
 <div class="roadmap-gantt-wrap">
   {% if initiatives %}
   <div id="gantt"></div>
   {% else %}
-  <div class="empty"><i class="fa-solid fa-route"></i>هنوز ابتکاری ثبت نشده — از دکمه «افزودن ابتکار» شروع کنید</div>
+  <div class="empty"><i class="fa-solid fa-route"></i>هنوز پروژه‌ای برای «{{ current_bu.name|default:"این کسب‌وکار" }}» ثبت نشده</div>
   {% endif %}
 </div>
 
@@ -24,28 +32,41 @@
   <span><span class="sw" style="background:#3E7A52"></span>در حال اجرا</span>
   <span><span class="sw" style="background:#2E5C8A"></span>در مسیر</span>
   <span><span class="sw" style="background:#C97A2B"></span>نیازمند پیگیری</span>
-  <span><span class="sw" style="background:#6C56A3"></span>ابتکار دیجیتال</span>
+  <span><span class="sw" style="background:#6C56A3"></span>پروژه دیجیتال</span>
   <span><span class="sw" style="background:#8B93A1"></span>تکمیل‌شده</span>
 </div>
 
-<div class="section-title" style="margin-top:22px;">فهرست ابتکارات</div>
+<div class="section-title" style="margin-top:22px;">فهرست پروژه‌های تحول</div>
 <div class="rec-list">
   {% for i in initiatives %}
-  <div class="rec-item">
-    <div class="field">{{ i.progress }}٪</div>
-    <div class="body"><h4>{{ i.title }}</h4><div class="meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }} · {{ i.start_date|jalali }} تا {{ i.end_date|jalali }}</div></div>
-    <span class="status-pill progress">{{ i.get_status_display }}</span>
+  <div class="rec-item" style="border-inline-start:4px solid {{ i.status_hex }};">
+    <div class="field" style="color:{{ i.status_hex }};">{{ i.progress }}٪</div>
+    <div class="body">
+      <h4>{{ i.title }}</h4>
+      <div class="meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }} · {{ i.start_date|jalali }} تا {{ i.end_date|jalali }}</div>
+      <div class="share-track" style="margin-top:6px;height:6px;">
+        <div class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></div>
+      </div>
+      {% if i.objectives.all %}
+      <div class="meta" style="margin-top:6px;">
+        <i class="fa-solid fa-bullseye"></i>
+        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;">{{ o.code }}</span>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <span class="status-pill progress" style="background:{{ i.status_hex }}22;color:{{ i.status_hex }};">{{ i.get_status_display }}</span>
     {% if perms.strategic.change_initiative %}
     <button type="button" onclick="editInitiative(this)"
       data-id="{{ i.pk }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
       data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
       data-progress="{{ i.progress }}" data-status="{{ i.status }}"
+      data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:0 4px;">
       <i class="fa-solid fa-pen"></i>
     </button>
     {% endif %}
     {% if perms.strategic.delete_initiative %}
-    <form method="post" action="{% url 'strategic:initiative_delete' i.pk %}" onsubmit="return confirm('این ابتکار حذف شود؟');">
+    <form method="post" action="{% url 'strategic:initiative_delete' i.pk %}" onsubmit="return confirm('این پروژه حذف شود؟');">
       {% csrf_token %}
       <button type="submit" class="btn danger-ghost"><i class="fa-solid fa-trash"></i></button>
     </form>
@@ -56,19 +77,20 @@
 
 <div class="overlay" id="overlay">
   <div class="modal-card">
-    <h3 id="modalTitle">افزودن ابتکار جدید</h3>
+    <h3 id="modalTitle">افزودن پروژه جدید</h3>
     <form method="post" id="initForm">
       {% csrf_token %}
       <input type="hidden" name="obj_id" id="obj_id" value="">
-      <div class="field-group"><label>عنوان ابتکار</label>{{ form.title }}</div>
+      <div class="field-group"><label>عنوان پروژه</label>{{ form.title }}</div>
       <div class="field-group"><label>واحد مسئول</label>{{ form.owner }}</div>
       <div class="field-group"><label>تاریخ شروع</label>{{ form.start_date }}</div>
       <div class="field-group"><label>تاریخ پایان</label>{{ form.end_date }}</div>
       <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
+      <div class="field-group"><label>اهداف استراتژیک مرتبط</label>{{ form.objectives }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
-        <button type="submit" class="btn accent" id="submitBtn">ثبت ابتکار</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت پروژه</button>
       </div>
     </form>
   </div>
@@ -84,6 +106,10 @@
   .gantt .bar-purple .bar{fill:#6C56A3;}
   .gantt .bar-gray .bar{fill:#8B93A1;}
   .gantt .bar-progress{fill:rgba(0,0,0,.15);}
+  .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);color:var(--ink-soft);text-decoration:none;white-space:nowrap;}
+  .bu-tab:hover{border-color:var(--accent);color:var(--accent);}
+  .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
 </style>
 {% endblock %}
 
@@ -97,8 +123,8 @@
   function newInitiative(){
     document.getElementById('initForm').reset();
     document.getElementById('obj_id').value = '';
-    document.getElementById('modalTitle').textContent = 'افزودن ابتکار جدید';
-    document.getElementById('submitBtn').textContent = 'ثبت ابتکار';
+    document.getElementById('modalTitle').textContent = 'افزودن پروژه جدید';
+    document.getElementById('submitBtn').textContent = 'ثبت پروژه';
     openModal();
   }
 
@@ -111,7 +137,10 @@
     document.getElementById('id_end_date').value = d.end;
     document.getElementById('id_progress').value = d.progress;
     document.getElementById('id_status').value = d.status;
-    document.getElementById('modalTitle').textContent = 'ویرایش ابتکار';
+    const objIds = (d.objectives || '').split(',').filter(Boolean);
+    const sel = document.getElementById('id_objectives');
+    if (sel) { Array.from(sel.options).forEach(o => { o.selected = objIds.includes(o.value); }); }
+    document.getElementById('modalTitle').textContent = 'ویرایش پروژه';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();
   }

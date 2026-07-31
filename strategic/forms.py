@@ -2,7 +2,7 @@ import datetime
 from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    StrategyTheme, BusinessUnit, PorterForce,
+    StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -53,19 +53,28 @@ class InitiativeForm(forms.ModelForm):
 
     class Meta:
         model = Initiative
-        fields = ["title", "owner", "start_date", "end_date", "progress", "status"]
+        fields = ["title", "owner", "start_date", "end_date", "progress", "status", "objectives"]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دیجیتالی‌سازی گزارش‌های ماهانه"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: واحد مطالعات"}),
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
+            "objectives": forms.SelectMultiple(attrs={"size": 8}),
         }
+
+    def __init__(self, *args, business_unit=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        bu = business_unit or (self.instance.business_unit if self.instance and self.instance.pk else None)
+        self.fields["objectives"].queryset = (
+            StrategicObjective.objects.filter(business_unit=bu) if bu else StrategicObjective.objects.none()
+        )
+        self.fields["objectives"].required = False
 
 
 class RiskForm(forms.ModelForm):
     class Meta:
         model = Risk
         fields = [
-            "title", "owner", "category",
+            "title", "cause", "consequence", "owner", "category",
             "inherent_likelihood", "inherent_impact",
             "likelihood", "impact",
             "target_likelihood", "target_impact",
@@ -73,6 +82,8 @@ class RiskForm(forms.ModelForm):
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: افزایش شدید نرخ ارز"}),
+            "cause": forms.Textarea(attrs={"rows": 2, "placeholder": "منشأ/علت بروز ریسک"}),
+            "consequence": forms.Textarea(attrs={"rows": 2, "placeholder": "هر خط یک پیامد"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت مالی"}),
             "kri": forms.TextInput(attrs={"placeholder": "مثلاً: نرخ تسعیر ماهانه ارز"}),
             "mitigation": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک اقدام کنترلی"}),
@@ -87,26 +98,62 @@ class RiskForm(forms.ModelForm):
 class SWOTItemForm(forms.ModelForm):
     class Meta:
         model = SWOTItem
-        fields = ["category", "text", "weight"]
-        widgets = {"category": forms.HiddenInput()}
+        fields = [
+            "category", "text", "weight",
+            "source_pestel", "source_porter", "source_stakeholder", "source_scenario",
+            "source_7s", "source_value_chain",
+        ]
+        widgets = {
+            "category": forms.HiddenInput(),
+            "source_pestel": forms.RadioSelect(),
+            "source_porter": forms.RadioSelect(),
+            "source_stakeholder": forms.RadioSelect(),
+            "source_scenario": forms.RadioSelect(),
+            "source_7s": forms.RadioSelect(),
+            "source_value_chain": forms.RadioSelect(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for f in ["source_pestel", "source_porter", "source_stakeholder", "source_scenario", "source_7s", "source_value_chain"]:
+            self.fields[f].required = False
 
 
 class TOWSStrategyForm(forms.ModelForm):
+    CATEGORY_LETTERS = {"so": ["s", "o"], "st": ["s", "t"], "wo": ["w", "o"], "wt": ["w", "t"]}
+
     class Meta:
         model = TOWSStrategy
-        fields = ["category", "text", "order"]
-        widgets = {"category": forms.HiddenInput()}
+        fields = ["category", "text", "order", "source_items"]
+        widgets = {
+            "category": forms.HiddenInput(),
+            "source_items": forms.SelectMultiple(attrs={"size": 6}),
+        }
+
+    def __init__(self, *args, business_unit=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        bu = business_unit or (self.instance.business_unit if self.instance and self.instance.pk else None)
+        cat = None
+        if self.data:
+            cat = self.data.get("category")
+        if not cat and self.instance and self.instance.pk:
+            cat = self.instance.category
+        letters = self.CATEGORY_LETTERS.get(cat, [])
+        qs = SWOTItem.objects.filter(business_unit=bu, category__in=letters) if (bu and letters) else SWOTItem.objects.none()
+        self.fields["source_items"].queryset = qs
+        self.fields["source_items"].required = False
 
 
 class StrategicObjectiveForm(forms.ModelForm):
     class Meta:
         model = StrategicObjective
-        fields = ["code", "perspective", "theme", "title", "kpi", "status", "order", "feeds_into"]
+        fields = ["code", "perspective", "theme", "title", "kpi", "status", "order", "feeds_into", "source_tows", "linked_kpis"]
         widgets = {
             "code": forms.TextInput(attrs={"placeholder": "مثلاً: F1"}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان هدف استراتژیک"}),
             "kpi": forms.TextInput(attrs={"placeholder": "مثلاً: رشد ۱۲٪ حاشیه سود ناخالص"}),
-            "feeds_into": forms.SelectMultiple(attrs={"size": 6}),
+            "feeds_into": forms.CheckboxSelectMultiple(),
+            "linked_kpis": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, business_unit=None, **kwargs):
@@ -118,9 +165,21 @@ class StrategicObjectiveForm(forms.ModelForm):
             feeds_qs = feeds_qs.exclude(pk=self.instance.pk)
         self.fields["feeds_into"].queryset = feeds_qs
         self.fields["feeds_into"].required = False
+        self.fields["feeds_into"].label_from_instance = lambda obj: f"{obj.code} — {obj.title}"
 
         self.fields["theme"].queryset = StrategyTheme.objects.filter(business_unit=bu) if bu else StrategyTheme.objects.none()
         self.fields["theme"].required = False
+
+        tows_qs = TOWSStrategy.objects.filter(business_unit=bu) if bu else TOWSStrategy.objects.none()
+        self.fields["source_tows"] = forms.ModelChoiceField(
+            queryset=tows_qs, required=False, label="راهبرد TOWS مبنا (اختیاری)",
+            widget=forms.RadioSelect(),
+        )
+        self.fields["source_tows"].label_from_instance = lambda obj: obj.text
+
+        self.fields["linked_kpis"].queryset = CompanyKPI.objects.all()
+        self.fields["linked_kpis"].required = False
+        self.fields["linked_kpis"].label_from_instance = lambda obj: f"{obj.code} — {obj.name}"
 
 
 class StrategyThemeForm(forms.ModelForm):
@@ -149,7 +208,10 @@ class CompetitorForm(forms.ModelForm):
 class PestelFactorForm(forms.ModelForm):
     class Meta:
         model = PestelFactor
-        fields = ["category", "kind", "text", "order"]
+        fields = [
+            "category", "kind", "text", "order",
+            "impact_level", "probability", "uncertainty", "horizon", "trend",
+        ]
         widgets = {
             "text": forms.TextInput(attrs={"placeholder": "متن عامل / فرصت / تهدید"}),
         }
@@ -162,4 +224,121 @@ class PorterForceForm(forms.ModelForm):
         widgets = {
             "reasons": forms.Textarea(attrs={"rows": 5, "placeholder": "هر خط یک دلیل"}),
             "conclusion": forms.Textarea(attrs={"rows": 2, "placeholder": "نتیجه‌گیری"}),
+        }
+
+
+class McKinsey7SForm(forms.ModelForm):
+    class Meta:
+        model = McKinsey7S
+        fields = ["status", "strengths", "weaknesses"]
+        widgets = {
+            "status": forms.Textarea(attrs={"rows": 3, "placeholder": "وضعیت فعلی این مؤلفه"}),
+            "strengths": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک نقطه قوت"}),
+            "weaknesses": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک نقطه ضعف/ریسک"}),
+        }
+
+
+class ValueChainActivityForm(forms.ModelForm):
+    class Meta:
+        model = ValueChainActivity
+        fields = ["content"]
+        widgets = {
+            "content": forms.Textarea(attrs={"rows": 6, "placeholder": "هر خط یک اقدام/محتوا"}),
+        }
+
+
+class StakeholderForm(forms.ModelForm):
+    class Meta:
+        model = Stakeholder
+        fields = [
+            "department", "name", "channel", "need",
+            "risk_text", "risk_score", "opportunity_text", "opportunity_score",
+            "action", "status",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "مثلاً: شبکه نمایندگی‌ها"}),
+            "department": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت آپشن"}),
+            "channel": forms.TextInput(attrs={"placeholder": "مثلاً: مکاتبات، تلفن"}),
+            "need": forms.Textarea(attrs={"rows": 2}),
+            "risk_text": forms.Textarea(attrs={"rows": 2}),
+            "opportunity_text": forms.Textarea(attrs={"rows": 2}),
+            "action": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class CrossImpactFactorForm(forms.ModelForm):
+    class Meta:
+        model = CrossImpactFactor
+        fields = ["text", "quadrant", "order", "linked_pestel"]
+        widgets = {
+            "text": forms.TextInput(attrs={"placeholder": "نام عامل"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["linked_pestel"].required = False
+
+
+class ScenarioForm(forms.ModelForm):
+    class Meta:
+        model = Scenario
+        fields = ["title", "narrative", "is_selected"]
+        widgets = {
+            "narrative": forms.Textarea(attrs={"rows": 10, "placeholder": "روایت کامل سناریو"}),
+        }
+
+
+class ScenarioAxesForm(forms.ModelForm):
+    class Meta:
+        model = ScenarioAxes
+        fields = ["axis1_name", "axis1_positive", "axis1_negative", "axis2_name", "axis2_positive", "axis2_negative"]
+
+
+class CompanyObjectiveForm(forms.ModelForm):
+    class Meta:
+        model = CompanyObjective
+        fields = ["code", "group_title", "title", "description", "order"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class CompanyKPIForm(forms.ModelForm):
+    class Meta:
+        model = CompanyKPI
+        fields = [
+            "code", "domain", "name", "unit", "target_1404", "actual_1404",
+            "target_1405", "actual_1405", "progress_1405", "objectives", "is_monitoring", "notes", "order",
+        ]
+        widgets = {
+            "objectives": forms.CheckboxSelectMultiple(),
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["objectives"].required = False
+        self.fields["objectives"].queryset = CompanyObjective.objects.all()
+
+
+class DocumentForm(forms.ModelForm):
+    approved_at = JalaliDateField(required=False, label="تاریخ تصویب")
+
+    class Meta:
+        model = Document
+        fields = ["title", "code", "category", "description", "file", "approved_at", "order"]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 2}),
+            "code": forms.TextInput(attrs={"placeholder": "مثلاً: DOC-1405-14"}),
+        }
+
+
+class StrategicKPIForm(forms.ModelForm):
+    class Meta:
+        model = StrategicKPI
+        fields = ["name", "unit", "target", "actual", "trend", "status", "owner", "period", "order"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "مثلاً: حاشیه سود ناخالص"}),
+            "owner": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت مالی"}),
+            "period": forms.TextInput(attrs={"placeholder": "مثلاً: فصلی"}),
         }

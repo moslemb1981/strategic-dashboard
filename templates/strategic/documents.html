@@ -1,0 +1,130 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}اسناد و دستورالعمل‌ها{% endblock %}
+{% block crumb %}اسناد و دستورالعمل‌ها{% endblock %}
+
+{% block extra_css %}
+<style>
+  .doc-section{margin-bottom:26px;}
+  .doc-section .head{font-size:14px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .doc-list{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;}
+  .doc-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border);}
+  .doc-row:first-child{border-top:none;}
+  .doc-row .ic{flex:none;width:34px;height:34px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--primary);}
+  .doc-row .txt{flex:1;min-width:0;}
+  .doc-row .ttl{font-size:12.5px;font-weight:700;}
+  .doc-row .desc{font-size:10.5px;color:var(--ink-faint);margin-top:2px;}
+  .doc-row .meta{font-size:9.5px;color:var(--ink-faint);}
+  .doc-row .acts{flex:none;display:flex;gap:8px;align-items:center;}
+  .doc-row .acts button, .doc-row .acts a{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:13px;text-decoration:none;}
+  .doc-row .acts a.dl{color:var(--primary);}
+  .doc-empty{padding:20px;text-align:center;color:var(--ink-faint);font-size:12px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>اسناد و دستورالعمل‌ها</h1><div class="sub">اسناد بالادستی و دستورالعمل‌های سازمانی</div></div>
+  {% if perms.strategic.add_document %}
+  <button class="btn accent" onclick="newDocument()"><i class="fa-solid fa-plus"></i> افزودن سند</button>
+  {% endif %}
+</div>
+
+<div class="doc-section">
+  <div class="head"><i class="fa-solid fa-building-columns"></i> اسناد بالادستی</div>
+  <div class="doc-list">
+    {% for d in upstream %}
+    <div class="doc-row">
+      <div class="ic"><i class="fa-solid {{ d.file_icon }}"></i></div>
+      <div class="txt">
+        <div class="ttl">{{ d.title }}{% if d.code %} <span style="font-weight:400;color:var(--ink-faint);font-size:10.5px;">({{ d.code }})</span>{% endif %}</div>
+        {% if d.description %}<div class="desc">{{ d.description }}</div>{% endif %}
+        <div class="meta">{% if d.approved_at %}تاریخ تصویب: {{ d.approved_at|jalali }}{% else %}بدون تاریخ تصویب ثبت‌شده{% endif %}</div>
+      </div>
+      <div class="acts">
+        <a class="dl" href="{% url 'strategic:document_download' d.pk %}" target="_blank" title="دانلود/مشاهده"><i class="fa-solid fa-download"></i></a>
+        {% if perms.strategic.change_document %}<button type="button" onclick="editDocument(this)" data-id="{{ d.pk }}" data-title="{{ d.title }}" data-code="{{ d.code }}" data-category="{{ d.category }}" data-description="{{ d.description }}" data-approved="{{ d.approved_at|jalali }}" data-order="{{ d.order }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+        {% if perms.strategic.delete_document %}<form method="post" action="{% url 'strategic:document_delete' d.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+      </div>
+    </div>
+    {% empty %}<div class="doc-empty">سندی ثبت نشده</div>{% endfor %}
+  </div>
+</div>
+
+<div class="doc-section">
+  <div class="head"><i class="fa-solid fa-clipboard-list"></i> دستورالعمل‌ها</div>
+  <div class="doc-list">
+    {% for d in guideline %}
+    <div class="doc-row">
+      <div class="ic"><i class="fa-solid {{ d.file_icon }}"></i></div>
+      <div class="txt">
+        <div class="ttl">{{ d.title }}{% if d.code %} <span style="font-weight:400;color:var(--ink-faint);font-size:10.5px;">({{ d.code }})</span>{% endif %}</div>
+        {% if d.description %}<div class="desc">{{ d.description }}</div>{% endif %}
+        <div class="meta">{% if d.approved_at %}تاریخ تصویب: {{ d.approved_at|jalali }}{% else %}بدون تاریخ تصویب ثبت‌شده{% endif %}</div>
+      </div>
+      <div class="acts">
+        <a class="dl" href="{% url 'strategic:document_download' d.pk %}" target="_blank" title="دانلود/مشاهده"><i class="fa-solid fa-download"></i></a>
+        {% if perms.strategic.change_document %}<button type="button" onclick="editDocument(this)" data-id="{{ d.pk }}" data-title="{{ d.title }}" data-code="{{ d.code }}" data-category="{{ d.category }}" data-description="{{ d.description }}" data-approved="{{ d.approved_at|jalali }}" data-order="{{ d.order }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+        {% if perms.strategic.delete_document %}<form method="post" action="{% url 'strategic:document_delete' d.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+      </div>
+    </div>
+    {% empty %}<div class="doc-empty">دستورالعملی ثبت نشده</div>{% endfor %}
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3 id="modalTitle">افزودن سند</h3>
+    <form method="post" enctype="multipart/form-data" id="docForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>عنوان</label>{{ form.title }}</div>
+      <div class="field-group"><label>کد دستورالعمل/سند</label>{{ form.code }}</div>
+      <div class="field-group"><label>دسته</label>{{ form.category }}</div>
+      <div class="field-group"><label>تاریخ تصویب</label>{{ form.approved_at }}</div>
+      <div class="field-group"><label>توضیح کوتاه</label>{{ form.description }}</div>
+      <div class="field-group"><label>فایل</label>{{ form.file }}<small id="fileHint" style="display:block;color:var(--ink-faint);font-size:10.5px;margin-top:4px;">در حالت ویرایش، خالی بگذارید تا فایل قبلی حفظ شود</small></div>
+      <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت سند</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/jalali-picker.js' %}"></script>
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newDocument(){
+    document.getElementById('docForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('id_file').required = true;
+    document.getElementById('fileHint').style.display = 'none';
+    document.getElementById('modalTitle').textContent = 'افزودن سند';
+    document.getElementById('submitBtn').textContent = 'ثبت سند';
+    openModal();
+  }
+
+  function editDocument(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_title').value = d.title;
+    document.getElementById('id_code').value = d.code;
+    document.getElementById('id_category').value = d.category;
+    document.getElementById('id_description').value = d.description;
+    document.getElementById('id_approved_at').value = d.approved;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('id_file').required = false;
+    document.getElementById('fileHint').style.display = 'block';
+    document.getElementById('modalTitle').textContent = 'ویرایش سند';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+</script>
+{% endblock %}

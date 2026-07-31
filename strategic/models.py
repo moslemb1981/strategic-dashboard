@@ -39,13 +39,28 @@ class Initiative(models.Model):
         "digital": "bar-purple",
         "done": "bar-gray",
     }
+    STATUS_HEX = {
+        "in_progress": "#3E7A52",
+        "on_track": "#2E5C8A",
+        "needs_attention": "#C97A2B",
+        "digital": "#6C56A3",
+        "done": "#8B93A1",
+    }
 
-    title = models.CharField(max_length=300, verbose_name="عنوان ابتکار")
+    title = models.CharField(max_length=300, verbose_name="عنوان پروژه")
     owner = models.CharField(max_length=150, verbose_name="واحد مسئول", blank=True)
     start_date = models.DateField(verbose_name="تاریخ شروع")
     end_date = models.DateField(verbose_name="تاریخ پایان")
     progress = models.PositiveSmallIntegerField(default=0, verbose_name="پیشرفت (٪)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="on_track", verbose_name="وضعیت")
+    business_unit = models.ForeignKey(
+        "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="initiatives", verbose_name="کسب‌وکار",
+    )
+    objectives = models.ManyToManyField(
+        "StrategicObjective", blank=True, related_name="initiatives",
+        verbose_name="اهداف استراتژیک مرتبط",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -59,6 +74,10 @@ class Initiative(models.Model):
     @property
     def bar_class(self):
         return self.STATUS_COLOR.get(self.status, "bar-blue")
+
+    @property
+    def status_hex(self):
+        return self.STATUS_HEX.get(self.status, "#2E5C8A")
 
 
 class Risk(models.Model):
@@ -76,7 +95,9 @@ class Risk(models.Model):
     TREND_CHOICES = [("up", "افزایشی"), ("down", "کاهشی"), ("flat", "پایدار")]
 
     title = models.CharField(max_length=300, verbose_name="عنوان ریسک")
-    owner = models.CharField(max_length=150, verbose_name="مالک ریسک", blank=True)
+    cause = models.TextField(blank=True, verbose_name="منشأ/علت بروز ریسک")
+    consequence = models.TextField(blank=True, verbose_name="پیامد ریسک")
+    owner = models.CharField(max_length=150, verbose_name="مسئول ریسک/پروژه", blank=True)
     category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default="ops", verbose_name="دسته‌بندی")
 
     # ریسک ذاتی: پیش از هرگونه کنترل
@@ -164,6 +185,10 @@ class Risk(models.Model):
         return [m.strip() for m in self.mitigation.splitlines() if m.strip()]
 
     @property
+    def consequence_list(self):
+        return [c.strip() for c in self.consequence.splitlines() if c.strip()]
+
+    @property
     def sev_class(self):
         return {"crit": "high", "high": "high", "med": "med", "low": "low"}[self.zone]
 
@@ -182,6 +207,31 @@ class SWOTItem(models.Model):
     text = models.CharField(max_length=300, verbose_name="متن")
     impact = models.CharField(max_length=10, choices=IMPACT_CHOICES, default="med", verbose_name="اهمیت")
     weight = models.PositiveSmallIntegerField(choices=WEIGHT_CHOICES, default=3, verbose_name="وزن اهمیت (۱ تا ۵)")
+    # ردیابی منشأ — فرصت/تهدید معمولاً از PESTEL یا پورتر می‌آید؛ قوت/ضعف از 7S یا زنجیره ارزش
+    source_pestel = models.ForeignKey(
+        "PestelFactor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="عامل محیطی مرتبط (PESTEL)",
+    )
+    source_porter = models.ForeignKey(
+        "PorterForce", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="نیروی پورتر مرتبط",
+    )
+    source_7s = models.ForeignKey(
+        "McKinsey7S", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="مؤلفه McKinsey 7S مرتبط",
+    )
+    source_value_chain = models.ForeignKey(
+        "ValueChainActivity", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="فعالیت زنجیره ارزش مرتبط",
+    )
+    source_stakeholder = models.ForeignKey(
+        "Stakeholder", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="ذینفع مرتبط",
+    )
+    source_scenario = models.ForeignKey(
+        "Scenario", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="swot_items", verbose_name="سناریوی مرتبط",
+    )
     business_unit = models.ForeignKey(
         "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="swot_items", verbose_name="کسب‌وکار",
@@ -196,6 +246,14 @@ class SWOTItem(models.Model):
     def __str__(self):
         return self.text
 
+    @property
+    def source(self):
+        """اولین منبع تعریف‌شده (اگر باشد) را برمی‌گرداند."""
+        return (
+            self.source_pestel or self.source_porter or self.source_stakeholder
+            or self.source_scenario or self.source_7s or self.source_value_chain
+        )
+
 
 class TOWSStrategy(models.Model):
     CATEGORY_CHOICES = [
@@ -208,6 +266,9 @@ class TOWSStrategy(models.Model):
     category = models.CharField(max_length=2, choices=CATEGORY_CHOICES, verbose_name="نوع راهبرد")
     text = models.CharField(max_length=300, verbose_name="متن راهبرد")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    source_items = models.ManyToManyField(
+        "SWOTItem", blank=True, related_name="tows_strategies", verbose_name="موارد SWOT مبنا",
+    )
     business_unit = models.ForeignKey(
         "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="tows_strategies", verbose_name="کسب‌وکار",
@@ -289,6 +350,16 @@ class StrategicObjective(models.Model):
         "self", blank=True, symmetrical=False, related_name="fed_by",
         verbose_name="این هدف به کدام هدف(ها) کمک می‌کند",
     )
+    source_tows = models.ForeignKey(
+        "TOWSStrategy", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="objectives", verbose_name="راهبرد TOWS مبنا",
+    )
+    linked_kpis = models.ManyToManyField(
+        "CompanyKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
+    )
+    linked_company_kpis = models.ManyToManyField(
+        "CompanyKPI", blank=True, related_name="linked_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
+    )
     business_unit = models.ForeignKey(
         BusinessUnit, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="objectives", verbose_name="کسب‌وکار",
@@ -353,17 +424,35 @@ class PestelFactor(models.Model):
         ("opportunity", "فرصت"),
         ("threat", "تهدید"),
     ]
+    SCALE_CHOICES = [(i, str(i)) for i in range(1, 6)]
+    UNCERTAINTY_CHOICES = [("low", "کم"), ("medium", "متوسط"), ("high", "زیاد")]
+    HORIZON_CHOICES = [("short", "کوتاه‌مدت"), ("medium", "میان‌مدت"), ("long", "بلندمدت")]
+    TREND_CHOICES = [("up", "صعودی"), ("down", "نزولی"), ("flat", "ثابت")]
+    UNCERTAINTY_COLOR = {"low": "var(--success)", "medium": "var(--accent)", "high": "#B0413E"}
 
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="بُعد")
     kind = models.CharField(max_length=15, choices=KIND_CHOICES, default="factor", verbose_name="نوع")
     text = models.CharField(max_length=500, verbose_name="متن")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    impact_level = models.PositiveSmallIntegerField(choices=SCALE_CHOICES, default=3, verbose_name="میزان اثر")
+    probability = models.PositiveSmallIntegerField(choices=SCALE_CHOICES, default=3, verbose_name="احتمال وقوع")
+    uncertainty = models.CharField(max_length=10, choices=UNCERTAINTY_CHOICES, default="medium", verbose_name="میزان عدم‌قطعیت")
+    horizon = models.CharField(max_length=10, choices=HORIZON_CHOICES, default="medium", verbose_name="افق زمانی")
+    trend = models.CharField(max_length=10, choices=TREND_CHOICES, default="flat", verbose_name="روند تغییر")
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["category", "order"]
         verbose_name = "عامل PESTEL"
         verbose_name_plural = "تحلیل PESTEL"
+
+    @property
+    def priority_score(self):
+        return self.impact_level * self.probability
+
+    @property
+    def uncertainty_color(self):
+        return self.UNCERTAINTY_COLOR.get(self.uncertainty, "var(--ink-faint)")
 
     def __str__(self):
         return f"{self.get_category_display()} — {self.text}"
@@ -447,3 +536,411 @@ class QualityPolicyPoint(models.Model):
 
     def __str__(self):
         return f"بند {self.number}"
+
+
+class McKinsey7S(models.Model):
+    COMPONENT_CHOICES = [
+        ("strategy", "استراتژی"),
+        ("structure", "ساختار"),
+        ("systems", "سیستم‌ها"),
+        ("shared_values", "ارزش‌های مشترک"),
+        ("skills", "مهارت‌ها"),
+        ("staff", "کارکنان"),
+        ("style", "سبک"),
+    ]
+
+    component = models.CharField(max_length=20, choices=COMPONENT_CHOICES, unique=True, verbose_name="مؤلفه")
+    status = models.TextField(blank=True, verbose_name="وضعیت فعلی")
+    strengths = models.TextField(blank=True, verbose_name="نقاط قوت (هر خط یک مورد)")
+    weaknesses = models.TextField(blank=True, verbose_name="نقاط ضعف/ریسک‌ها (هر خط یک مورد)")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "مؤلفه McKinsey 7S"
+        verbose_name_plural = "تحلیل McKinsey 7S"
+
+    def __str__(self):
+        return self.get_component_display()
+
+    @property
+    def strengths_list(self):
+        return [s.strip() for s in self.strengths.splitlines() if s.strip()]
+
+    @property
+    def weaknesses_list(self):
+        return [w.strip() for w in self.weaknesses.splitlines() if w.strip()]
+
+
+class ValueChainActivity(models.Model):
+    """زنجیره ارزش پورتر — ۹ فعالیت ثابت (۵ اصلی + ۴ پشتیبان)."""
+    ACTIVITY_CHOICES = [
+        ("infra", "زیرساخت‌های شرکت"),
+        ("hr", "مدیریت منابع انسانی"),
+        ("tech", "توسعه فناوری"),
+        ("procurement", "تدارکات"),
+        ("inbound", "لجستیک ورودی"),
+        ("operations", "عملیات"),
+        ("outbound", "لجستیک خروجی"),
+        ("marketing", "بازاریابی و فروش"),
+        ("service", "خدمات به مشتری"),
+    ]
+    ACTIVITY_TYPE = {
+        "infra": "support", "hr": "support", "tech": "support", "procurement": "support",
+        "inbound": "primary", "operations": "primary", "outbound": "primary",
+        "marketing": "primary", "service": "primary",
+    }
+
+    activity = models.CharField(max_length=20, choices=ACTIVITY_CHOICES, unique=True, verbose_name="فعالیت")
+    content = models.TextField(blank=True, verbose_name="اقدامات/محتوا (هر خط یک مورد)")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "فعالیت زنجیره ارزش پورتر"
+        verbose_name_plural = "زنجیره ارزش پورتر"
+
+    def __str__(self):
+        return self.get_activity_display()
+
+    @property
+    def activity_type(self):
+        return self.ACTIVITY_TYPE.get(self.activity, "primary")
+
+    @property
+    def content_list(self):
+        return [c.strip() for c in self.content.splitlines() if c.strip()]
+
+
+class Stakeholder(models.Model):
+    STATUS_CHOICES = [
+        ("open", "باز"),
+        ("in_progress", "در حال بررسی"),
+        ("done", "رسیدگی‌شده"),
+    ]
+
+    department = models.CharField(max_length=200, verbose_name="واحد/مدیریت ثبت‌کننده", blank=True)
+    name = models.CharField(max_length=200, verbose_name="نام ذینفع")
+    channel = models.CharField(max_length=300, verbose_name="کانال ارتباطی", blank=True)
+    need = models.TextField(verbose_name="نیاز/انتظار ذینفع", blank=True)
+    risk_text = models.TextField(verbose_name="ریسک", blank=True)
+    risk_score = models.PositiveIntegerField(null=True, blank=True, verbose_name="عدد ریسک")
+    opportunity_text = models.TextField(verbose_name="فرصت", blank=True)
+    opportunity_score = models.PositiveIntegerField(null=True, blank=True, verbose_name="عدد فرصت")
+    action = models.TextField(verbose_name="اقدام تعریف‌شده", blank=True)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="open", verbose_name="وضعیت رسیدگی")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-risk_score"]
+        verbose_name = "ذینفع"
+        verbose_name_plural = "مخزن ذینفعان"
+
+    def __str__(self):
+        return f"{self.name} — {self.need[:40]}"
+
+
+class CrossImpactFactor(models.Model):
+    """نتیجه‌ی نهایی تحلیل اثرات متقابل — جای‌گذاری عوامل کلیدی در ۴ ناحیه (روش MICMAC)."""
+    QUADRANT_CHOICES = [
+        ("driver", "پیشران‌های کلیدی"),
+        ("relay", "متغیرهای دووجهی"),
+        ("watch", "دیده‌بانی"),
+        ("resultant", "متغیرهای نتیجه"),
+    ]
+    QUADRANT_COLOR = {
+        "driver": "#B0413E", "relay": "#C97A2B", "watch": "#5a6474", "resultant": "#2E5C8A",
+    }
+
+    text = models.CharField(max_length=200, verbose_name="عامل")
+    quadrant = models.CharField(max_length=12, choices=QUADRANT_CHOICES, verbose_name="ناحیه")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    linked_pestel = models.ForeignKey(
+        "PestelFactor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="cross_impact_factors", verbose_name="عامل PESTEL مرتبط (اختیاری)",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["quadrant", "order"]
+        verbose_name = "عامل اثرات متقابل"
+        verbose_name_plural = "تحلیل اثرات متقابل"
+
+    def __str__(self):
+        return self.text
+
+    @property
+    def quadrant_color(self):
+        return self.QUADRANT_COLOR.get(self.quadrant, "var(--ink-faint)")
+
+
+class CrossImpactLink(models.Model):
+    """امتیاز اثرگذاری مستقیم یک عامل بر عامل دیگر — پایه‌ی محاسبه‌ی روش MICMAC."""
+    SCORE_CHOICES = [(0, "بدون اثر"), (1, "کم"), (2, "متوسط"), (3, "زیاد")]
+
+    from_factor = models.ForeignKey(CrossImpactFactor, related_name="outgoing_links", on_delete=models.CASCADE)
+    to_factor = models.ForeignKey(CrossImpactFactor, related_name="incoming_links", on_delete=models.CASCADE)
+    score = models.PositiveSmallIntegerField(choices=SCORE_CHOICES, default=0, verbose_name="میزان اثر")
+
+    class Meta:
+        unique_together = ("from_factor", "to_factor")
+        verbose_name = "اثر مستقیم"
+        verbose_name_plural = "ماتریس اثرات مستقیم"
+
+    def __str__(self):
+        return f"{self.from_factor} ← {self.to_factor}: {self.score}"
+
+
+class ScenarioAxes(models.Model):
+    """رکورد تکی (singleton) برای نام دو محور عدم‌قطعیت سناریوها."""
+    axis1_name = models.CharField(max_length=200, default="امکان تأمین منابع مالی", verbose_name="عنوان محور عمودی")
+    axis1_positive = models.CharField(max_length=150, default="دستیابی به منابع مالی", verbose_name="قطب مثبت محور عمودی")
+    axis1_negative = models.CharField(max_length=150, default="عدم دستیابی به منابع مالی", verbose_name="قطب منفی محور عمودی")
+    axis2_name = models.CharField(max_length=200, default="وضعیت بین‌المللی", verbose_name="عنوان محور افقی")
+    axis2_positive = models.CharField(max_length=150, default="تعاملات هدفمند بین‌المللی", verbose_name="قطب مثبت محور افقی")
+    axis2_negative = models.CharField(max_length=150, default="تشدید محدودیت‌های بین‌المللی", verbose_name="قطب منفی محور افقی")
+
+    class Meta:
+        verbose_name = "محورهای سناریو"
+        verbose_name_plural = "محورهای سناریو"
+
+    def __str__(self):
+        return "محورهای سناریوسازی"
+
+
+class Scenario(models.Model):
+    """۴ سناریوی ثابت — تقاطع دو محور عدم‌قطعیت (روش سناریونویسی)."""
+    QUADRANT_CHOICES = [
+        ("prosperity", "پیش به سوی بالندگی"),
+        ("exploration", "کنکاش محیطی"),
+        ("rocky", "گذر از سنگلاخ"),
+        ("foggy", "هوای مه‌آلود"),
+    ]
+    QUADRANT_COLOR = {
+        "prosperity": "#3E7A52", "exploration": "#C97A2B", "rocky": "#2E5C8A", "foggy": "#5a6474",
+    }
+
+    quadrant = models.CharField(max_length=15, choices=QUADRANT_CHOICES, unique=True, verbose_name="ناحیه")
+    title = models.CharField(max_length=150, blank=True, verbose_name="عنوان سناریو")
+    narrative = models.TextField(blank=True, verbose_name="روایت کامل سناریو")
+    is_selected = models.BooleanField(default=False, verbose_name="سناریوی منتخب/مبنا")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["quadrant"]
+        verbose_name = "سناریو"
+        verbose_name_plural = "سناریوهای راهبردی"
+
+    def __str__(self):
+        return self.title or self.get_quadrant_display()
+
+    @property
+    def display_title(self):
+        return self.title or self.get_quadrant_display()
+
+    @property
+    def quadrant_color(self):
+        return self.QUADRANT_COLOR.get(self.quadrant, "var(--ink-faint)")
+
+
+class CompanyObjective(models.Model):
+    """اهداف کلان سطح کل شرکت سایپا یدک — مرتبط با اهداف استراتژیک گروه سایپا (شرکت مادر)."""
+    code = models.CharField(max_length=10, unique=True, verbose_name="کد هدف")
+    group_title = models.CharField(max_length=300, blank=True, verbose_name="هدف کلان استراتژیک گروه")
+    title = models.CharField(max_length=300, verbose_name="عنوان هدف")
+    description = models.TextField(blank=True, verbose_name="تشریح هدف")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "هدف کلان شرکت"
+        verbose_name_plural = "اهداف کلان شرکت"
+
+    def __str__(self):
+        return f"{self.code} — {self.title}"
+
+
+class CompanyKPI(models.Model):
+    """شاخص‌های کلیدی عملکرد سطح کل شرکت — وصل به اهداف کلان شرکت."""
+    DOMAIN_CHOICES = [
+        ("Q", "کیفیت (Quality)"),
+        ("D", "تحویل/حجم (Delivery)"),
+        ("C", "هزینه/درآمد (Cost)"),
+        ("M", "مدیریتی (Management)"),
+    ]
+    DOMAIN_COLOR = {"Q": "#2E5C8A", "D": "#C97A2B", "C": "#3E7A52", "M": "#5a6474"}
+
+    code = models.CharField(max_length=10, unique=True, verbose_name="کد شاخص")
+    domain = models.CharField(max_length=1, choices=DOMAIN_CHOICES, default="Q", verbose_name="حوزه اثربخشی")
+    name = models.CharField(max_length=300, verbose_name="شاخص کلیدی")
+    unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
+    target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴")
+    actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴")
+    target_1405 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۵")
+    actual_1405 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۵")
+    progress_1405 = models.CharField(max_length=20, blank=True, verbose_name="درصد تحقق (دستی)")
+    objectives = models.ManyToManyField(
+        CompanyObjective, blank=True, related_name="kpis", verbose_name="اهداف مرتبط",
+    )
+    is_monitoring = models.BooleanField(default=False, verbose_name="صرفاً پایشی (بدون هدف مستقیم)")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "شاخص کلان شرکت"
+        verbose_name_plural = "شاخص‌های کلان شرکت"
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
+
+    @property
+    def domain_color(self):
+        return self.DOMAIN_COLOR.get(self.domain, "var(--ink-faint)")
+
+    @property
+    def progress_pct(self):
+        """درصد پیشرفت نسبت هدف ۱۴۰۴ به عملکرد، فقط اگر هردو عددی باشند."""
+        try:
+            t = float(self.target_1404)
+            a = float(self.actual_1404)
+            if t == 0:
+                return None
+            pct = round(a / t * 100)
+            return max(0, min(pct, 150))
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def progress_pct_1405(self):
+        """درصد تحقق هدف ۱۴۰۵ نسبت به عملکرد ۱۴۰۵، فقط اگر هردو عددی باشند."""
+        try:
+            t = float(self.target_1405)
+            a = float(self.actual_1405)
+            if t == 0:
+                return None
+            pct = round(a / t * 100)
+            return max(0, min(pct, 150))
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def manual_progress_value(self):
+        """عدد درصد را از فیلد آزاد «درصد تحقق» (مثلاً «۸۵٪» یا «85%») استخراج می‌کند."""
+        import re
+        if not self.progress_1405:
+            return None
+        text = self.progress_1405
+        persian_digits = "۰۱۲۳۴۵۶۷۸۹"
+        for i, d in enumerate(persian_digits):
+            text = text.replace(d, str(i))
+        m = re.search(r"\d+(\.\d+)?", text)
+        if not m:
+            return None
+        try:
+            return round(float(m.group()))
+        except ValueError:
+            return None
+
+    @property
+    def progress_color(self):
+        p = self.progress_pct
+        if p is None:
+            return "#9aa3ac"
+        if p >= 90:
+            return "#3E7A52"
+        if p >= 60:
+            return "#C97A2B"
+        return "#B0413E"
+
+
+def document_upload_path(instance, filename):
+    from django.utils.text import slugify
+    import os
+    ext = os.path.splitext(filename)[1]
+    return f"documents/{instance.category}/{slugify(instance.title) or 'doc'}{ext}"
+
+
+class Document(models.Model):
+    """اسناد بالادستی و دستورالعمل‌های سازمانی."""
+    CATEGORY_CHOICES = [
+        ("upstream", "سند بالادستی"),
+        ("guideline", "دستورالعمل"),
+    ]
+
+    title = models.CharField(max_length=250, verbose_name="عنوان سند")
+    code = models.CharField(max_length=60, blank=True, verbose_name="کد دستورالعمل/سند")
+    category = models.CharField(max_length=15, choices=CATEGORY_CHOICES, default="upstream", verbose_name="دسته")
+    description = models.TextField(blank=True, verbose_name="توضیح کوتاه")
+    file = models.FileField(upload_to=document_upload_path, verbose_name="فایل")
+    approved_at = models.DateField(null=True, blank=True, verbose_name="تاریخ تصویب")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["category", "order", "-uploaded_at"]
+        verbose_name = "سند"
+        verbose_name_plural = "اسناد و دستورالعمل‌ها"
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def file_ext(self):
+        import os
+        return os.path.splitext(self.file.name)[1].lower().lstrip(".")
+
+    @property
+    def file_icon(self):
+        return {
+            "pdf": "fa-file-pdf", "doc": "fa-file-word", "docx": "fa-file-word",
+            "xls": "fa-file-excel", "xlsx": "fa-file-excel",
+            "ppt": "fa-file-powerpoint", "pptx": "fa-file-powerpoint",
+        }.get(self.file_ext, "fa-file")
+
+
+class StrategicKPI(models.Model):
+    """شاخص کلیدی عملکرد وصل به یک هدف مشخص در نقشه استراتژیک (سطح کسب‌وکار)."""
+    STATUS_CHOICES = [
+        ("on_track", "در مسیر هدف"),
+        ("at_risk", "در معرض ریسک"),
+        ("off_track", "خارج از مسیر"),
+    ]
+    TREND_CHOICES = [("up", "صعودی"), ("down", "نزولی"), ("flat", "پایدار")]
+    STATUS_COLOR = {"on_track": "#3E7A52", "at_risk": "#C97A2B", "off_track": "#B0413E"}
+
+    objective = models.ForeignKey(
+        StrategicObjective, on_delete=models.CASCADE, related_name="kpis", verbose_name="هدف مرتبط",
+    )
+    name = models.CharField(max_length=200, verbose_name="نام شاخص")
+    unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
+    target = models.CharField(max_length=60, blank=True, verbose_name="مقدار هدف")
+    actual = models.CharField(max_length=60, blank=True, verbose_name="مقدار واقعی")
+    trend = models.CharField(max_length=10, choices=TREND_CHOICES, default="flat", verbose_name="روند")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="on_track", verbose_name="وضعیت")
+    owner = models.CharField(max_length=150, blank=True, verbose_name="مسئول")
+    period = models.CharField(max_length=60, blank=True, verbose_name="دوره پایش")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "شاخص هدف استراتژیک"
+        verbose_name_plural = "شاخص‌های اهداف استراتژیک"
+
+    def __str__(self):
+        return f"{self.name} ({self.objective.code})"
+
+    @property
+    def status_color(self):
+        return self.STATUS_COLOR.get(self.status, "var(--ink-faint)")
+
+    @property
+    def progress_pct(self):
+        try:
+            t = float(self.target)
+            a = float(self.actual)
+            if t == 0:
+                return None
+            return max(0, min(round(a / t * 100), 150))
+        except (TypeError, ValueError):
+            return None

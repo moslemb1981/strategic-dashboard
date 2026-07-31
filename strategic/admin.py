@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
-    OrgIdentity, OrgValue, QualityPolicyPoint,
+    OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI,
 )
 
 
@@ -80,8 +80,8 @@ class CompetitorAdmin(admin.ModelAdmin):
 
 @admin.register(PestelFactor)
 class PestelFactorAdmin(admin.ModelAdmin):
-    list_display = ("category", "kind", "text", "order")
-    list_filter = ("category", "kind")
+    list_display = ("category", "kind", "text", "impact_level", "probability", "uncertainty", "order")
+    list_filter = ("category", "kind", "uncertainty", "horizon")
     list_editable = ("order",)
     search_fields = ("text",)
     ordering = ("category", "kind", "order")
@@ -108,3 +108,68 @@ class OrgValueAdmin(admin.ModelAdmin):
 class QualityPolicyPointAdmin(admin.ModelAdmin):
     list_display = ("number", "text", "order")
     list_editable = ("order",)
+
+
+@admin.register(McKinsey7S)
+class McKinsey7SAdmin(admin.ModelAdmin):
+    list_display = ("component", "updated_at")
+
+
+@admin.register(ValueChainActivity)
+class ValueChainActivityAdmin(admin.ModelAdmin):
+    list_display = ("activity", "updated_at")
+
+
+@admin.register(Stakeholder)
+class StakeholderAdmin(admin.ModelAdmin):
+    list_display = ("name", "department", "risk_score", "opportunity_score", "status")
+    list_filter = ("department", "status")
+    search_fields = ("name", "need", "risk_text", "opportunity_text")
+
+
+@admin.register(CrossImpactFactor)
+class CrossImpactFactorAdmin(admin.ModelAdmin):
+    list_display = ("text", "quadrant", "order")
+    list_filter = ("quadrant",)
+    list_editable = ("order",)
+
+
+@admin.register(CrossImpactLink)
+class CrossImpactLinkAdmin(admin.ModelAdmin):
+    list_display = ("from_factor", "to_factor", "score")
+    list_filter = ("score",)
+
+
+@admin.register(Scenario)
+class ScenarioAdmin(admin.ModelAdmin):
+    list_display = ("quadrant", "title", "is_selected", "updated_at")
+
+
+@admin.register(ScenarioAxes)
+class ScenarioAxesAdmin(admin.ModelAdmin):
+    list_display = ("axis1_name", "axis2_name")
+
+
+@admin.register(CompanyObjective)
+class CompanyObjectiveAdmin(admin.ModelAdmin):
+    list_display = ("code", "group_title", "title", "order")
+    list_editable = ("order",)
+
+
+@admin.register(CompanyKPI)
+class CompanyKPIAdmin(admin.ModelAdmin):
+    list_display = ("code", "domain", "name", "target_1405", "actual_1405", "order")
+    list_filter = ("domain", "is_monitoring")
+    list_editable = ("order",)
+
+
+@admin.register(Document)
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ("title", "code", "category", "approved_at", "uploaded_at")
+    list_filter = ("category",)
+
+
+@admin.register(StrategicKPI)
+class StrategicKPIAdmin(admin.ModelAdmin):
+    list_display = ("name", "objective", "target", "actual", "status")
+    list_filter = ("status", "trend")

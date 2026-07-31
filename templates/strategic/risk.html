@@ -173,28 +173,42 @@
         {% for c in categories %}<span class="catchip" style="background:{{ c.color }}">{{ c.label }} ({{ c.count|fanum }})</span>{% endfor %}
       </div>
     </div>
-    <div style="overflow-x:auto;">
-      <table>
+    <div>
+      <table style="table-layout:fixed;width:100%;">
+        <colgroup>
+          <col style="width:32px;"><col style="width:22%;"><col style="width:28px;">
+          <col style="width:34%;"><col style="width:60px;"><col style="width:120px;">
+          <col style="width:40px;"><col style="width:50px;">
+        </colgroup>
         <thead><tr>
-          <th>#</th><th>عنوان ریسک</th><th>دسته</th><th>مالک</th><th>راهبرد پاسخ</th>
-          <th>ذاتی</th><th>باقیمانده</th><th>هدف</th><th>روند</th><th></th>
+          <th>#</th><th>عنوان ریسک</th><th title="دسته"></th><th>اقدامات کلیدی / پروژه‌ها</th><th>راهبرد پاسخ</th>
+          <th>امتیاز (ذاتی/باقیمانده/هدف)</th><th>روند</th><th></th>
         </tr></thead>
         <tbody>
           {% for r in risks %}
           <tr>
             <td><span class="td-id" style="background:{{ r.category_color }}">{{ forloop.counter|fanum }}</span></td>
-            <td style="max-width:220px">{{ r.title }}</td>
-            <td><span class="pill" style="background:{{ r.category_color }}">{{ r.get_category_display }}</span></td>
-            <td style="white-space:nowrap">{{ r.owner|default:"—" }}</td>
-            <td style="white-space:nowrap">{{ r.get_response_strategy_display }}</td>
-            <td><span class="sbadge" style="background:var(--z-{% if r.inherent_zone == 'crit' %}crit{% elif r.inherent_zone == 'high' %}high{% elif r.inherent_zone == 'med' %}med{% else %}low{% endif %})">{{ r.inherent_score|fanum }}</span></td>
-            <td><span class="sbadge" style="background:var(--z-{% if r.zone == 'crit' %}crit{% elif r.zone == 'high' %}high{% elif r.zone == 'med' %}med{% else %}low{% endif %})">{{ r.residual_score|fanum }}</span></td>
-            <td><span class="sbadge dim" style="background:var(--z-{% if r.target_zone == 'crit' %}crit{% elif r.target_zone == 'high' %}high{% elif r.target_zone == 'med' %}med{% else %}low{% endif %})">{{ r.target_score|fanum }}</span></td>
-            <td><span class="trend {{ r.trend }}">{% if r.trend == "up" %}▲{% elif r.trend == "down" %}▼{% else %}◂▸{% endif %}</span></td>
+            <td style="white-space:normal;word-break:break-word;" title="{% if r.cause %}علت: {{ r.cause }}{% endif %}{% if r.consequence %}&#10;پیامد: {{ r.consequence }}{% endif %}">{{ r.title }}</td>
+            <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ r.category_color }};" title="{{ r.get_category_display }}"></span></td>
+            <td style="white-space:normal;word-break:break-word;">
+              {% if r.mitigation_list %}
+              <ol style="margin:0;padding-inline-start:16px;font-size:10.5px;line-height:1.6;color:var(--ink-soft);">
+                {% for m in r.mitigation_list %}<li>{{ m }}</li>{% endfor %}
+              </ol>
+              {% else %}<span style="color:var(--ink-faint);font-size:11px;">ثبت نشده</span>{% endif %}
+            </td>
+            <td style="white-space:nowrap;font-size:11px;">{{ r.get_response_strategy_display }}</td>
+            <td style="white-space:nowrap;text-align:center;">
+              <span class="sbadge" style="background:var(--z-{% if r.inherent_zone == 'crit' %}crit{% elif r.inherent_zone == 'high' %}high{% elif r.inherent_zone == 'med' %}med{% else %}low{% endif %})">{{ r.inherent_score|fanum }}</span>
+              <span class="sbadge" style="background:var(--z-{% if r.zone == 'crit' %}crit{% elif r.zone == 'high' %}high{% elif r.zone == 'med' %}med{% else %}low{% endif %})">{{ r.residual_score|fanum }}</span>
+              <span class="sbadge dim" style="background:var(--z-{% if r.target_zone == 'crit' %}crit{% elif r.target_zone == 'high' %}high{% elif r.target_zone == 'med' %}med{% else %}low{% endif %})">{{ r.target_score|fanum }}</span>
+            </td>
+            <td style="text-align:center;"><span class="trend {{ r.trend }}">{% if r.trend == "up" %}▲{% elif r.trend == "down" %}▼{% else %}◂▸{% endif %}</span></td>
             <td style="white-space:nowrap">
               {% if perms.strategic.change_risk %}
               <button type="button" class="rowbtn" onclick="editRisk(this)"
-                data-id="{{ r.pk }}" data-title="{{ r.title }}" data-owner="{{ r.owner }}" data-category="{{ r.category }}"
+                data-id="{{ r.pk }}" data-title="{{ r.title }}" data-cause="{{ r.cause }}" data-consequence="{{ r.consequence }}"
+                data-owner="{{ r.owner }}" data-category="{{ r.category }}"
                 data-il="{{ r.inherent_likelihood }}" data-ii="{{ r.inherent_impact }}"
                 data-l="{{ r.likelihood }}" data-i="{{ r.impact }}"
                 data-tl="{{ r.target_likelihood }}" data-ti="{{ r.target_impact }}"
@@ -227,7 +241,9 @@
       {% csrf_token %}
       <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>عنوان ریسک</label>{{ form.title }}</div>
-      <div class="field-group"><label>مالک ریسک</label>{{ form.owner }}</div>
+      <div class="field-group"><label>منشأ/علت بروز</label>{{ form.cause }}</div>
+      <div class="field-group"><label>پیامد ریسک (هر خط یک پیامد)</label>{{ form.consequence }}</div>
+      <div class="field-group"><label>مسئول ریسک/پروژه</label>{{ form.owner }}</div>
       <div class="field-group"><label>دسته‌بندی</label>{{ form.category }}</div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -275,6 +291,8 @@
     const d = btn.dataset;
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_title').value = d.title;
+    document.getElementById('id_cause').value = d.cause;
+    document.getElementById('id_consequence').value = d.consequence;
     document.getElementById('id_owner').value = d.owner;
     document.getElementById('id_category').value = d.category;
     document.getElementById('id_inherent_likelihood').value = d.il;

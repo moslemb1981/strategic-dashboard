@@ -1,0 +1,236 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}اهداف کلان و KPI شرکت{% endblock %}
+{% block crumb %}اهداف کلان و KPI شرکت{% endblock %}
+
+{% block extra_css %}
+<style>
+  .cg-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:20px;}
+  .cg-section-title{font-size:15px;font-weight:900;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
+
+  .cg-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+  .cg-group .g-head{padding:10px 16px;background:var(--primary-soft);font-weight:800;font-size:12.5px;color:var(--primary-dark);}
+  .cg-obj{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;}
+  .cg-obj .code{flex:none;font-size:10px;font-weight:800;color:#fff;background:var(--primary);border-radius:5px;padding:2px 7px;}
+  .cg-obj .txt{flex:1;}
+  .cg-obj .ttl{font-size:12px;font-weight:700;margin-bottom:2px;}
+  .cg-obj .desc{font-size:10.5px;color:var(--ink-faint);line-height:1.6;}
+  .cg-obj .acts{flex:none;display:flex;gap:4px;}
+  .cg-obj .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;}
+
+  .kpi-table-wrap{overflow-x:auto;}
+  table.kpi-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
+  table.kpi-table th{background:var(--bg);padding:7px 8px;text-align:right;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  table.kpi-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;}
+  .kpi-domain{display:inline-block;font-size:9.5px;font-weight:800;color:#fff;border-radius:5px;padding:2px 7px;}
+  .kpi-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
+  .kpi-bar-fill{height:100%;border-radius:4px;}
+  .kpi-tag{display:inline-block;font-size:9px;font-weight:700;background:var(--primary-soft);color:var(--primary-dark);
+    border-radius:5px;padding:1px 6px;margin:1px 2px 0 0;}
+  .kpi-monitor{font-size:9.5px;color:var(--ink-faint);font-style:italic;}
+  .picker-box{max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#fff;}
+  .picker-box label{display:block;font-size:11.5px;padding:4px 2px;cursor:pointer;}
+  .picker-box label:hover{background:var(--bg);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>اهداف کلان و KPI شرکت</h1><div class="sub">اهداف سطح کل سایپا یدک، مرتبط با نقشه استراتژیک ۳ ساله گروه سایپا</div></div>
+  {% if perms.strategic.add_companyobjective %}
+  <button class="btn accent" onclick="newObjective()"><i class="fa-solid fa-plus"></i> افزودن هدف</button>
+  {% endif %}
+</div>
+
+<div class="cg-note"><i class="fa-solid fa-circle-info"></i> این اهداف، سطح کل شرکت‌اند (نه یکی از ۵ کسب‌وکار) و مستقیماً به اهداف کلان استراتژیک گروه سایپا وصل می‌شوند.</div>
+
+{% for g in grouped %}
+<div class="cg-group">
+  <div class="g-head">{{ g.group_title }}</div>
+  {% for o in g.objectives %}
+  <div class="cg-obj">
+    <span class="code">{{ o.code }}</span>
+    <div class="txt">
+      <div class="ttl">{{ o.title }}</div>
+      {% if o.description %}<div class="desc">{{ o.description }}</div>{% endif %}
+    </div>
+    <div class="acts">
+      {% if perms.strategic.change_companyobjective %}
+      <button type="button" onclick="editObjective(this)" data-id="{{ o.pk }}" data-code="{{ o.code }}" data-group="{{ o.group_title }}" data-title="{{ o.title }}" data-desc="{{ o.description }}" data-order="{{ o.order }}"><i class="fa-solid fa-pen"></i></button>
+      {% endif %}
+      {% if perms.strategic.delete_companyobjective %}
+      <form method="post" action="{% url 'strategic:company_objective_delete' o.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<div class="cg-section-title"><i class="fa-solid fa-gauge-high"></i> شاخص‌های کلیدی عملکرد (KPI)
+  {% if perms.strategic.add_companykpi %}<button class="btn ghost" style="margin-inline-start:auto;" onclick="newKpi()"><i class="fa-solid fa-plus"></i> افزودن شاخص</button>{% endif %}
+</div>
+
+<div class="kpi-table-wrap">
+<table class="kpi-table">
+  <colgroup>
+    <col style="width:32px;"><col style="width:20%;"><col style="width:55px;">
+    <col style="width:9%;"><col style="width:13%;"><col style="width:9%;">
+    <col style="width:11%;"><col style="width:8%;"><col style="width:12%;"><col style="width:50px;">
+  </colgroup>
+  <thead><tr>
+    <th>کد</th><th>شاخص</th><th>حوزه</th><th>واحد</th><th>هدف/عملکرد ۱۴۰۴</th><th>هدف ۱۴۰۵</th>
+    <th>عملکرد ۱۴۰۵</th><th>درصد تحقق</th><th>اهداف مرتبط</th><th></th>
+  </tr></thead>
+  <tbody>
+    {% for k in kpis %}
+    <tr>
+      <td>{{ k.code }}</td>
+      <td>{{ k.name }}</td>
+      <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
+      <td>{{ k.unit }}</td>
+      <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}</td>
+      <td>{{ k.target_1405|default:"—" }}</td>
+      <td>{{ k.actual_1405|default:"—" }}</td>
+      <td>{{ k.progress_1405|default:"—" }}</td>
+      <td>
+        {% if k.is_monitoring %}<span class="kpi-monitor">پایشی</span>{% endif %}
+        {% for o in k.objectives.all %}<span class="kpi-tag">{{ o.code }}</span>{% endfor %}
+      </td>
+      <td style="white-space:nowrap;">
+        {% if perms.strategic.change_companykpi %}
+        <button type="button" onclick="editKpi(this)"
+          data-id="{{ k.pk }}" data-code="{{ k.code }}" data-domain="{{ k.domain }}" data-name="{{ k.name }}" data-unit="{{ k.unit }}"
+          data-t1404="{{ k.target_1404 }}" data-a1404="{{ k.actual_1404 }}" data-t1405="{{ k.target_1405 }}" data-a1405="{{ k.actual_1405 }}"
+          data-progress="{{ k.progress_1405 }}" data-order="{{ k.order }}"
+          data-monitoring="{{ k.is_monitoring|yesno:'1,0' }}" data-notes="{{ k.notes }}"
+          data-objectives="{% for o in k.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_companykpi %}
+        <form method="post" action="{% url 'strategic:company_kpi_delete' k.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">
+          {% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="10" style="text-align:center;color:var(--ink-faint);">شاخصی ثبت نشده</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="overlay" id="objOverlay">
+  <div class="modal-card">
+    <h3 id="objModalTitle">افزودن هدف کلان</h3>
+    <form method="post" id="objForm">
+      {% csrf_token %}
+      <input type="hidden" name="form_kind" value="objective">
+      <input type="hidden" name="obj_id" id="co_obj_id" value="">
+      <div class="field-group"><label>کد</label><input type="text" name="code" id="co_code" placeholder="مثلاً O23"></div>
+      <div class="field-group"><label>هدف کلان استراتژیک گروه</label><input type="text" name="group_title" id="co_group"></div>
+      <div class="field-group"><label>عنوان هدف</label><input type="text" name="title" id="co_title"></div>
+      <div class="field-group"><label>تشریح هدف</label><textarea name="description" id="co_desc" rows="3"></textarea></div>
+      <div class="field-group"><label>ترتیب نمایش</label><input type="number" name="order" id="co_order" value="0"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('objOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent" id="objSubmitBtn">ثبت هدف</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="kpiOverlay">
+  <div class="modal-card" style="max-width:520px;">
+    <h3 id="kpiModalTitle">افزودن شاخص</h3>
+    <form method="post" id="kpiForm">
+      {% csrf_token %}
+      <input type="hidden" name="form_kind" value="kpi">
+      <input type="hidden" name="obj_id" id="ck_obj_id" value="">
+      <div class="field-group"><label>کد</label><input type="text" name="code" id="ck_code" placeholder="مثلاً I27"></div>
+      <div class="field-group"><label>حوزه اثربخشی</label>
+        <select name="domain" id="ck_domain">
+          <option value="Q">Q — کیفیت</option><option value="D">D — تحویل/حجم</option>
+          <option value="C">C — هزینه/درآمد</option><option value="M">M — مدیریتی</option>
+        </select>
+      </div>
+      <div class="field-group"><label>نام شاخص</label><input type="text" name="name" id="ck_name"></div>
+      <div class="field-group"><label>واحد سنجش</label><input type="text" name="unit" id="ck_unit"></div>
+      <div class="field-group"><label>هدف ۱۴۰۴</label><input type="text" name="target_1404" id="ck_t1404"></div>
+      <div class="field-group"><label>عملکرد ۱۴۰۴</label><input type="text" name="actual_1404" id="ck_a1404"></div>
+      <div class="field-group"><label>هدف ۱۴۰۵</label><input type="text" name="target_1405" id="ck_t1405"></div>
+      <div class="field-group"><label>عملکرد ۱۴۰۵</label><input type="text" name="actual_1405" id="ck_a1405"></div>
+      <div class="field-group"><label>درصد تحقق</label><input type="text" name="progress_1405" id="ck_progress" placeholder="مثلاً ۸۵٪"></div>
+      <div class="field-group"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_monitoring" id="ck_monitoring" style="width:auto;"> صرفاً پایشی (بدون هدف کلان مستقیم)</label></div>
+      <div class="field-group"><label>اهداف مرتبط</label>
+        <div class="picker-box" style="max-height:160px;">
+          {% for o in kpi_form.fields.objectives.queryset %}
+          <label><input type="checkbox" name="objectives" value="{{ o.pk }}" class="ck-obj-cb"> {{ o.code }} — {{ o.title }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field-group"><label>ملاحظات</label><textarea name="notes" id="ck_notes" rows="2"></textarea></div>
+      <input type="hidden" name="order" id="ck_order" value="0">
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('kpiOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent" id="kpiSubmitBtn">ثبت شاخص</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function newObjective(){
+    document.getElementById('objForm').reset();
+    document.getElementById('co_obj_id').value = '';
+    document.getElementById('objModalTitle').textContent = 'افزودن هدف کلان';
+    document.getElementById('objSubmitBtn').textContent = 'ثبت هدف';
+    document.getElementById('objOverlay').classList.add('open');
+  }
+  function editObjective(btn){
+    const d = btn.dataset;
+    document.getElementById('co_obj_id').value = d.id;
+    document.getElementById('co_code').value = d.code;
+    document.getElementById('co_group').value = d.group;
+    document.getElementById('co_title').value = d.title;
+    document.getElementById('co_desc').value = d.desc;
+    document.getElementById('co_order').value = d.order;
+    document.getElementById('objModalTitle').textContent = 'ویرایش هدف کلان';
+    document.getElementById('objSubmitBtn').textContent = 'ذخیره تغییرات';
+    document.getElementById('objOverlay').classList.add('open');
+  }
+
+  function newKpi(){
+    document.getElementById('kpiForm').reset();
+    document.getElementById('ck_obj_id').value = '';
+    document.querySelectorAll('.ck-obj-cb').forEach(cb => cb.checked = false);
+    document.getElementById('kpiModalTitle').textContent = 'افزودن شاخص';
+    document.getElementById('kpiSubmitBtn').textContent = 'ثبت شاخص';
+    document.getElementById('kpiOverlay').classList.add('open');
+  }
+  function editKpi(btn){
+    const d = btn.dataset;
+    document.getElementById('ck_obj_id').value = d.id;
+    document.getElementById('ck_code').value = d.code;
+    document.getElementById('ck_domain').value = d.domain;
+    document.getElementById('ck_name').value = d.name;
+    document.getElementById('ck_unit').value = d.unit;
+    document.getElementById('ck_t1404').value = d.t1404;
+    document.getElementById('ck_a1404').value = d.a1404;
+    document.getElementById('ck_t1405').value = d.t1405;
+    document.getElementById('ck_a1405').value = d.a1405;
+    document.getElementById('ck_progress').value = d.progress;
+    document.getElementById('ck_order').value = d.order || 0;
+    document.getElementById('ck_monitoring').checked = (d.monitoring === '1');
+    document.getElementById('ck_notes').value = d.notes;
+    const objIds = (d.objectives || '').split(',').filter(Boolean);
+    document.querySelectorAll('.ck-obj-cb').forEach(cb => { cb.checked = objIds.includes(cb.value); });
+    document.getElementById('kpiModalTitle').textContent = 'ویرایش شاخص';
+    document.getElementById('kpiSubmitBtn').textContent = 'ذخیره تغییرات';
+    document.getElementById('kpiOverlay').classList.add('open');
+  }
+</script>
+{% endblock %}

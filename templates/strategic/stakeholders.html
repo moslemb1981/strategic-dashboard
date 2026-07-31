@@ -1,0 +1,164 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}تحلیل ذینفعان{% endblock %}
+{% block crumb %}تحلیل ذینفعان{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sk-top{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+  @media(max-width:900px){.sk-top{grid-template-columns:1fr;}}
+  .sk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;}
+  .sk-card .head{padding:12px 16px;font-size:13px;font-weight:800;border-bottom:1px solid var(--border);}
+  .sk-card.risk .head{color:#B0413E;} .sk-card.opp .head{color:var(--success);}
+  .sk-row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:9px 16px;
+    border-top:1px solid var(--border);font-size:11.5px;line-height:1.6;}
+  .sk-row:first-of-type{border-top:none;}
+  .sk-row .num{flex:none;font-weight:800;border-radius:6px;padding:2px 8px;color:#fff;font-size:11px;margin-inline-start:8px;}
+  .sk-card.risk .num{background:#B0413E;} .sk-card.opp .num{background:var(--success);}
+
+  .sk-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .sk-filters input,.sk-filters select{border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;}
+  .sk-count{font-size:11.5px;color:var(--ink-faint);align-self:center;margin-inline-start:auto;}
+
+  .sk-table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;}
+  .sk-table th{background:var(--bg);text-align:right;padding:8px 10px;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .sk-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;white-space:normal;word-break:break-word;}
+  .sk-table tr:hover td{background:var(--bg);}
+  .sk-badge{display:inline-block;font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 8px;color:#fff;}
+  .sk-empty{padding:14px;text-align:center;color:var(--ink-faint);}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
+    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>تحلیل ذینفعان</h1><div class="sub">نیازها، ریسک‌ها و فرصت‌های ذینفعان کلیدی سایپا یدک</div></div>
+  {% if perms.strategic.add_stakeholder %}
+  <button class="btn accent" onclick="newStakeholder()"><i class="fa-solid fa-plus"></i>افزودن ذینفع</button>
+  {% endif %}
+</div>
+
+<div class="sk-top">
+  <div class="sk-card risk">
+    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> مهم‌ترین ریسک‌های ذینفعان</div>
+    {% for i in top_risks %}
+    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}</span><span class="num">{{ i.risk_score }}</span></div>
+    {% empty %}<div class="sk-empty">موردی ثبت نشده</div>{% endfor %}
+  </div>
+  <div class="sk-card opp">
+    <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> مهم‌ترین فرصت‌های ذینفعان</div>
+    {% for i in top_opportunities %}
+    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}</span><span class="num">{{ i.opportunity_score }}</span></div>
+    {% empty %}<div class="sk-empty">موردی ثبت نشده</div>{% endfor %}
+  </div>
+</div>
+
+<form method="get" class="sk-filters">
+  <input type="text" name="q" value="{{ q }}" placeholder="جست‌وجو در نام، نیاز، ریسک، فرصت..." style="width:280px;">
+  <select name="dept" onchange="this.form.submit()">
+    <option value="">همه‌ی واحدها</option>
+    {% for d in departments %}<option value="{{ d }}" {% if d == dept %}selected{% endif %}>{{ d }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn ghost">اعمال فیلتر</button>
+  <span class="sk-count">{{ items|length }} از {{ total_count }} ذینفع</span>
+</form>
+
+<div style="overflow-x:auto;">
+<table class="sk-table">
+  <colgroup>
+    <col style="width:12%;"><col style="width:13%;"><col style="width:16%;">
+    <col style="width:16%;"><col style="width:16%;"><col style="width:17%;"><col style="width:60px;">
+  </colgroup>
+  <thead><tr>
+    <th>واحد</th><th>ذینفع</th><th>نیاز/انتظار</th><th>ریسک</th><th>فرصت</th><th>اقدام</th><th></th>
+  </tr></thead>
+  <tbody>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.department|default:"—" }}</td>
+      <td>{{ i.name }}{% if i.swot_items.all %}<span class="used-badge" title="{% for si in i.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ i.swot_items.all|length }}</span>{% endif %}</td>
+      <td>{{ i.need|default:"—" }}</td>
+      <td>{% if i.risk_text %}<span class="sk-badge" style="background:#B0413E;">{{ i.risk_score|default:"—" }}</span> {{ i.risk_text }}{% else %}—{% endif %}</td>
+      <td>{% if i.opportunity_text %}<span class="sk-badge" style="background:var(--success);">{{ i.opportunity_score|default:"—" }}</span> {{ i.opportunity_text }}{% else %}—{% endif %}</td>
+      <td>{{ i.action|default:"—" }}</td>
+      <td style="white-space:nowrap;">
+        {% if perms.strategic.change_stakeholder %}
+        <button type="button" onclick="editStakeholder(this)"
+          data-id="{{ i.pk }}" data-department="{{ i.department }}" data-name="{{ i.name }}" data-channel="{{ i.channel }}"
+          data-need="{{ i.need }}" data-risk="{{ i.risk_text }}" data-riskscore="{{ i.risk_score|default:'' }}"
+          data-opp="{{ i.opportunity_text }}" data-oppscore="{{ i.opportunity_score|default:'' }}"
+          data-action="{{ i.action }}" data-status="{{ i.status }}"
+          style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_stakeholder %}
+        <form method="post" action="{% url 'strategic:stakeholder_delete' i.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">
+          {% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="sk-empty">ذینفعی یافت نشد</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal-card" style="max-width:520px;">
+    <h3 id="modalTitle">افزودن ذینفع</h3>
+    <form method="post" id="skForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>واحد/مدیریت ثبت‌کننده</label>{{ form.department }}</div>
+      <div class="field-group"><label>نام ذینفع</label>{{ form.name }}</div>
+      <div class="field-group"><label>کانال ارتباطی</label>{{ form.channel }}</div>
+      <div class="field-group"><label>نیاز/انتظار</label>{{ form.need }}</div>
+      <div class="field-group"><label>ریسک</label>{{ form.risk_text }}</div>
+      <div class="field-group"><label>عدد ریسک</label>{{ form.risk_score }}</div>
+      <div class="field-group"><label>فرصت</label>{{ form.opportunity_text }}</div>
+      <div class="field-group"><label>عدد فرصت</label>{{ form.opportunity_score }}</div>
+      <div class="field-group"><label>اقدام تعریف‌شده</label>{{ form.action }}</div>
+      <div class="field-group"><label>وضعیت رسیدگی</label>{{ form.status }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت ذینفع</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function newStakeholder(){
+    document.getElementById('skForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن ذینفع';
+    document.getElementById('submitBtn').textContent = 'ثبت ذینفع';
+    openModal();
+  }
+
+  function editStakeholder(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_department').value = d.department;
+    document.getElementById('id_name').value = d.name;
+    document.getElementById('id_channel').value = d.channel;
+    document.getElementById('id_need').value = d.need;
+    document.getElementById('id_risk_text').value = d.risk;
+    document.getElementById('id_risk_score').value = d.riskscore;
+    document.getElementById('id_opportunity_text').value = d.opp;
+    document.getElementById('id_opportunity_score').value = d.oppscore;
+    document.getElementById('id_action').value = d.action;
+    document.getElementById('id_status').value = d.status;
+    document.getElementById('modalTitle').textContent = 'ویرایش ذینفع';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+</script>
+{% endblock %}

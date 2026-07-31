@@ -3,15 +3,21 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import FileResponse, Http404
 from django.urls import reverse
+from django.db.models import Q
 
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint,
+    BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
+    ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
+    CompanyObjective, CompanyKPI, Document, StrategicKPI,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
-    CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm,
+    CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
+    StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
+    StrategicKPIForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -86,7 +92,15 @@ def home(request):
         "risk_total": risk_total, "risk_high": risk_high, "risk_pct": risk_pct,
         "competitor_count": Competitor.objects.count(),
         "pestel_count": PestelFactor.objects.count(),
+        "cross_impact_count": CrossImpactFactor.objects.count(),
+        "scenario_selected": Scenario.objects.filter(is_selected=True).first(),
+        "company_objective_count": CompanyObjective.objects.count(),
+        "company_kpi_count": CompanyKPI.objects.count(),
+        "document_count": Document.objects.count(),
+        "stakeholder_count": Stakeholder.objects.count(),
         "porter_count": PorterForce.objects.count(),
+        "mckinsey7s_count": McKinsey7S.objects.count(),
+        "value_chain_count": ValueChainActivity.objects.count(),
         "swot_count": SWOTItem.objects.count(),
         "activity": activity,
     })
@@ -123,6 +137,59 @@ def research(request):
     })
 
 
+# ---------------- ذینفعان ----------------
+
+def stakeholders(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_stakeholder" if obj_id else "strategic.add_stakeholder"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Stakeholder, pk=obj_id) if obj_id else None
+            form = StakeholderForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE Stakeholder" if obj_id else "CREATE Stakeholder", str(form.instance))
+                return redirect("strategic:stakeholders")
+        else:
+            form = StakeholderForm()
+    else:
+        form = StakeholderForm()
+
+    items = Stakeholder.objects.all().prefetch_related("swot_items__business_unit")
+    q = request.GET.get("q", "").strip()
+    dept = request.GET.get("dept", "").strip()
+    if q:
+        items = items.filter(
+            Q(name__icontains=q) | Q(need__icontains=q) |
+            Q(risk_text__icontains=q) | Q(opportunity_text__icontains=q)
+        )
+    if dept:
+        items = items.filter(department=dept)
+
+    all_items = list(Stakeholder.objects.all())
+    top_risks = sorted([i for i in all_items if i.risk_score], key=lambda i: i.risk_score, reverse=True)[:6]
+    top_opportunities = sorted(
+        [i for i in all_items if i.opportunity_score], key=lambda i: i.opportunity_score, reverse=True
+    )[:6]
+    departments = sorted({i.department for i in all_items if i.department})
+
+    return render(request, "strategic/stakeholders.html", {
+        "active_page": "stakeholders", "items": items, "form": form, "q": q, "dept": dept,
+        "departments": departments, "top_risks": top_risks, "top_opportunities": top_opportunities,
+        "total_count": len(all_items),
+    })
+
+
+@login_required
+def stakeholder_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_stakeholder"):
+        obj = get_object_or_404(Stakeholder, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE Stakeholder", label)
+    return redirect("strategic:stakeholders")
+
+
 @login_required
 def study_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_study"):
@@ -136,24 +203,41 @@ def study_delete(request, pk):
 # ---------------- Roadmap / initiatives ----------------
 
 def roadmap(request):
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.POST.get("business_unit") or request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
         if _has_perm(request, perm):
             instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
-            form = InitiativeForm(request.POST, instance=instance)
+            form = InitiativeForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
-                form.save()
-                _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(form.instance))
-                return redirect("strategic:roadmap")
+                obj = form.save(commit=False)
+                if not obj_id and current_bu:
+                    obj.business_unit = current_bu
+                obj.save()
+                form.save_m2m()
+                _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(obj))
+                bu_param = f"?bu={current_bu.pk}" if current_bu else ""
+                return redirect(reverse("strategic:roadmap") + bu_param)
         else:
-            form = InitiativeForm()
+            form = InitiativeForm(business_unit=current_bu)
     else:
-        form = InitiativeForm()
+        form = InitiativeForm(business_unit=current_bu)
 
-    initiatives = Initiative.objects.all()
+    initiatives = (
+        Initiative.objects.filter(business_unit=current_bu).prefetch_related("objectives")
+        if current_bu else Initiative.objects.none()
+    )
     return render(request, "strategic/roadmap.html", {
         "active_page": "roadmap", "initiatives": initiatives, "form": form,
+        "business_units": business_units, "current_bu": current_bu,
     })
 
 
@@ -162,8 +246,11 @@ def initiative_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_initiative"):
         _obj = get_object_or_404(Initiative, pk=pk)
         _label = str(_obj)
+        bu_pk = _obj.business_unit_id
         _obj.delete()
         _log_action(request, "DELETE Initiative", _label)
+        if bu_pk:
+            return redirect(reverse("strategic:roadmap") + f"?bu={bu_pk}")
     return redirect("strategic:roadmap")
 
 
@@ -222,7 +309,7 @@ def pestel(request):
     LETTERS = {"political": "P", "economic": "E", "social": "S",
                "technological": "T", "environmental": "E", "legal": "L"}
 
-    factors = PestelFactor.objects.all()
+    factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit")
     grouped = []
     for key, label in PestelFactor.CATEGORY_CHOICES:
         color, soft, icon = PestelFactor.CATEGORY_STYLE[key]
@@ -236,8 +323,10 @@ def pestel(request):
             "summary": cat_items[:6],
         })
 
+    top_factors = sorted(factors, key=lambda f: f.priority_score, reverse=True)[:8]
+
     return render(request, "strategic/pestel.html", {
-        "active_page": "pestel", "grouped": grouped, "form": form,
+        "active_page": "pestel", "grouped": grouped, "form": form, "top_factors": top_factors,
     })
 
 
@@ -249,6 +338,128 @@ def pestel_delete(request, pk):
         _obj.delete()
         _log_action(request, "DELETE PestelFactor", _label)
     return redirect("strategic:pestel")
+
+
+# ---------------- تحلیل اثرات متقابل (MICMAC) ----------------
+
+def cross_impact(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_crossimpactfactor" if obj_id else "strategic.add_crossimpactfactor"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(CrossImpactFactor, pk=obj_id) if obj_id else None
+            form = CrossImpactFactorForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE CrossImpactFactor" if obj_id else "CREATE CrossImpactFactor", str(form.instance))
+                return redirect("strategic:cross_impact")
+        else:
+            form = CrossImpactFactorForm()
+    else:
+        form = CrossImpactFactorForm()
+
+    factors = list(CrossImpactFactor.objects.all())
+    quadrants = {key: [] for key, _ in CrossImpactFactor.QUADRANT_CHOICES}
+    for f in factors:
+        quadrants[f.quadrant].append(f)
+
+    return render(request, "strategic/cross_impact.html", {
+        "active_page": "cross_impact", "quadrants": quadrants, "form": form,
+        "pestel_factors": PestelFactor.objects.all(),
+    })
+
+
+@login_required
+def cross_impact_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_crossimpactfactor"):
+        obj = get_object_or_404(CrossImpactFactor, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE CrossImpactFactor", label)
+    return redirect("strategic:cross_impact")
+
+
+def _compute_influence_dependence(factors):
+    """برای هر عامل، اثرگذاری (مجموع سطر) و وابستگی (مجموع ستون) را از روی ماتریس مستقیم حساب می‌کند."""
+    links = {(l.from_factor_id, l.to_factor_id): l.score for l in CrossImpactLink.objects.all()}
+    results = []
+    for f in factors:
+        influence = sum(links.get((f.pk, other.pk), 0) for other in factors if other.pk != f.pk)
+        dependence = sum(links.get((other.pk, f.pk), 0) for other in factors if other.pk != f.pk)
+        results.append({"factor": f, "influence": influence, "dependence": dependence})
+    return results
+
+
+def _suggest_quadrant(influence, dependence, median_influence, median_dependence):
+    if influence >= median_influence and dependence < median_dependence:
+        return "driver"
+    if influence >= median_influence and dependence >= median_dependence:
+        return "relay"
+    if influence < median_influence and dependence < median_dependence:
+        return "watch"
+    return "resultant"
+
+
+@login_required
+def cross_impact_matrix(request):
+    factors = list(CrossImpactFactor.objects.all().order_by("quadrant", "order"))
+
+    if request.method == "POST" and _has_perm(request, "strategic.change_crossimpactfactor"):
+        action = request.POST.get("action")
+        if action == "save_matrix":
+            for f in factors:
+                for g in factors:
+                    if f.pk == g.pk:
+                        continue
+                    key = f"score_{f.pk}_{g.pk}"
+                    val = request.POST.get(key)
+                    if val is not None and val != "":
+                        CrossImpactLink.objects.update_or_create(
+                            from_factor=f, to_factor=g, defaults={"score": int(val)},
+                        )
+            _log_action(request, "UPDATE CrossImpactLink matrix", "ماتریس اثرات مستقیم به‌روزرسانی شد")
+            return redirect("strategic:cross_impact_matrix")
+
+        elif action == "apply_suggestions":
+            results = _compute_influence_dependence(factors)
+            influences = sorted(r["influence"] for r in results)
+            dependences = sorted(r["dependence"] for r in results)
+            n = len(results)
+            median_influence = influences[n // 2] if n else 0
+            median_dependence = dependences[n // 2] if n else 0
+            for r in results:
+                suggested = _suggest_quadrant(r["influence"], r["dependence"], median_influence, median_dependence)
+                r["factor"].quadrant = suggested
+                r["factor"].save(update_fields=["quadrant"])
+            _log_action(request, "APPLY CrossImpact suggestions", "پیشنهادهای محاسبه‌شده اعمال شد")
+            return redirect("strategic:cross_impact")
+
+    results = _compute_influence_dependence(factors)
+    influences = sorted(r["influence"] for r in results)
+    dependences = sorted(r["dependence"] for r in results)
+    n = len(results)
+    median_influence = influences[n // 2] if n else 0
+    median_dependence = dependences[n // 2] if n else 0
+    for r in results:
+        r["suggested"] = _suggest_quadrant(r["influence"], r["dependence"], median_influence, median_dependence)
+        r["suggested_label"] = dict(CrossImpactFactor.QUADRANT_CHOICES)[r["suggested"]]
+        r["current_label"] = dict(CrossImpactFactor.QUADRANT_CHOICES)[r["factor"].quadrant]
+        r["changed"] = r["suggested"] != r["factor"].quadrant
+
+    links = {(l.from_factor_id, l.to_factor_id): l.score for l in CrossImpactLink.objects.all()}
+    matrix_rows = []
+    for f in factors:
+        cells = []
+        for g in factors:
+            if f.pk == g.pk:
+                cells.append({"to_factor": g, "is_diag": True, "score": None})
+            else:
+                cells.append({"to_factor": g, "is_diag": False, "score": links.get((f.pk, g.pk), 0)})
+        matrix_rows.append({"from_factor": f, "cells": cells})
+
+    return render(request, "strategic/cross_impact_matrix.html", {
+        "active_page": "cross_impact", "factors": factors, "results": results, "matrix_rows": matrix_rows,
+    })
 
 
 # ---------------- Porter's Five Forces ----------------
@@ -268,13 +479,65 @@ def porter(request):
                 _log_action(request, "UPDATE PorterForce", str(instance))
                 return redirect("strategic:porter")
 
-    forces = list(PorterForce.objects.all())
+    forces = list(PorterForce.objects.all().prefetch_related("swot_items__business_unit"))
     level_rank = {"low": 1, "medium": 2, "high": 3, "very_high": 4}
     forces.sort(key=lambda f: list(dict(PorterForce.FORCE_CHOICES).keys()).index(f.force))
     overall = round(sum(level_rank.get(f.level, 2) for f in forces) / len(forces), 1) if forces else 0
 
     return render(request, "strategic/porter.html", {
         "active_page": "porter", "forces": forces, "overall": overall, "form": PorterForceForm(),
+    })
+
+
+# ---------------- McKinsey 7S ----------------
+
+def mckinsey7s(request):
+    for key, _ in McKinsey7S.COMPONENT_CHOICES:
+        McKinsey7S.objects.get_or_create(component=key)
+
+    if request.method == "POST":
+        comp_id = request.POST.get("obj_id")
+        if _has_perm(request, "strategic.change_mckinsey7s"):
+            instance = get_object_or_404(McKinsey7S, pk=comp_id)
+            form = McKinsey7SForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE McKinsey7S", str(instance))
+                return redirect("strategic:mckinsey7s")
+
+    components = list(McKinsey7S.objects.all().prefetch_related("swot_items__business_unit"))
+    order = list(dict(McKinsey7S.COMPONENT_CHOICES).keys())
+    components.sort(key=lambda c: order.index(c.component))
+
+    return render(request, "strategic/mckinsey7s.html", {
+        "active_page": "mckinsey7s", "components": components, "form": McKinsey7SForm(),
+    })
+
+
+# ---------------- زنجیره ارزش پورتر (تحلیل محیطی) ----------------
+
+def value_chain(request):
+    for key, _ in ValueChainActivity.ACTIVITY_CHOICES:
+        ValueChainActivity.objects.get_or_create(activity=key)
+
+    if request.method == "POST":
+        act_id = request.POST.get("obj_id")
+        if _has_perm(request, "strategic.change_valuechainactivity"):
+            instance = get_object_or_404(ValueChainActivity, pk=act_id)
+            form = ValueChainActivityForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE ValueChainActivity", str(instance))
+                return redirect("strategic:value_chain")
+
+    activities = list(ValueChainActivity.objects.all().prefetch_related("swot_items__business_unit"))
+    order = list(dict(ValueChainActivity.ACTIVITY_CHOICES).keys())
+    activities.sort(key=lambda a: order.index(a.activity))
+    primary = [a for a in activities if a.activity_type == "primary"]
+    support = [a for a in activities if a.activity_type == "support"]
+
+    return render(request, "strategic/value_chain.html", {
+        "active_page": "value_chain", "primary": primary, "support": support, "form": ValueChainActivityForm(),
     })
 
 
@@ -319,7 +582,7 @@ def stratmap(request):
         form = StrategicObjectiveForm(business_unit=current_bu)
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into", "linked_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     for o in objectives:
@@ -341,11 +604,79 @@ def stratmap(request):
 
     org_identity, _ = OrgIdentity.objects.get_or_create(pk=1)
 
+    def _pct_color(pct):
+        if pct is None:
+            return "#9aa1ab"
+        if pct < 80:
+            return "#B0413E"
+        if pct < 90:
+            return "#C97A2B"
+        return "#3E7A52"
+
+    kpis_by_objective = {}
+    circles_by_objective = {}
+    for k in StrategicKPI.objects.filter(objective__in=objectives).select_related("objective"):
+        kpis_by_objective.setdefault(k.objective_id, []).append({
+            "type": "custom", "id": k.pk, "name": k.name, "unit": k.unit, "target": k.target, "actual": k.actual,
+            "trend": k.trend, "status": k.status, "owner": k.owner, "period": k.period,
+        })
+        circles_by_objective.setdefault(k.objective_id, []).append({
+            "name": k.name, "target": k.target, "actual": k.actual, "unit": k.unit,
+            "pct": k.progress_pct, "color": _pct_color(k.progress_pct),
+        })
+
+    for o in objectives:
+        for k in o.linked_kpis.all():
+            kpis_by_objective.setdefault(o.pk, []).append({
+                "type": "shared", "id": k.pk, "name": f"{k.code} — {k.name}", "unit": k.unit,
+                "target": k.target_1405, "actual": k.actual_1405,
+                "trend": "flat", "status": "on_track", "owner": "", "period": "",
+            })
+            circles_by_objective.setdefault(o.pk, []).append({
+                "name": f"{k.code} — {k.name}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
+            })
+
+    for o in objectives:
+        o.kpi_count = len(kpis_by_objective.get(o.pk, []))
+        o.kpi_circles = circles_by_objective.get(o.pk, [])
+
     return render(request, "strategic/stratmap.html", {
         "active_page": "stratmap", "bands": bands, "form": form,
         "links": links, "business_units": business_units, "current_bu": current_bu,
         "themes": themes, "theme_form": StrategyThemeForm(), "org_vision": org_identity.vision,
+        "kpis_by_objective": kpis_by_objective, "kpi_form": StrategicKPIForm(),
     })
+
+
+@login_required
+def strategic_kpi_save(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("kpi_id")
+        objective_id = request.POST.get("objective_id")
+        perm = "strategic.change_strategickpi" if obj_id else "strategic.add_strategickpi"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(StrategicKPI, pk=obj_id) if obj_id else None
+            form = StrategicKPIForm(request.POST, instance=instance)
+            if form.is_valid():
+                kpi = form.save(commit=False)
+                if not obj_id:
+                    kpi.objective_id = objective_id
+                kpi.save()
+                _log_action(request, "UPDATE StrategicKPI" if obj_id else "CREATE StrategicKPI", str(kpi))
+    ref = request.POST.get("next") or reverse("strategic:stratmap")
+    return redirect(ref)
+
+
+@login_required
+def strategic_kpi_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_strategickpi"):
+        obj = get_object_or_404(StrategicKPI, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE StrategicKPI", label)
+    ref = request.POST.get("next") or reverse("strategic:stratmap")
+    return redirect(ref)
 
 
 def stratmap_print(request):
@@ -444,23 +775,31 @@ def swot(request):
 
     if request.method == "POST":
         cat = request.POST.get("category", "")
+        obj_id = request.POST.get("obj_id")
         if cat in ("s", "w", "o", "t"):
-            if _has_perm(request, "strategic.add_swotitem"):
-                form = SWOTItemForm(request.POST)
+            perm = "strategic.change_swotitem" if obj_id else "strategic.add_swotitem"
+            if _has_perm(request, perm):
+                instance = get_object_or_404(SWOTItem, pk=obj_id) if obj_id else None
+                form = SWOTItemForm(request.POST, instance=instance)
                 if form.is_valid():
                     obj = form.save(commit=False)
-                    obj.business_unit = current_bu
+                    if not obj_id:
+                        obj.business_unit = current_bu
                     obj.save()
-                    _log_action(request, "CREATE SWOTItem", str(obj))
+                    _log_action(request, "UPDATE SWOTItem" if obj_id else "CREATE SWOTItem", str(obj))
                     return redirect(reverse("strategic:swot") + bu_param)
         elif cat in ("so", "st", "wo", "wt"):
-            if _has_perm(request, "strategic.add_towsstrategy"):
-                tform = TOWSStrategyForm(request.POST)
+            perm = "strategic.change_towsstrategy" if obj_id else "strategic.add_towsstrategy"
+            if _has_perm(request, perm):
+                t_instance = get_object_or_404(TOWSStrategy, pk=obj_id) if obj_id else None
+                tform = TOWSStrategyForm(request.POST, instance=t_instance, business_unit=current_bu)
                 if tform.is_valid():
                     tobj = tform.save(commit=False)
-                    tobj.business_unit = current_bu
+                    if not obj_id:
+                        tobj.business_unit = current_bu
                     tobj.save()
-                    _log_action(request, "CREATE TOWSStrategy", str(tobj))
+                    tform.save_m2m()
+                    _log_action(request, "UPDATE TOWSStrategy" if obj_id else "CREATE TOWSStrategy", str(tobj))
                     return redirect(reverse("strategic:swot") + bu_param)
 
     if current_bu:
@@ -494,7 +833,16 @@ def swot(request):
 
     tows = {}
     for key, _ in TOWSStrategy.CATEGORY_CHOICES:
-        tows[key] = list(TOWSStrategy.objects.filter(category=key, business_unit=current_bu)) if current_bu else []
+        tows[key] = list(
+            TOWSStrategy.objects.filter(category=key, business_unit=current_bu)
+            .prefetch_related("source_items", "objectives")
+        ) if current_bu else []
+
+    swot_items_data = []
+    for letter, items in (("S", s_items), ("W", w_items), ("O", o_items), ("T", t_items)):
+        for i, it in enumerate(items, start=1):
+            it.code = f"{letter}{i}"
+            swot_items_data.append({"id": it.pk, "cat": it.category, "code": it.code, "text": it.text})
 
     return render(request, "strategic/swot.html", {
         "active_page": "swot",
@@ -504,9 +852,15 @@ def swot(request):
         "pos_x": pos_x, "pos_y": pos_y, "posture": posture, "posture_color": posture_color,
         "internal_dominant": "قوت‌ها بر ضعف‌ها" if internal >= 0 else "ضعف‌ها بر قوت‌ها",
         "external_dominant": "فرصت‌ها بر تهدیدها" if external >= 0 else "تهدیدها بر فرصت‌ها",
-        "tows": tows,
+        "tows": tows, "swot_items_data": swot_items_data,
         "form": SWOTItemForm(),
-        "tows_form": TOWSStrategyForm(),
+        "tows_form": TOWSStrategyForm(business_unit=current_bu),
+        "pestel_factors": PestelFactor.objects.all(),
+        "porter_forces": PorterForce.objects.all(),
+        "stakeholders_list": Stakeholder.objects.all(),
+        "scenarios_list": Scenario.objects.all(),
+        "s7_components": McKinsey7S.objects.all(),
+        "vc_activities": ValueChainActivity.objects.all(),
     })
 
 
@@ -713,3 +1067,155 @@ def policy_point_delete(request, pk):
         obj.delete()
         _log_action(request, "DELETE QualityPolicyPoint", label)
     return redirect("strategic:org_identity")
+
+
+# ---------------- سناریوهای راهبردی ----------------
+
+def scenarios(request):
+    for key, _ in Scenario.QUADRANT_CHOICES:
+        Scenario.objects.get_or_create(quadrant=key)
+    axes, _ = ScenarioAxes.objects.get_or_create(pk=1)
+
+    if request.method == "POST":
+        form_kind = request.POST.get("form_kind")
+        if form_kind == "scenario":
+            obj_id = request.POST.get("obj_id")
+            if _has_perm(request, "strategic.change_scenario"):
+                instance = get_object_or_404(Scenario, pk=obj_id)
+                form = ScenarioForm(request.POST, instance=instance)
+                if form.is_valid():
+                    if form.cleaned_data.get("is_selected"):
+                        Scenario.objects.exclude(pk=instance.pk).update(is_selected=False)
+                    form.save()
+                    _log_action(request, "UPDATE Scenario", str(instance))
+                    return redirect("strategic:scenarios")
+        elif form_kind == "axes":
+            if _has_perm(request, "strategic.change_scenarioaxes"):
+                form = ScenarioAxesForm(request.POST, instance=axes)
+                if form.is_valid():
+                    form.save()
+                    _log_action(request, "UPDATE ScenarioAxes", "محورهای سناریو")
+                    return redirect("strategic:scenarios")
+
+    scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit")}
+    return render(request, "strategic/scenarios.html", {
+        "active_page": "scenarios", "scenario_map": scenario_map, "axes": axes,
+        "scenario_form": ScenarioForm(), "axes_form": ScenarioAxesForm(instance=axes),
+    })
+
+
+# ---------------- اهداف کلان و شاخص‌های سطح کل شرکت ----------------
+
+def company_goals(request):
+    if request.method == "POST":
+        form_kind = request.POST.get("form_kind")
+        obj_id = request.POST.get("obj_id")
+
+        if form_kind == "objective":
+            perm = "strategic.change_companyobjective" if obj_id else "strategic.add_companyobjective"
+            if _has_perm(request, perm):
+                instance = get_object_or_404(CompanyObjective, pk=obj_id) if obj_id else None
+                form = CompanyObjectiveForm(request.POST, instance=instance)
+                if form.is_valid():
+                    form.save()
+                    _log_action(request, "UPDATE CompanyObjective" if obj_id else "CREATE CompanyObjective", str(form.instance))
+                    return redirect("strategic:company_goals")
+
+        elif form_kind == "kpi":
+            perm = "strategic.change_companykpi" if obj_id else "strategic.add_companykpi"
+            if _has_perm(request, perm):
+                instance = get_object_or_404(CompanyKPI, pk=obj_id) if obj_id else None
+                form = CompanyKPIForm(request.POST, instance=instance)
+                if form.is_valid():
+                    form.save()
+                    _log_action(request, "UPDATE CompanyKPI" if obj_id else "CREATE CompanyKPI", str(form.instance))
+                    return redirect("strategic:company_goals")
+
+    objectives = list(CompanyObjective.objects.all().prefetch_related("kpis"))
+    grouped = []
+    seen_groups = {}
+    for o in objectives:
+        key = o.group_title
+        if key not in seen_groups:
+            seen_groups[key] = {"group_title": key, "objectives": []}
+            grouped.append(seen_groups[key])
+        seen_groups[key]["objectives"].append(o)
+
+    kpis = list(CompanyKPI.objects.all().prefetch_related("objectives"))
+
+    return render(request, "strategic/company_goals.html", {
+        "active_page": "company_goals", "grouped": grouped, "kpis": kpis,
+        "objective_form": CompanyObjectiveForm(),
+        "kpi_form": CompanyKPIForm(),
+    })
+
+
+@login_required
+def company_objective_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_companyobjective"):
+        obj = get_object_or_404(CompanyObjective, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE CompanyObjective", label)
+    return redirect("strategic:company_goals")
+
+
+@login_required
+def company_kpi_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_companykpi"):
+        obj = get_object_or_404(CompanyKPI, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE CompanyKPI", label)
+    return redirect("strategic:company_goals")
+
+
+# ---------------- اسناد و دستورالعمل‌ها ----------------
+
+@login_required
+def documents(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_document" if obj_id else "strategic.add_document"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(Document, pk=obj_id) if obj_id else None
+            form = DocumentForm(request.POST, request.FILES, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE Document" if obj_id else "CREATE Document", str(form.instance))
+                return redirect("strategic:documents")
+        else:
+            form = DocumentForm()
+    else:
+        form = DocumentForm()
+
+    docs = Document.objects.all()
+    upstream = [d for d in docs if d.category == "upstream"]
+    guideline = [d for d in docs if d.category == "guideline"]
+
+    return render(request, "strategic/documents.html", {
+        "active_page": "documents", "upstream": upstream, "guideline": guideline, "form": form,
+    })
+
+
+@login_required
+def document_download(request, pk):
+    doc = get_object_or_404(Document, pk=pk)
+    try:
+        f = doc.file.open("rb")
+    except (FileNotFoundError, ValueError):
+        raise Http404("فایل یافت نشد")
+    is_pdf = doc.file_ext == "pdf"
+    response = FileResponse(f, as_attachment=not is_pdf, filename=doc.file.name.split("/")[-1])
+    return response
+
+
+@login_required
+def document_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_document"):
+        obj = get_object_or_404(Document, pk=pk)
+        label = str(obj)
+        obj.file.delete(save=False)
+        obj.delete()
+        _log_action(request, "DELETE Document", label)
+    return redirect("strategic:documents")
