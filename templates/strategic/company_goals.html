@@ -70,6 +70,10 @@
 
 <div class="cg-section-title"><i class="fa-solid fa-gauge-high"></i> شاخص‌های کلیدی عملکرد (KPI)
   {% if perms.strategic.add_companykpi %}<button class="btn ghost" style="margin-inline-start:auto;" onclick="newKpi()"><i class="fa-solid fa-plus"></i> افزودن شاخص</button>{% endif %}
+  {% if user.is_superuser %}
+  <a href="{% url 'strategic:company_kpi_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+  <button type="button" class="btn ghost" onclick="document.getElementById('kpiImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  {% endif %}
 </div>
 
 <div class="kpi-table-wrap">
@@ -140,6 +144,29 @@
     </form>
   </div>
 </div>
+
+{% if user.is_superuser %}
+<div class="overlay" id="kpiImportOverlay">
+  <div class="modal-card">
+    <h3>ورود شاخص‌ها از اکسل</h3>
+    <form method="post" action="{% url 'strategic:company_kpi_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (ستون‌ها باید دقیقاً مطابق خروجی اکسل همین صفحه باشند)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
+        هر ردیف بر اساس ستون «کد» با شاخص موجود تطبیق داده می‌شود؛ اگر کدی وجود نداشته باشد، شاخص جدید ساخته می‌شود.
+        ستون «اهداف مرتبط» باید به‌شکل O1-O2-O3 باشد.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('kpiImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <div class="overlay" id="kpiOverlay">
   <div class="modal-card" style="max-width:520px;">

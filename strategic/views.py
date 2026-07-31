@@ -1,9 +1,11 @@
 import logging
+import re
+import io
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.db.models import Q
 
@@ -1219,3 +1221,131 @@ def document_delete(request, pk):
         obj.delete()
         _log_action(request, "DELETE Document", label)
     return redirect("strategic:documents")
+
+
+# ---------------- ورود/خروجی اکسل شاخص‌های کلیدی شرکت (فقط مدیر سیستم) ----------------
+
+_KPI_EXCEL_HEADERS = [
+    "کد", "حوزه (Q/D/C/M)", "شاخص", "واحد سنجش", "هدف ۱۴۰۴", "عملکرد ۱۴۰۴",
+    "هدف ۱۴۰۵", "عملکرد ۱۴۰۵", "درصد تحقق", "صرفاً پایشی (بله/خیر)",
+    "اهداف مرتبط (مثلاً O1-O2-O3)", "ملاحظات", "ترتیب نمایش",
+]
+
+
+@login_required
+def company_kpi_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:company_goals")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "شاخص‌های کلیدی"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_KPI_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for row_i, k in enumerate(CompanyKPI.objects.all().prefetch_related("objectives"), start=2):
+        related = "-".join(o.code for o in k.objectives.all())
+        values = [
+            k.code, k.domain, k.name, k.unit, k.target_1404, k.actual_1404,
+            k.target_1405, k.actual_1405, k.progress_1405, "بله" if k.is_monitoring else "خیر",
+            related, k.notes, k.order,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [8, 14, 34, 12, 10, 12, 10, 12, 12, 14, 22, 24, 10]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT CompanyKPI Excel", f"{CompanyKPI.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="shakhes-haye-kelidi.xlsx"'
+    return response
+
+
+@login_required
+def company_kpi_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:company_goals")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:company_goals")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:company_goals")
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not row[0]:
+            continue
+        code = _s(row[0])
+        if not code:
+            skipped += 1
+            continue
+        domain = _s(row[1])[:1].upper() or "Q"
+        if domain not in dict(CompanyKPI.DOMAIN_CHOICES):
+            domain = "Q"
+        name = _s(row[2])
+        unit = _s(row[3]) if len(row) > 3 else ""
+        target_1404 = _s(row[4]) if len(row) > 4 else ""
+        actual_1404 = _s(row[5]) if len(row) > 5 else ""
+        target_1405 = _s(row[6]) if len(row) > 6 else ""
+        actual_1405 = _s(row[7]) if len(row) > 7 else ""
+        progress_1405 = _s(row[8]) if len(row) > 8 else ""
+        is_monitoring = _s(row[9]).startswith("بل") if len(row) > 9 else False
+        related_raw = _s(row[10]) if len(row) > 10 else ""
+        notes = _s(row[11]) if len(row) > 11 else ""
+        try:
+            order = int(row[12]) if len(row) > 12 and row[12] not in (None, "") else 0
+        except (TypeError, ValueError):
+            order = 0
+
+        kpi, was_created = CompanyKPI.objects.update_or_create(
+            code=code,
+            defaults=dict(
+                domain=domain, name=name, unit=unit,
+                target_1404=target_1404, actual_1404=actual_1404,
+                target_1405=target_1405, actual_1405=actual_1405,
+                progress_1405=progress_1405, is_monitoring=is_monitoring,
+                notes=notes, order=order,
+            ),
+        )
+        related_codes = re.findall(r"O\d+", related_raw)
+        if related_codes:
+            objs = list(CompanyObjective.objects.filter(code__in=related_codes))
+            kpi.objectives.set(objs)
+
+        created += 1 if was_created else 0
+        updated += 0 if was_created else 1
+
+    _log_action(request, "IMPORT CompanyKPI Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:company_goals")
