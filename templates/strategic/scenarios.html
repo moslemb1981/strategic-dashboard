@@ -7,11 +7,12 @@
 <style>
   .sc-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:20px;}
 
-  .sc-diagram{display:grid;grid-template-columns:110px 1fr;grid-template-rows:1fr 40px;gap:6px;margin-bottom:8px;}
-  .sc-axis-v{writing-mode:vertical-rl;text-align:center;font-size:11px;font-weight:800;color:var(--ink);
+  .sc-diagram{display:grid;grid-template-columns:1fr 110px;grid-template-rows:32px 1fr;gap:8px;margin-bottom:8px;}
+  .sc-axis-top{grid-column:1 / 3;grid-row:1;text-align:center;font-size:11px;font-weight:800;color:var(--ink);
     display:flex;align-items:center;justify-content:center;gap:6px;}
-  .sc-board{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;min-height:280px;}
-  .sc-axis-h{grid-column:2;text-align:center;font-size:11px;font-weight:800;color:var(--ink);}
+  .sc-board{grid-column:1;grid-row:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;min-height:280px;}
+  .sc-axis-left{grid-column:2;grid-row:2;writing-mode:vertical-rl;text-align:center;font-size:11px;font-weight:800;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;gap:6px;}
 
   .sc-card{border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:center;align-items:center;
     text-align:center;cursor:pointer;transition:.15s;position:relative;color:#fff;}
@@ -41,7 +42,7 @@
     padding:6px 12px;cursor:pointer;}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
     border-radius:5px;padding:1px 6px;margin-inline-start:5px;vertical-align:middle;}
-  @media(max-width:800px){.sc-diagram{grid-template-columns:1fr;} .sc-axis-v{writing-mode:horizontal-tb;} .sc-board{grid-template-columns:1fr;}}
+  @media(max-width:800px){.sc-diagram{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;} .sc-axis-left{writing-mode:horizontal-tb;grid-column:1;grid-row:2;} .sc-board{grid-column:1;grid-row:3;grid-template-columns:1fr;}}
 </style>
 {% endblock %}
 
@@ -56,35 +57,37 @@
 <div class="sc-note"><i class="fa-solid fa-circle-info"></i> سناریوی «{{ scenario_map.foggy.display_title }}» به‌عنوان سناریوی مبنا/منتخب برای برنامه‌ریزی احتیاطی انتخاب شده است.</div>
 
 <div class="sc-diagram">
-  <div class="sc-axis-v">{{ axes.axis1_name }}<br><small>({{ axes.axis1_positive }} ↑ / {{ axes.axis1_negative }} ↓)</small></div>
+  <div class="sc-axis-top">{{ axes.axis1_name }} — ({{ axes.axis1_negative }} ↓ &nbsp;·&nbsp; ↑ {{ axes.axis1_positive }})</div>
   <div class="sc-board">
-    <div class="sc-card {% if scenario_map.exploration.is_selected %}active{% endif %}" style="background:{{ scenario_map.exploration.quadrant_color }};" onclick="toggleNarrative('exploration')">
-      {% if scenario_map.exploration.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.exploration.pk }}" data-title="{{ scenario_map.exploration.title }}" data-narrative="{{ scenario_map.exploration.narrative }}" data-selected="{{ scenario_map.exploration.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
-      <div class="name">{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.exploration.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.exploration.swot_items.all|length }}</span>{% endif %}{% if scenario_map.exploration.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.exploration.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.exploration.risks.all|length }}</span>{% endif %}</div>
-      <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_negative }}</div>
-    </div>
     <div class="sc-card {% if scenario_map.prosperity.is_selected %}active{% endif %}" style="background:{{ scenario_map.prosperity.quadrant_color }};" onclick="toggleNarrative('prosperity')">
       {% if scenario_map.prosperity.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.prosperity.pk }}" data-title="{{ scenario_map.prosperity.title }}" data-narrative="{{ scenario_map.prosperity.narrative }}" data-selected="{{ scenario_map.prosperity.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.prosperity.display_title }}{% if scenario_map.prosperity.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.prosperity.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.prosperity.swot_items.all|length }}</span>{% endif %}{% if scenario_map.prosperity.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.prosperity.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.prosperity.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_positive }}</div>
     </div>
-    <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')">
-      {% if scenario_map.foggy.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
-      <div class="name">{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.foggy.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.foggy.swot_items.all|length }}</span>{% endif %}{% if scenario_map.foggy.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.foggy.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.foggy.risks.all|length }}</span>{% endif %}</div>
-      <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_negative }}</div>
+
+    <div class="sc-card {% if scenario_map.exploration.is_selected %}active{% endif %}" style="background:{{ scenario_map.exploration.quadrant_color }};" onclick="toggleNarrative('exploration')">
+      {% if scenario_map.exploration.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.exploration.pk }}" data-title="{{ scenario_map.exploration.title }}" data-narrative="{{ scenario_map.exploration.narrative }}" data-selected="{{ scenario_map.exploration.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      <div class="name">{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.exploration.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.exploration.swot_items.all|length }}</span>{% endif %}{% if scenario_map.exploration.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.exploration.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.exploration.risks.all|length }}</span>{% endif %}</div>
+      <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_negative }}</div>
     </div>
+
     <div class="sc-card {% if scenario_map.rocky.is_selected %}active{% endif %}" style="background:{{ scenario_map.rocky.quadrant_color }};" onclick="toggleNarrative('rocky')">
       {% if scenario_map.rocky.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.rocky.pk }}" data-title="{{ scenario_map.rocky.title }}" data-narrative="{{ scenario_map.rocky.narrative }}" data-selected="{{ scenario_map.rocky.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.rocky.display_title }}{% if scenario_map.rocky.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.rocky.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.rocky.swot_items.all|length }}</span>{% endif %}{% if scenario_map.rocky.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.rocky.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.rocky.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_positive }}</div>
     </div>
+
+    <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')">
+      {% if scenario_map.foggy.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      <div class="name">{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.foggy.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.foggy.swot_items.all|length }}</span>{% endif %}{% if scenario_map.foggy.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.foggy.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.foggy.risks.all|length }}</span>{% endif %}</div>
+      <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_negative }}</div>
+    </div>
   </div>
-  <div></div>
-  <div class="sc-axis-h">{{ axes.axis2_name }} — ({{ axes.axis2_negative }} ← &nbsp;·&nbsp; → {{ axes.axis2_positive }})</div>
+  <div class="sc-axis-left">{{ axes.axis2_name }}<br><small>({{ axes.axis2_negative }} ← / → {{ axes.axis2_positive }})</small></div>
 </div>
 
 <div class="sc-narratives" id="narrativesList">

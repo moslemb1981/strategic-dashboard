@@ -48,6 +48,10 @@
     <div class="icon"><i class="fa-solid fa-folder-open"></i></div>
     <h3>اسناد و دستورالعمل‌ها</h3><p>اسناد بالادستی و دستورالعمل‌های سازمانی</p>
     <div class="stat">{{ document_count }} سند ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:legal_requirements' %}">
+    <div class="icon"><i class="fa-solid fa-scale-balanced"></i></div>
+    <h3>الزامات قانونی</h3><p>بانک الزامات قانونی و سازمانی</p>
+    <div class="stat">{{ legal_requirement_count }} الزام ثبت‌شده</div></a>
   <a class="module-card" href="{% url 'strategic:stakeholders' %}">
     <div class="icon"><i class="fa-solid fa-people-group"></i></div>
     <h3>تحلیل ذینفعان</h3><p>نیازها، ریسک‌ها و فرصت‌های ذینفعان</p>
@@ -56,6 +60,10 @@
     <div class="icon"><i class="fa-solid fa-route"></i></div>
     <h3>پروژه‌های تحول</h3><p>زمان‌بندی و اهداف مرتبط</p>
     <div class="stat">{{ init_total }} ابتکار ثبت‌شده</div></a>
+  <a class="module-card" href="{% url 'strategic:environmental_factors' %}">
+    <div class="icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+    <h3>بانک عوامل محیطی</h3><p>شناسایی و امتیازدهی عوامل تأثیرگذار</p>
+    <div class="stat">{{ environmental_factor_count }} عامل ثبت‌شده</div></a>
   <a class="module-card" href="{% url 'strategic:pestel' %}">
     <div class="icon"><i class="fa-solid fa-earth-americas"></i></div>
     <h3>تحلیل PESTEL</h3><p>روندهای کلان محیط صنعت خودرو</p>

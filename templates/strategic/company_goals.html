@@ -23,6 +23,10 @@
   .kpi-table-wrap{overflow-x:auto;}
   table.kpi-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
   table.kpi-table th{background:var(--bg);padding:7px 8px;text-align:right;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .kpi-livesearch-row th{padding:5px 6px 8px;border-bottom:2px solid var(--primary);}
+  .kpi-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:10px;font-family:inherit;background:#fff;}
+  .kpi-live-input:focus{outline:none;border-color:var(--primary);}
+  table.kpi-table tr.kpi-hidden{display:none;}
   table.kpi-table td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;}
   .kpi-domain{display:inline-block;font-size:9.5px;font-weight:800;color:#fff;border-radius:5px;padding:2px 7px;}
   .kpi-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
@@ -87,23 +91,47 @@
     <col style="width:11%;"><col style="width:8%;"><col style="width:12%;"><col style="width:50px;">
   </colgroup>
   <thead><tr>
-    <th>کد</th><th>شاخص</th><th>حوزه</th><th>واحد</th><th>هدف/عملکرد ۱۴۰۴</th><th>هدف ۱۴۰۵</th>
-    <th>عملکرد ۱۴۰۵</th><th>درصد تحقق</th><th>اهداف مرتبط</th><th></th>
-  </tr></thead>
-  <tbody>
+    <th>کد</th><th>شاخص</th><th>حوزه</th><th>واحد</th><th>هدف/عملکرد سال گذشته</th><th>هدف سال جاری</th>
+    <th>عملکرد سال جاری</th><th>درصد تحقق</th><th>اهداف مرتبط</th><th></th>
+  </tr>
+  <tr class="kpi-livesearch-row">
+    <th><input type="text" id="kpiLiveCode" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveName" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveDomain" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveUnit" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveLast" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveTarget" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveActual" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveProgress" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="kpiLiveObjectives" class="kpi-live-input" placeholder="جستجو..."></th>
+    <th style="font-size:9.5px;color:var(--ink-faint);font-weight:400;white-space:nowrap;">
+      <span id="kpiLiveCount"></span>
+      <button type="button" id="kpiLiveClear" style="display:none;border:none;background:none;color:var(--primary);cursor:pointer;font-size:9.5px;">پاک</button>
+    </th>
+  </tr>
+  </thead>
+  <tbody id="kpiBody">
     {% for k in kpis %}
     <tr>
       <td>{{ k.code }}</td>
       <td>{{ k.name }}</td>
       <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
       <td>{{ k.unit }}</td>
-      <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}</td>
+      <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}
+        {% if k.progress_pct is not None %}
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.progress_pct }}%;background:{% if k.progress_pct >= 90 %}var(--success){% elif k.progress_pct >= 60 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
+        {% endif %}
+      </td>
       <td>{{ k.target_1405|default:"—" }}</td>
       <td>{{ k.actual_1405|default:"—" }}</td>
-      <td>{{ k.progress_1405|default:"—" }}</td>
+      <td>{{ k.progress_1405|default:"—" }}
+        {% if k.manual_progress_value is not None %}
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.manual_progress_value }}%;background:{% if k.manual_progress_value >= 90 %}var(--success){% elif k.manual_progress_value >= 60 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
+        {% endif %}
+      </td>
       <td>
         {% if k.is_monitoring %}<span class="kpi-monitor">پایشی</span>{% endif %}
-        {% for o in k.objectives.all %}<span class="kpi-tag">{{ o.code }}</span>{% endfor %}
+        {% for o in k.objectives.all %}<span class="kpi-tag" title="{{ o.title }}">{{ o.code }}</span>{% endfor %}
       </td>
       <td style="white-space:nowrap;">
         {% if perms.strategic.change_companykpi %}
@@ -187,10 +215,10 @@
       </div>
       <div class="field-group"><label>نام شاخص</label><input type="text" name="name" id="ck_name"></div>
       <div class="field-group"><label>واحد سنجش</label><input type="text" name="unit" id="ck_unit"></div>
-      <div class="field-group"><label>هدف ۱۴۰۴</label><input type="text" name="target_1404" id="ck_t1404"></div>
-      <div class="field-group"><label>عملکرد ۱۴۰۴</label><input type="text" name="actual_1404" id="ck_a1404"></div>
-      <div class="field-group"><label>هدف ۱۴۰۵</label><input type="text" name="target_1405" id="ck_t1405"></div>
-      <div class="field-group"><label>عملکرد ۱۴۰۵</label><input type="text" name="actual_1405" id="ck_a1405"></div>
+      <div class="field-group"><label>هدف سال گذشته</label><input type="text" name="target_1404" id="ck_t1404"></div>
+      <div class="field-group"><label>عملکرد سال گذشته</label><input type="text" name="actual_1404" id="ck_a1404"></div>
+      <div class="field-group"><label>هدف سال جاری</label><input type="text" name="target_1405" id="ck_t1405"></div>
+      <div class="field-group"><label>عملکرد سال جاری</label><input type="text" name="actual_1405" id="ck_a1405"></div>
       <div class="field-group"><label>درصد تحقق</label><input type="text" name="progress_1405" id="ck_progress" placeholder="مثلاً ۸۵٪"></div>
       <div class="field-group"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_monitoring" id="ck_monitoring" style="width:auto;"> صرفاً پایشی (بدون هدف کلان مستقیم)</label></div>
       <div class="field-group"><label>اهداف مرتبط</label>
@@ -213,6 +241,62 @@
 
 {% block extra_js %}
 <script>
+  (function(){
+    const inputs = {
+      code: document.getElementById('kpiLiveCode'),
+      name: document.getElementById('kpiLiveName'),
+      domain: document.getElementById('kpiLiveDomain'),
+      unit: document.getElementById('kpiLiveUnit'),
+      last: document.getElementById('kpiLiveLast'),
+      target: document.getElementById('kpiLiveTarget'),
+      actual: document.getElementById('kpiLiveActual'),
+      progress: document.getElementById('kpiLiveProgress'),
+      objectives: document.getElementById('kpiLiveObjectives'),
+    };
+    const clearBtn = document.getElementById('kpiLiveClear');
+    const countEl = document.getElementById('kpiLiveCount');
+    const rows = Array.from(document.querySelectorAll('#kpiBody tr'));
+    if (!inputs.code) { /* no-op if table not present */ }
+    else {
+      function applyKpiFilter(){
+        const vals = {};
+        let anyActive = false;
+        Object.keys(inputs).forEach(function(key){
+          vals[key] = inputs[key].value.trim().toLowerCase();
+          if (vals[key]) anyActive = true;
+        });
+        let visible = 0;
+        rows.forEach(function(row){
+          const cells = row.querySelectorAll('td');
+          if (cells.length < 9){ return; }
+          const texts = {
+            code: cells[0].textContent.toLowerCase(),
+            name: cells[1].textContent.toLowerCase(),
+            domain: cells[2].textContent.toLowerCase(),
+            unit: cells[3].textContent.toLowerCase(),
+            last: cells[4].textContent.toLowerCase(),
+            target: cells[5].textContent.toLowerCase(),
+            actual: cells[6].textContent.toLowerCase(),
+            progress: cells[7].textContent.toLowerCase(),
+            objectives: cells[8].textContent.toLowerCase(),
+          };
+          const match = Object.keys(inputs).every(function(key){
+            return !vals[key] || texts[key].includes(vals[key]);
+          });
+          row.classList.toggle('kpi-hidden', !match);
+          if (match) visible++;
+        });
+        clearBtn.style.display = anyActive ? 'inline' : 'none';
+        countEl.textContent = anyActive ? (visible + ' مورد') : '';
+      }
+      Object.values(inputs).forEach(function(inp){ inp.addEventListener('input', applyKpiFilter); });
+      clearBtn.addEventListener('click', function(){
+        Object.values(inputs).forEach(function(inp){ inp.value = ''; });
+        applyKpiFilter();
+      });
+    }
+  })();
+
   function newObjective(){
     document.getElementById('objForm').reset();
     document.getElementById('co_obj_id').value = '';

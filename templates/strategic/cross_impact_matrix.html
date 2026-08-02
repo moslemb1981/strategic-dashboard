@@ -29,8 +29,34 @@
 {% block content %}
 <div class="topbar">
   <div><h1>ماتریس ورودی و محاسبه اثر متقابل</h1><div class="sub">اثرگذاری مستقیم هر عامل بر عامل دیگر (۰ تا ۳) — روش MICMAC</div></div>
+  {% if user.is_superuser %}
+  <a href="{% url 'strategic:cross_impact_matrix_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+  <button type="button" class="btn ghost" onclick="document.getElementById('matrixImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  {% endif %}
   <a href="{% url 'strategic:cross_impact' %}"><button class="btn ghost"><i class="fa-solid fa-arrow-right"></i> بازگشت به تخته</button></a>
 </div>
+
+{% if user.is_superuser %}
+<div class="overlay" id="matrixImportOverlay">
+  <div class="modal-card">
+    <h3>ورود ماتریس از اکسل</h3>
+    <form method="post" action="{% url 'strategic:cross_impact_matrix_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (ستون‌ها و ردیف‌ها باید دقیقاً مطابق خروجی اکسل همین صفحه باشند)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
+        تطبیق هر ردیف/ستون بر اساس متن دقیق عامل انجام می‌شود — اگر متن یک عامل را تغییر داده باشید، سطر/ستون مربوطه نادیده گرفته می‌شود.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('matrixImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <div class="cim-note"><i class="fa-solid fa-circle-info"></i> برای هر سطر بپرسید «این عامل چقدر روی عامل بالای هر ستون اثر می‌گذارد؟» — سلول‌های قطری (اثر عامل بر خودش) غیرفعال‌اند.</div>
 <div class="cim-legend"><b>۰</b> بدون اثر · <b>۱</b> کم · <b>۲</b> متوسط · <b>۳</b> زیاد</div>

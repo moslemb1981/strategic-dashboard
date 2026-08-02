@@ -51,7 +51,9 @@
         <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان</a>
         <div class="nav-label">تحلیل محیط بیرونی</div>
+        <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</a>
         <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-people-group"></i>تحلیل ذینفعان</a>
+        <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</a>
         <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل PESTEL</a>
         <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>پنج نیروی رقابتی Porter</a>
         <div class="nav-label">تحلیل محیط داخلی</div>

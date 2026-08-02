@@ -120,9 +120,8 @@ class Risk(models.Model):
         "StrategicObjective", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="risks", verbose_name="هدف استراتژیک تهدیدشده",
     )
-    related_scenario = models.ForeignKey(
-        "Scenario", null=True, blank=True, on_delete=models.SET_NULL,
-        related_name="risks", verbose_name="سناریوی مرتبط",
+    related_scenario = models.ManyToManyField(
+        "Scenario", blank=True, related_name="risks", verbose_name="سناریوهای مرتبط",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -258,6 +257,23 @@ class SWOTItem(models.Model):
             or self.source_scenario or self.source_7s or self.source_value_chain
         )
 
+    @property
+    def source_label(self):
+        """نام ماژول منبع + متن آن را برمی‌گرداند تا نوع منبع همیشه مشخص باشد."""
+        if self.source_pestel:
+            return f"PESTEL: {self.source_pestel.text}"
+        if self.source_porter:
+            return f"پورتر: {self.source_porter.get_force_display()}"
+        if self.source_stakeholder:
+            return f"ذی‌نفع: {self.source_stakeholder.name}"
+        if self.source_scenario:
+            return f"سناریو: {self.source_scenario.display_title}"
+        if self.source_7s:
+            return f"McKinsey 7S: {self.source_7s.get_component_display()}"
+        if self.source_value_chain:
+            return f"زنجیره ارزش: {self.source_value_chain.get_activity_display()}"
+        return ""
+
 
 class TOWSStrategy(models.Model):
     CATEGORY_CHOICES = [
@@ -268,7 +284,7 @@ class TOWSStrategy(models.Model):
     ]
 
     category = models.CharField(max_length=2, choices=CATEGORY_CHOICES, verbose_name="نوع راهبرد")
-    text = models.CharField(max_length=300, verbose_name="متن راهبرد")
+    text = models.TextField(verbose_name="متن راهبرد")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
     source_items = models.ManyToManyField(
         "SWOTItem", blank=True, related_name="tows_strategies", verbose_name="موارد SWOT مبنا",
@@ -625,11 +641,19 @@ class Stakeholder(models.Model):
     name = models.CharField(max_length=200, verbose_name="نام ذینفع")
     channel = models.CharField(max_length=300, verbose_name="کانال ارتباطی", blank=True)
     need = models.TextField(verbose_name="نیاز/انتظار ذینفع", blank=True)
+    need_flag = models.BooleanField(default=False, verbose_name="نوع: نیاز")
+    expectation_flag = models.BooleanField(default=False, verbose_name="نوع: انتظار")
     risk_text = models.TextField(verbose_name="ریسک", blank=True)
+    risk_occurrence = models.PositiveIntegerField(null=True, blank=True, verbose_name="احتمال وقوع ریسک")
+    risk_severity = models.PositiveIntegerField(null=True, blank=True, verbose_name="شدت ریسک")
+    risk_detection = models.PositiveIntegerField(null=True, blank=True, verbose_name="قابلیت تشخیص ریسک")
     risk_score = models.PositiveIntegerField(null=True, blank=True, verbose_name="عدد ریسک")
     opportunity_text = models.TextField(verbose_name="فرصت", blank=True)
+    opportunity_importance = models.PositiveIntegerField(null=True, blank=True, verbose_name="امتیاز اهمیت فرصت")
+    opportunity_impact = models.PositiveIntegerField(null=True, blank=True, verbose_name="امتیاز تأثیر فرصت")
     opportunity_score = models.PositiveIntegerField(null=True, blank=True, verbose_name="عدد فرصت")
     action = models.TextField(verbose_name="اقدام تعریف‌شده", blank=True)
+    domain = models.CharField(max_length=100, blank=True, verbose_name="حوزه")
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="open", verbose_name="وضعیت رسیدگی")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -645,10 +669,10 @@ class Stakeholder(models.Model):
 class CrossImpactFactor(models.Model):
     """نتیجه‌ی نهایی تحلیل اثرات متقابل — جای‌گذاری عوامل کلیدی در ۴ ناحیه (روش MICMAC)."""
     QUADRANT_CHOICES = [
-        ("driver", "پیشران‌های کلیدی"),
-        ("relay", "متغیرهای دووجهی"),
-        ("watch", "دیده‌بانی"),
-        ("resultant", "متغیرهای نتیجه"),
+        ("driver", "پیشران‌ها (متغیرهای مستقل)"),
+        ("relay", "دوجانبه (سیاست‌گذاری)"),
+        ("watch", "خنثی (خودمتصل)"),
+        ("resultant", "رصد و دیده‌بانی (وابسته)"),
     ]
     QUADRANT_COLOR = {
         "driver": "#B0413E", "relay": "#C97A2B", "watch": "#5a6474", "resultant": "#2E5C8A",
@@ -948,3 +972,76 @@ class StrategicKPI(models.Model):
             return max(0, min(round(a / t * 100), 150))
         except (TypeError, ValueError):
             return None
+
+
+class LegalRequirement(models.Model):
+    """بانک الزامات قانونی و سازمانی سایپا یدک."""
+    title = models.CharField(max_length=400, verbose_name="الزامات قانونی و سازمانی")
+    source = models.CharField(max_length=200, blank=True, verbose_name="مأخذ الزام")
+    is_legal = models.BooleanField(default=False, verbose_name="قانونی")
+    is_organizational = models.BooleanField(default=False, verbose_name="سازمانی")
+    revision_date = models.CharField(max_length=40, blank=True, verbose_name="تاریخ ویرایش الزام")
+    related_documents = models.TextField(blank=True, verbose_name="مستندات داخلی مرتبط")
+    scope = models.CharField(max_length=300, blank=True, verbose_name="محل کاربرد")
+    risk_text = models.TextField(blank=True, verbose_name="ریسک")
+    opportunity_text = models.TextField(blank=True, verbose_name="فرصت")
+    notes = models.TextField(blank=True, verbose_name="توضیحات")
+    department = models.CharField(max_length=200, blank=True, verbose_name="نام مدیریت/معاونت")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["department", "title"]
+        verbose_name = "الزام قانونی"
+        verbose_name_plural = "بانک الزامات قانونی"
+
+    def __str__(self):
+        return self.title
+
+
+class EnvironmentalFactor(models.Model):
+    """بانک شناسایی و امتیازدهی عوامل محیطی تأثیرگذار (ترکیب PESTEL و پنج نیروی پورتر) —
+    منبع انتخاب عوامل کلیدی برای ماتریس اثر متقابل."""
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ردیف اصلی")
+    category = models.CharField(max_length=150, verbose_name="دسته‌بندی محیط")
+    factor_text = models.CharField(max_length=400, verbose_name="شرح عامل تأثیرگذار")
+    detail = models.TextField(blank=True, verbose_name="توضیح تفصیلی (راهنمای درک و امتیازدهی)")
+    effect_type = models.CharField(max_length=30, blank=True, verbose_name="نوع اثر")
+    scoring_guide = models.CharField(max_length=300, blank=True, verbose_name="راهنمای امتیازدهی")
+    avg_score = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="میانگین امتیاز")
+    freq_high = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="فراوانی اثر بالا (۷-۸)")
+    freq_very_high = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="فراوانی اثر بسیار بالا (۹-۱۰)")
+    freq_total = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="جمع فراوانی اثرهای بالا")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-avg_score", "order"]
+        verbose_name = "عامل محیطی"
+        verbose_name_plural = "بانک عوامل محیطی"
+
+    def __str__(self):
+        return self.factor_text
+
+    @property
+    def score_color(self):
+        if self.avg_score is None:
+            return "var(--ink-faint)"
+        if self.avg_score >= 8:
+            return "#B0413E"
+        if self.avg_score >= 6:
+            return "#C97A2B"
+        return "#3E7A52"
+
+    @property
+    def linked_cross_impact_factors(self):
+        """تطابق متنی با عوامل موجود در ماتریس اثر متقابل (برای نمایش برچسب ردیابی)."""
+        if not self.factor_text:
+            return []
+        needle = self.factor_text.split("(")[0].strip()
+        matches = []
+        for f in CrossImpactFactor.objects.all():
+            hay = f.text.strip()
+            if not hay or not needle:
+                continue
+            if hay in needle or needle in hay:
+                matches.append(f)
+        return matches

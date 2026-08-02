@@ -41,7 +41,8 @@
   .stw .fedit{border:none;background:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.68rem;flex-shrink:0;}
   .stw .fedit:hover,.stw .fdel:hover{color:#fff;}
   .stw .src-badge{display:inline-flex;align-items:center;gap:3px;font-size:.56rem;font-weight:700;
-    background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
+    background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px;margin-inline-start:5px;
+    max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
   .stw .fdel:hover{color:#fff;}
   .stw .addrow{display:flex;gap:5px;margin-top:.5rem;}
   .stw .addrow input,.stw .addrow select{font-size:.68rem;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:4px 7px;}
@@ -61,7 +62,7 @@
   .stw .posmap .ax{position:absolute;background:var(--hair);}
   .stw .posmap .ax.h{top:50%;left:0;right:0;height:1px;}
   .stw .posmap .ax.v{left:50%;top:0;bottom:0;width:1px;}
-  .stw .posmap .ql{position:absolute;font-size:.58rem;font-weight:700;color:var(--muted);opacity:.8;}
+  .stw .posmap .ql{position:absolute;font-size:.52rem;font-weight:700;color:var(--muted);opacity:.85;white-space:nowrap;cursor:default;}
   .stw .posmap .q-so{top:8px;right:8px;color:var(--s);} .stw .posmap .q-wo{top:8px;left:8px;color:var(--o);}
   .stw .posmap .q-st{bottom:8px;right:8px;color:var(--w);} .stw .posmap .q-wt{bottom:8px;left:8px;color:var(--t);}
   .stw .posmap .dot{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--brake);
@@ -111,6 +112,27 @@
   .picker-box label:hover{background:var(--bg,#F5F4EF);}
   .picker-box label.picked{background:rgba(214,69,40,.12);border-color:rgba(214,69,40,.35);font-weight:600;}
   .picker-box input[type="radio"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+
+  .swot-guide-card{max-width:640px;max-height:88vh;padding:0;}
+  .swot-guide-card .sg-head{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 22px;border-bottom:1px solid #dde1e8;flex:none;}
+  .swot-guide-card .sg-close{border:none;background:none;font-size:15px;color:#5a6474;cursor:pointer;}
+  .swot-guide-card .sg-body{padding:18px 22px 22px;overflow-y:auto;}
+  .sg-defs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .sg-def{display:flex;gap:10px;align-items:flex-start;border:1px solid #dde1e8;border-inline-start-width:3px;
+    border-radius:8px;padding:10px 12px;}
+  .sg-def .sg-letter{flex:none;width:26px;height:26px;border-radius:7px;color:#fff;font-weight:800;font-size:13px;
+    display:flex;align-items:center;justify-content:center;}
+  .sg-def b{font-size:12px;color:#0d1b2e;} .sg-def p{font-size:11px;color:#5a6474;margin-top:3px;line-height:1.6;}
+  .sg-h4{font-size:13px;font-weight:800;margin:18px 0 10px;color:#0d1b2e;}
+  .sg-strats{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .sg-strat{border-radius:8px;padding:10px 12px;color:#fff;}
+  .sg-strat b{font-size:12px;display:block;margin-bottom:3px;}
+  .sg-strat p{font-size:11px;line-height:1.6;opacity:.95;}
+  .sg-note{font-size:11.5px;color:#7A4711;background:#FDF3E7;border:1px solid #e8c98f;border-radius:8px;
+    padding:10px 14px;margin-top:16px;line-height:1.8;}
+  .sg-steps{margin:0;padding-inline-start:20px;font-size:12px;line-height:2;color:#0d1b2e;}
+  .sg-steps li{margin-bottom:4px;}
 </style>
 
 <style media="print">
@@ -148,7 +170,10 @@
   <div class="topbar">
     <div><h1>تحلیل SWOT و ماتریس TOWS</h1><div class="sub">از تحلیل عوامل درونی و بیرونی تا راهبردهای تقاطعی و موقعیت استراتژیک</div></div>
     {% if current_bu %}
-    <a href="{% url 'strategic:swot_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button" class="btn ghost"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'strategic:swot_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button" class="btn ghost"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
+      <button type="button" class="btn ghost" onclick="document.getElementById('swotGuideOverlay').classList.add('open')"><i class="fa-solid fa-graduation-cap"></i> آشنایی با SWOT</button>
+    </div>
     {% endif %}
   </div>
 
@@ -177,7 +202,7 @@
         </div>
         {% for it in s_items %}
         <div class="factor"><span class="f-code">S{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -208,7 +233,7 @@
         </div>
         {% for it in w_items %}
         <div class="factor"><span class="f-code">W{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -239,7 +264,7 @@
         </div>
         {% for it in o_items %}
         <div class="factor"><span class="f-code">O{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -270,7 +295,7 @@
         </div>
         {% for it in t_items %}
         <div class="factor"><span class="f-code">T{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="منبع: {{ it.source }}"><i class="fa-solid fa-link"></i> {{ it.source }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -300,12 +325,12 @@
         <div class="c-body">
           <div class="posmap">
             <div class="ax h"></div><div class="ax v"></div>
-            <span class="ql q-so">SO</span><span class="ql q-wo">WO</span><span class="ql q-st">ST</span><span class="ql q-wt">WT</span>
+            <span class="ql q-so" title="راهبرد تهاجمی (SO): استفاده از قوت‌ها برای بهره‌برداری حداکثری از فرصت‌ها">تهاجمی</span><span class="ql q-wo" title="راهبرد بازنگری (WO): غلبه بر ضعف‌ها با استفاده از فرصت‌های موجود">بازنگری</span><span class="ql q-st" title="راهبرد تنوع (ST): استفاده از قوت‌ها برای خنثی‌سازی تهدیدها">تنوع</span><span class="ql q-wt" title="راهبرد تدافعی (WT): کاهش هم‌زمان ضعف‌ها و اجتناب از تهدیدها">تدافعی</span>
             <div class="dot" style="right:{{ pos_x }}%;top:{{ pos_y }}%;"></div>
           </div>
           <div class="pos-concl">
             <b style="color:{{ posture_color }}">موقعیت غالب: {{ posture }}</b>
-            با توجه به برتری نسبی {{ internal_dominant }} و {{ external_dominant }}، تمرکز راهبردی سازمان باید بر این ربع باشد.
+            {{ posture_desc }}
           </div>
         </div>
       </div>
@@ -390,6 +415,72 @@
           <input type="text" name="text" placeholder="راهبرد جدید..."><button type="submit">+</button></form>
         {% endif %}
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="swotGuideOverlay">
+  <div class="modal-card swot-guide-card">
+    <div class="sg-head">
+      <h3 style="margin:0;">آشنایی با ماتریس SWOT</h3>
+      <button type="button" class="sg-close" onclick="document.getElementById('swotGuideOverlay').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="sg-body">
+      <div class="sg-defs">
+        <div class="sg-def" style="border-color:#0f8a6a;">
+          <span class="sg-letter" style="background:#0f8a6a;">S</span>
+          <div><b>Strengths — نقاط قوت</b><p>فهرست نقاط قوت داخلی حوزه خود را تهیه کنید.</p></div>
+        </div>
+        <div class="sg-def" style="border-color:#d08a1f;">
+          <span class="sg-letter" style="background:#d08a1f;">W</span>
+          <div><b>Weaknesses — نقاط ضعف</b><p>فهرست نقاط عمده ضعف داخلی حوزه خود را تهیه کنید.</p></div>
+        </div>
+        <div class="sg-def" style="border-color:#1183c9;">
+          <span class="sg-letter" style="background:#1183c9;">O</span>
+          <div><b>Opportunities — فرصت‌ها</b><p>فهرست فرصت‌های عمده محیط بیرونی مرتبط با حوزه شما.</p></div>
+        </div>
+        <div class="sg-def" style="border-color:#d6402f;">
+          <span class="sg-letter" style="background:#d6402f;">T</span>
+          <div><b>Threats — تهدیدها</b><p>فهرست تهدیدات عمده محیط بیرونی مرتبط با حوزه شما.</p></div>
+        </div>
+      </div>
+
+      <h4 class="sg-h4">راهبردهای هر ربع</h4>
+      <div class="sg-strats">
+        <div class="sg-strat" style="background:#0f8a6a;">
+          <b>راهبردهای SO</b>
+          <p>با بهره جستن از نقاط قوت، درصدد بهره‌برداری از فرصت‌ها برآیید.</p>
+        </div>
+        <div class="sg-strat" style="background:#1183c9;">
+          <b>راهبردهای WO</b>
+          <p>با بهره جستن از فرصت‌ها، نقاط ضعف را از بین ببرید.</p>
+        </div>
+        <div class="sg-strat" style="background:#d08a1f;">
+          <b>راهبردهای ST</b>
+          <p>برای احتراز از تهدیدات، از نقاط قوت استفاده کنید.</p>
+        </div>
+        <div class="sg-strat" style="background:#d6402f;">
+          <b>راهبردهای WT</b>
+          <p>نقاط ضعف را کاهش دهید و از تهدیدات پرهیز کنید.</p>
+        </div>
+      </div>
+
+      <div class="sg-note">
+        راهبردهای SWOT باید متناسب با اهداف حوزه شما در نقشه استراتژیک همان کسب‌وکار تدوین شوند — یعنی همه‌ی موارد با توجه به اهداف آن واحد نوشته شود.
+      </div>
+
+      <h4 class="sg-h4">گام‌های ساخت ماتریس</h4>
+      <ol class="sg-steps">
+        <li>فهرستی از نقاط قوت داخلی حوزه خود تهیه کنید و آن‌ها را در خانه S بنویسید.</li>
+        <li>فهرستی از نقاط عمده ضعف داخلی حوزه خود تهیه کنید و آن‌ها را در خانه W بنویسید.</li>
+        <li>فهرستی از فرصت‌های عمده‌ای که در محیط خارجی (مرتبط با حوزه شما) وجود دارد تهیه کنید و در خانه O بنویسید.</li>
+        <li>فهرستی از تهدیدات عمده محیط خارجی (مرتبط با حوزه شما) تهیه کنید و در خانه T بنویسید.</li>
+        <li>نقاط قوت و فرصت‌ها را با هم مقایسه کنید؛ راهبردهای حاصل از این تلاقی را در گروه «راهبردهای SO» بنویسید.</li>
+        <li>نقاط ضعف را با فرصت‌های موجود مقایسه کنید؛ راهبردهای حاصل را در گروه «راهبردهای WO» بنویسید.</li>
+        <li>نقاط قوت را با تهدیدات مقایسه کنید؛ راهبردهای حاصل را در گروه «راهبردهای ST» بنویسید.</li>
+        <li>نقاط ضعف را با تهدیدات مقایسه کنید؛ راهبردهای حاصل را در گروه «راهبردهای WT» بنویسید.</li>
+        <li>در نهایت، در هر یک از ۴ دسته راهبرد، ۱ تا ۳ مورد با بیشترین اولویت و اهمیت راهبردی را مشخص کنید.</li>
+      </ol>
     </div>
   </div>
 </div>

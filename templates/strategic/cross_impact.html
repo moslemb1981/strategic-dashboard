@@ -42,23 +42,8 @@
 <div class="ci-grid-wrap">
   <div class="ci-axis-y">اثرگذاری زیاد ← کم</div>
   <div class="ci-board">
-    <div class="ci-quad" style="background:#B0413E;">
-      <div class="q-head"><div><div class="q-title">پیشران‌های کلیدی</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
-      <div class="ci-cards">
-        {% for f in quadrants.driver %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
-          <span class="acts">
-            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
-            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
-          </span>
-        </div>
-        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
-      </div>
-      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('driver')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
-    </div>
-
     <div class="ci-quad" style="background:#C97A2B;">
-      <div class="q-head"><div><div class="q-title">متغیرهای دووجهی</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
+      <div class="q-head"><div><div class="q-title">دوجانبه (سیاست‌گذاری)</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.relay %}
         <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
@@ -72,10 +57,10 @@
       {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('relay')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
     </div>
 
-    <div class="ci-quad" style="background:#5a6474;">
-      <div class="q-head"><div><div class="q-title">دیده‌بانی</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
+    <div class="ci-quad" style="background:#B0413E;">
+      <div class="q-head"><div><div class="q-title">پیشران‌ها (متغیرهای مستقل)</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
       <div class="ci-cards">
-        {% for f in quadrants.watch %}
+        {% for f in quadrants.driver %}
         <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
@@ -84,11 +69,11 @@
         </div>
         {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
       </div>
-      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('watch')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('driver')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
     </div>
 
     <div class="ci-quad" style="background:#2E5C8A;">
-      <div class="q-head"><div><div class="q-title">متغیرهای نتیجه</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
+      <div class="q-head"><div><div class="q-title">رصد و دیده‌بانی (وابسته)</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.resultant %}
         <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
@@ -100,6 +85,21 @@
         {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
       </div>
       {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('resultant')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+    </div>
+
+    <div class="ci-quad" style="background:#5a6474;">
+      <div class="q-head"><div><div class="q-title">خنثی (خودمتصل)</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
+      <div class="ci-cards">
+        {% for f in quadrants.watch %}
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
+          <span class="acts">
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </span>
+        </div>
+        {% empty %}<div class="ci-empty">عاملی ثبت نشده</div>{% endfor %}
+      </div>
+      {% if perms.strategic.add_crossimpactfactor %}<button type="button" class="ci-add" onclick="newFactorFor('watch')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
     </div>
   </div>
   <div class="ci-axis-x">وابستگی کم ← زیاد</div>

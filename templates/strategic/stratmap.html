@@ -108,6 +108,8 @@
   .sm .node .ttl{font-size:.8rem;font-weight:600;line-height:1.45;}
   .sm .node .kpi{font-size:.64rem;color:#9fb2cb;font-weight:400;display:flex;align-items:center;gap:.35rem;margin-top:auto;}
   .sm .node .theme-badge{font-size:.58rem;font-weight:700;padding:.12rem .5rem;border-radius:5px;display:inline-block;width:fit-content;}
+  .sm .node .tows-mini-badge{font-size:.5rem;font-weight:800;color:#fff;background:#8a6fb0;
+    padding:1px 6px;border-radius:5px;margin-inline-start:auto;flex:none;cursor:default;letter-spacing:.02em;}
   .sm .node .kpi::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ng);flex-shrink:0;box-shadow:0 0 6px var(--ng);}
   .sm .node.selected{border-color:var(--sm-brake);box-shadow:0 0 0 2px var(--sm-brake),0 16px 34px -10px rgba(214,69,40,.5);transform:translateY(-4px);}
   .sm.focusing .node:not(.hot){opacity:.22;}
@@ -307,11 +309,14 @@
                 <div class="ttl">{{ n.title }}</div>
                 <div class="theme-badge" style="background:{{ n.theme_color }}22;color:{{ n.theme_color }};">{{ n.theme_name }}</div>
                 <div class="kpi">{{ n.kpi|default:"—" }}</div>
-                <div class="kpi-circles-row" onclick="event.stopPropagation(); openKpiModal('{{ n.pk }}', '{{ n.code }}');">
+                <div class="kpi-circles-row">
+                  <span onclick="event.stopPropagation(); openKpiModal('{{ n.pk }}', '{{ n.code }}');" style="display:contents;">
                   {% for c in n.kpi_circles %}
                   <span class="kpi-circle" style="background:{{ c.color }};" title="{{ c.name }} — هدف: {{ c.target|default:'—' }} / عملکرد: {{ c.actual|default:'—' }}{% if c.pct is not None %} ({{ c.pct }}٪){% endif %}"></span>
                   {% endfor %}
                   <span class="kpi-circle-add" title="مدیریت شاخص‌ها"><i class="fa-solid fa-plus"></i></span>
+                  </span>
+                  {% if n.source_tows %}<span class="tows-mini-badge" title="{{ n.source_tows.text }}{% if n.source_tows.source_items.all %}&#10;&#10;مبتنی بر:{% for si in n.source_tows.source_items.all %}&#10;- {{ si.get_category_display }}: {{ si.text }}{% endfor %}{% endif %}">TOWS</span>{% endif %}
                 </div>
               </div>
               {% empty %}

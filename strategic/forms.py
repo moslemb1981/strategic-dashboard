@@ -2,7 +2,7 @@ import datetime
 from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
-    StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI,
+    StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -87,12 +87,14 @@ class RiskForm(forms.ModelForm):
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت مالی"}),
             "kri": forms.TextInput(attrs={"placeholder": "مثلاً: نرخ تسعیر ماهانه ارز"}),
             "mitigation": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک اقدام کنترلی"}),
+            "related_scenario": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["linked_objective"].required = False
         self.fields["linked_objective"].empty_label = "— بدون ارتباط —"
+        self.fields["related_scenario"].required = False
 
 
 class SWOTItemForm(forms.ModelForm):
@@ -251,14 +253,16 @@ class StakeholderForm(forms.ModelForm):
     class Meta:
         model = Stakeholder
         fields = [
-            "department", "name", "channel", "need",
-            "risk_text", "risk_score", "opportunity_text", "opportunity_score",
-            "action", "status",
+            "department", "name", "channel", "need", "need_flag", "expectation_flag",
+            "risk_text", "risk_occurrence", "risk_severity", "risk_detection", "risk_score",
+            "opportunity_text", "opportunity_importance", "opportunity_impact", "opportunity_score",
+            "action", "domain", "status",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "مثلاً: شبکه نمایندگی‌ها"}),
             "department": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت آپشن"}),
             "channel": forms.TextInput(attrs={"placeholder": "مثلاً: مکاتبات، تلفن"}),
+            "domain": forms.TextInput(attrs={"placeholder": "مثلاً: فرآیند"}),
             "need": forms.Textarea(attrs={"rows": 2}),
             "risk_text": forms.Textarea(attrs={"rows": 2}),
             "opportunity_text": forms.Textarea(attrs={"rows": 2}),
@@ -341,4 +345,40 @@ class StrategicKPIForm(forms.ModelForm):
             "name": forms.TextInput(attrs={"placeholder": "مثلاً: حاشیه سود ناخالص"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت مالی"}),
             "period": forms.TextInput(attrs={"placeholder": "مثلاً: فصلی"}),
+        }
+
+
+class LegalRequirementForm(forms.ModelForm):
+    class Meta:
+        model = LegalRequirement
+        fields = [
+            "title", "source", "is_legal", "is_organizational", "revision_date",
+            "related_documents", "scope", "risk_text", "opportunity_text", "notes", "department",
+        ]
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "مثلاً: دستورالعمل تأمین اضطراری قطعات"}),
+            "source": forms.TextInput(attrs={"placeholder": "مثلاً: شرکت سایپا، استاندارد"}),
+            "revision_date": forms.TextInput(attrs={"placeholder": "مثلاً: ۱۴۰۴/۰۷/۰۲ یا ۲۰۱۵"}),
+            "scope": forms.TextInput(attrs={"placeholder": "مثلاً: سازمان، سایپا یدک"}),
+            "department": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت بازرگانی"}),
+            "related_documents": forms.Textarea(attrs={"rows": 2}),
+            "risk_text": forms.Textarea(attrs={"rows": 2}),
+            "opportunity_text": forms.Textarea(attrs={"rows": 2}),
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class EnvironmentalFactorForm(forms.ModelForm):
+    class Meta:
+        model = EnvironmentalFactor
+        fields = [
+            "category", "factor_text", "detail", "effect_type", "scoring_guide",
+            "avg_score", "freq_high", "freq_very_high", "freq_total", "order",
+        ]
+        widgets = {
+            "category": forms.TextInput(attrs={"placeholder": "مثلاً: عوامل اقتصادی، قدرت چانه‌زنی تأمین‌کنندگان"}),
+            "factor_text": forms.TextInput(attrs={"placeholder": "شرح عامل تأثیرگذار"}),
+            "detail": forms.Textarea(attrs={"rows": 3}),
+            "effect_type": forms.TextInput(attrs={"placeholder": "فرصت / تهدید / فرصت‌تهدید"}),
+            "scoring_guide": forms.TextInput(attrs={"placeholder": "راهنمای امتیازدهی"}),
         }

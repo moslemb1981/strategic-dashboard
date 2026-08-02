@@ -13,13 +13,13 @@ from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
-    CompanyObjective, CompanyKPI, Document, StrategicKPI,
+    CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
-    StrategicKPIForm,
+    StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -99,6 +99,8 @@ def home(request):
         "company_objective_count": CompanyObjective.objects.count(),
         "company_kpi_count": CompanyKPI.objects.count(),
         "document_count": Document.objects.count(),
+        "legal_requirement_count": LegalRequirement.objects.count(),
+        "environmental_factor_count": EnvironmentalFactor.objects.count(),
         "stakeholder_count": Stakeholder.objects.count(),
         "porter_count": PorterForce.objects.count(),
         "mckinsey7s_count": McKinsey7S.objects.count(),
@@ -169,15 +171,21 @@ def stakeholders(request):
         items = items.filter(department=dept)
 
     all_items = list(Stakeholder.objects.all())
-    top_risks = sorted([i for i in all_items if i.risk_score], key=lambda i: i.risk_score, reverse=True)[:6]
+    RISK_THRESHOLD, OPP_THRESHOLD = 40, 64
+    top_risks = sorted(
+        [i for i in all_items if i.risk_score and i.risk_score > RISK_THRESHOLD],
+        key=lambda i: i.risk_score, reverse=True,
+    )
     top_opportunities = sorted(
-        [i for i in all_items if i.opportunity_score], key=lambda i: i.opportunity_score, reverse=True
-    )[:6]
+        [i for i in all_items if i.opportunity_score and i.opportunity_score > OPP_THRESHOLD],
+        key=lambda i: i.opportunity_score, reverse=True,
+    )
     departments = sorted({i.department for i in all_items if i.department})
 
     return render(request, "strategic/stakeholders.html", {
         "active_page": "stakeholders", "items": items, "form": form, "q": q, "dept": dept,
         "departments": departments, "top_risks": top_risks, "top_opportunities": top_opportunities,
+        "risk_threshold": RISK_THRESHOLD, "opp_threshold": OPP_THRESHOLD,
         "total_count": len(all_items),
     })
 
@@ -404,7 +412,7 @@ def _suggest_quadrant(influence, dependence, median_influence, median_dependence
 
 @login_required
 def cross_impact_matrix(request):
-    factors = list(CrossImpactFactor.objects.all().order_by("quadrant", "order"))
+    factors = list(CrossImpactFactor.objects.all().order_by("order"))
 
     if request.method == "POST" and _has_perm(request, "strategic.change_crossimpactfactor"):
         action = request.POST.get("action")
@@ -584,7 +592,7 @@ def stratmap(request):
         form = StrategicObjectiveForm(business_unit=current_bu)
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into", "linked_kpis")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme", "source_tows").prefetch_related("feeds_into", "linked_kpis", "source_tows__source_items")
         if current_bu else StrategicObjective.objects.none()
     )
     for o in objectives:
@@ -826,12 +834,16 @@ def swot(request):
     pos_y = 50 - external * 42
     if internal >= 0 and external >= 0:
         posture, posture_color = "راهبرد تهاجمی (SO)", "var(--s)"
+        posture_desc = "کسب‌وکار در موقعیت قدرتمندی قرار دارد؛ باید با تکیه بر قوت‌ها، حداکثر بهره را از فرصت‌ها ببرد و بر رشد و توسعه تمرکز کند."
     elif internal >= 0 and external < 0:
         posture, posture_color = "راهبرد تنوع (ST)", "var(--w)"
+        posture_desc = "کسب‌وکار با وجود تهدیدهای بیرونی، از قوت داخلی کافی برخوردار است؛ باید این قوت‌ها را برای خنثی‌سازی تهدیدها یا تنوع‌بخشی به‌کار گیرد."
     elif internal < 0 and external >= 0:
         posture, posture_color = "راهبرد بازنگری (WO)", "var(--o)"
+        posture_desc = "فرصت‌های بیرونی مناسبی وجود دارد، اما ضعف‌های داخلی مانع بهره‌برداری کامل است؛ اولویت، رفع این ضعف‌هاست."
     else:
         posture, posture_color = "راهبرد تدافعی (WT)", "var(--t)"
+        posture_desc = "کسب‌وکار هم‌زمان با ضعف داخلی و تهدید بیرونی روبروست؛ اولویت، کاهش آسیب‌پذیری و پرهیز از تصمیمات پرریسک است."
 
     tows = {}
     for key, _ in TOWSStrategy.CATEGORY_CHOICES:
@@ -851,7 +863,7 @@ def swot(request):
         "business_units": business_units, "current_bu": current_bu,
         "s_items": s_items, "w_items": w_items, "o_items": o_items, "t_items": t_items,
         "s_score": s_score, "w_score": w_score, "o_score": o_score, "t_score": t_score,
-        "pos_x": pos_x, "pos_y": pos_y, "posture": posture, "posture_color": posture_color,
+        "pos_x": pos_x, "pos_y": pos_y, "posture": posture, "posture_color": posture_color, "posture_desc": posture_desc,
         "internal_dominant": "قوت‌ها بر ضعف‌ها" if internal >= 0 else "ضعف‌ها بر قوت‌ها",
         "external_dominant": "فرصت‌ها بر تهدیدها" if external >= 0 else "تهدیدها بر فرصت‌ها",
         "tows": tows, "swot_items_data": swot_items_data,
@@ -939,7 +951,7 @@ def risk(request):
     else:
         form = RiskForm()
 
-    risks = list(Risk.objects.all().select_related("related_scenario"))
+    risks = list(Risk.objects.all().prefetch_related("related_scenario"))
     risks_sorted = sorted(risks, key=lambda r: -r.residual_score)
     for idx, r in enumerate(risks_sorted, start=1):
         r.display_no = idx  # runtime-only, used for bubble/row numbering
@@ -1226,8 +1238,8 @@ def document_delete(request, pk):
 # ---------------- ورود/خروجی اکسل شاخص‌های کلیدی شرکت (فقط مدیر سیستم) ----------------
 
 _KPI_EXCEL_HEADERS = [
-    "کد", "حوزه (Q/D/C/M)", "شاخص", "واحد سنجش", "هدف ۱۴۰۴", "عملکرد ۱۴۰۴",
-    "هدف ۱۴۰۵", "عملکرد ۱۴۰۵", "درصد تحقق", "صرفاً پایشی (بله/خیر)",
+    "کد", "حوزه (Q/D/C/M)", "شاخص", "واحد سنجش", "هدف سال گذشته", "عملکرد سال گذشته",
+    "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "صرفاً پایشی (بله/خیر)",
     "اهداف مرتبط (مثلاً O1-O2-O3)", "ملاحظات", "ترتیب نمایش",
 ]
 
@@ -1349,3 +1361,542 @@ def company_kpi_import(request):
     _log_action(request, "IMPORT CompanyKPI Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
     messages.success(request, f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
     return redirect("strategic:company_goals")
+
+
+# ---------------- ورود/خروجی اکسل ماتریس اثر متقابل (فقط مدیر سیستم) ----------------
+
+@login_required
+def cross_impact_matrix_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:cross_impact_matrix")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    factors = list(CrossImpactFactor.objects.all().order_by("order"))
+    links = {(l.from_factor_id, l.to_factor_id): l.score for l in CrossImpactLink.objects.all()}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ماتریس اثر متقابل"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    diag_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+
+    ws.cell(row=1, column=1, value="عامل \\ عامل").fill = header_fill
+    ws.cell(row=1, column=1).font = header_font
+    for col, f in enumerate(factors, start=2):
+        cell = ws.cell(row=1, column=col, value=f.text)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for row_i, f in enumerate(factors, start=2):
+        cell = ws.cell(row=row_i, column=1, value=f.text)
+        cell.fill = header_fill
+        cell.font = header_font
+        for col_i, g in enumerate(factors, start=2):
+            if f.pk == g.pk:
+                c = ws.cell(row=row_i, column=col_i, value="")
+                c.fill = diag_fill
+            else:
+                ws.cell(row=row_i, column=col_i, value=links.get((f.pk, g.pk), 0))
+
+    ws.column_dimensions["A"].width = 28
+    for col in range(2, len(factors) + 2):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT CrossImpactMatrix Excel", f"{len(factors)} عامل")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="matrice-asar-motaghabel.xlsx"'
+    return response
+
+
+@login_required
+def cross_impact_matrix_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:cross_impact_matrix")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:cross_impact_matrix")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:cross_impact_matrix")
+
+    factors_by_text = {f.text.strip(): f for f in CrossImpactFactor.objects.all()}
+
+    header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
+    col_factors = []
+    for cell in header_row[1:]:
+        text = str(cell).strip() if cell else ""
+        col_factors.append(factors_by_text.get(text))
+
+    updated, skipped_rows, skipped_cells = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        row_text = str(row[0]).strip() if row and row[0] else ""
+        from_factor = factors_by_text.get(row_text)
+        if not from_factor:
+            skipped_rows += 1
+            continue
+        for col_idx, to_factor in enumerate(col_factors, start=1):
+            if not to_factor or to_factor.pk == from_factor.pk:
+                continue
+            if col_idx >= len(row):
+                continue
+            val = row[col_idx]
+            if val is None or val == "":
+                continue
+            try:
+                score = int(val)
+            except (TypeError, ValueError):
+                skipped_cells += 1
+                continue
+            if score not in (0, 1, 2, 3):
+                skipped_cells += 1
+                continue
+            CrossImpactLink.objects.update_or_create(
+                from_factor=from_factor, to_factor=to_factor, defaults={"score": score},
+            )
+            updated += 1
+
+    _log_action(request, "IMPORT CrossImpactMatrix Excel", f"{updated} خونه به‌روزرسانی شد")
+    msg = f"وارد کردن انجام شد: {updated} خونه به‌روزرسانی شد."
+    if skipped_rows:
+        msg += f" {skipped_rows} ردیف (نام عامل ناشناخته) رد شد."
+    if skipped_cells:
+        msg += f" {skipped_cells} خونه (مقدار نامعتبر) رد شد."
+    messages.success(request, msg)
+    return redirect("strategic:cross_impact_matrix")
+
+
+# ---------------- ورود/خروجی اکسل کامل مخزن ذینفعان ----------------
+
+_STAKEHOLDER_EXCEL_HEADERS = [
+    "واحد/مدیریت", "نام ذینفع", "کانال ارتباطی", "نیاز/انتظار ذینفع", "نوع: نیاز (بله/خیر)", "نوع: انتظار (بله/خیر)",
+    "ریسک", "احتمال وقوع ریسک", "شدت ریسک", "قابلیت تشخیص ریسک", "عدد ریسک",
+    "فرصت", "امتیاز اهمیت فرصت", "امتیاز تأثیر فرصت", "عدد فرصت",
+    "اقدام تعریف‌شده", "حوزه", "وضعیت رسیدگی",
+]
+
+
+@login_required
+def stakeholder_export(request):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "مخزن ذینفعان"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_STAKEHOLDER_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    status_fa = dict(Stakeholder.STATUS_CHOICES)
+    for row_i, s in enumerate(Stakeholder.objects.all(), start=2):
+        values = [
+            s.department, s.name, s.channel, s.need,
+            "بله" if s.need_flag else "", "بله" if s.expectation_flag else "",
+            s.risk_text, s.risk_occurrence, s.risk_severity, s.risk_detection, s.risk_score,
+            s.opportunity_text, s.opportunity_importance, s.opportunity_impact, s.opportunity_score,
+            s.action, s.domain, status_fa.get(s.status, s.status),
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [22, 26, 20, 30, 10, 10, 26, 10, 10, 10, 10, 30, 10, 10, 10, 30, 16, 14]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT Stakeholder Excel", f"{Stakeholder.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="makhzan-zinofan.xlsx"'
+    return response
+
+
+@login_required
+def stakeholder_import(request):
+    if not _has_perm(request, "strategic.add_stakeholder"):
+        return redirect("strategic:stakeholders")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:stakeholders")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:stakeholders")
+
+    status_by_fa = {v: k for k, v in Stakeholder.STATUS_CHOICES}
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    Stakeholder.objects.all().delete()
+    created, skipped = 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[1] if len(row) > 1 else None):
+            skipped += 1
+            continue
+        Stakeholder.objects.create(
+            department=_s(row[0]),
+            name=_s(row[1]),
+            channel=_s(row[2]) if len(row) > 2 else "",
+            need=_s(row[3]) if len(row) > 3 else "",
+            need_flag=_s(row[4]).startswith("بل") if len(row) > 4 else False,
+            expectation_flag=_s(row[5]).startswith("بل") if len(row) > 5 else False,
+            risk_text=_s(row[6]) if len(row) > 6 else "",
+            risk_occurrence=_i(row[7]) if len(row) > 7 else None,
+            risk_severity=_i(row[8]) if len(row) > 8 else None,
+            risk_detection=_i(row[9]) if len(row) > 9 else None,
+            risk_score=_i(row[10]) if len(row) > 10 else None,
+            opportunity_text=_s(row[11]) if len(row) > 11 else "",
+            opportunity_importance=_i(row[12]) if len(row) > 12 else None,
+            opportunity_impact=_i(row[13]) if len(row) > 13 else None,
+            opportunity_score=_i(row[14]) if len(row) > 14 else None,
+            action=_s(row[15]) if len(row) > 15 else "",
+            domain=_s(row[16]) if len(row) > 16 else "",
+            status=status_by_fa.get(_s(row[17]), "open") if len(row) > 17 else "open",
+        )
+        created += 1
+
+    _log_action(request, "IMPORT Stakeholder Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
+    messages.success(request, f"جایگزینی انجام شد: مخزن قبلی پاک شد و {created} ذینفع از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:stakeholders")
+
+
+# ---------------- بانک الزامات قانونی ----------------
+
+def legal_requirements(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_legalrequirement" if obj_id else "strategic.add_legalrequirement"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(LegalRequirement, pk=obj_id) if obj_id else None
+            form = LegalRequirementForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE LegalRequirement" if obj_id else "CREATE LegalRequirement", str(form.instance))
+                return redirect("strategic:legal_requirements")
+        else:
+            form = LegalRequirementForm()
+    else:
+        form = LegalRequirementForm()
+
+    items = LegalRequirement.objects.all()
+    q = request.GET.get("q", "").strip()
+    dept = request.GET.get("dept", "").strip()
+    if q:
+        items = items.filter(
+            Q(title__icontains=q) | Q(source__icontains=q) | Q(risk_text__icontains=q) | Q(opportunity_text__icontains=q)
+        )
+    if dept:
+        items = items.filter(department=dept)
+
+    all_items = list(LegalRequirement.objects.all())
+    departments = sorted({i.department for i in all_items if i.department})
+
+    return render(request, "strategic/legal_requirements.html", {
+        "active_page": "legal_requirements", "items": items, "form": form, "q": q, "dept": dept,
+        "departments": departments, "total_count": len(all_items),
+    })
+
+
+@login_required
+def legal_requirement_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_legalrequirement"):
+        obj = get_object_or_404(LegalRequirement, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE LegalRequirement", label)
+    return redirect("strategic:legal_requirements")
+
+
+_LEGAL_EXCEL_HEADERS = [
+    "الزامات قانونی و سازمانی", "مأخذ الزام", "قانونی (بله/خیر)", "سازمانی (بله/خیر)", "تاریخ ویرایش الزام",
+    "مستندات داخلی مرتبط", "محل کاربرد", "ریسک", "فرصت", "توضیحات", "نام مدیریت/معاونت",
+]
+
+
+@login_required
+def legal_requirement_export(request):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "بانک الزامات قانونی"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_LEGAL_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for row_i, r in enumerate(LegalRequirement.objects.all(), start=2):
+        values = [
+            r.title, r.source, "بله" if r.is_legal else "", "بله" if r.is_organizational else "",
+            r.revision_date, r.related_documents, r.scope, r.risk_text, r.opportunity_text,
+            r.notes, r.department,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [34, 20, 12, 12, 16, 28, 20, 28, 28, 24, 22]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT LegalRequirement Excel", f"{LegalRequirement.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="bank-elzamat-ghanooni.xlsx"'
+    return response
+
+
+@login_required
+def legal_requirement_import(request):
+    if not _has_perm(request, "strategic.add_legalrequirement"):
+        return redirect("strategic:legal_requirements")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:legal_requirements")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:legal_requirements")
+
+    def _s(v):
+        v = "" if v is None else str(v).strip()
+        return "" if v == "-" else v
+
+    LegalRequirement.objects.all().delete()
+    created, skipped = 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[0] if len(row) > 0 else None):
+            skipped += 1
+            continue
+        LegalRequirement.objects.create(
+            title=_s(row[0]),
+            source=_s(row[1]) if len(row) > 1 else "",
+            is_legal=_s(row[2]).startswith("بل") if len(row) > 2 else False,
+            is_organizational=_s(row[3]).startswith("بل") if len(row) > 3 else False,
+            revision_date=_s(row[4]) if len(row) > 4 else "",
+            related_documents=_s(row[5]) if len(row) > 5 else "",
+            scope=_s(row[6]) if len(row) > 6 else "",
+            risk_text=_s(row[7]) if len(row) > 7 else "",
+            opportunity_text=_s(row[8]) if len(row) > 8 else "",
+            notes=_s(row[9]) if len(row) > 9 else "",
+            department=_s(row[10]) if len(row) > 10 else "",
+        )
+        created += 1
+
+    _log_action(request, "IMPORT LegalRequirement Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
+    messages.success(request, f"جایگزینی انجام شد: بانک قبلی پاک شد و {created} الزام از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:legal_requirements")
+
+
+# ---------------- بانک عوامل محیطی ----------------
+
+def environmental_factors(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_environmentalfactor" if obj_id else "strategic.add_environmentalfactor"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(EnvironmentalFactor, pk=obj_id) if obj_id else None
+            form = EnvironmentalFactorForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE EnvironmentalFactor" if obj_id else "CREATE EnvironmentalFactor", str(form.instance))
+                return redirect("strategic:environmental_factors")
+        else:
+            form = EnvironmentalFactorForm()
+    else:
+        form = EnvironmentalFactorForm()
+
+    items = EnvironmentalFactor.objects.all()
+    q = request.GET.get("q", "").strip()
+    cat = request.GET.get("cat", "").strip()
+    if q:
+        items = items.filter(
+            Q(factor_text__icontains=q) | Q(category__icontains=q) | Q(detail__icontains=q) | Q(effect_type__icontains=q)
+        )
+    if cat:
+        items = items.filter(category=cat)
+
+    all_items = list(EnvironmentalFactor.objects.all())
+    categories = sorted({i.category for i in all_items if i.category})
+
+    return render(request, "strategic/environmental_factors.html", {
+        "active_page": "environmental_factors", "items": items, "form": form, "q": q, "cat": cat,
+        "categories": categories, "total_count": len(all_items),
+    })
+
+
+@login_required
+def environmental_factor_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_environmentalfactor"):
+        obj = get_object_or_404(EnvironmentalFactor, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE EnvironmentalFactor", label)
+    return redirect("strategic:environmental_factors")
+
+
+_ENV_FACTOR_EXCEL_HEADERS = [
+    "ردیف", "دسته‌بندی محیط", "شرح عامل تأثیرگذار", "توضیح تفصیلی", "نوع اثر", "راهنمای امتیازدهی",
+    "میانگین امتیاز", "فراوانی اثر بالا (۷-۸)", "فراوانی اثر بسیار بالا (۹-۱۰)", "جمع فراوانی اثرهای بالا",
+]
+
+
+@login_required
+def environmental_factor_export(request):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "بانک عوامل محیطی"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_ENV_FACTOR_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for row_i, r in enumerate(EnvironmentalFactor.objects.all().order_by("-avg_score", "order"), start=2):
+        values = [
+            r.order, r.category, r.factor_text, r.detail, r.effect_type, r.scoring_guide,
+            float(r.avg_score) if r.avg_score is not None else None,
+            r.freq_high, r.freq_very_high, r.freq_total,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [8, 22, 34, 40, 14, 26, 12, 12, 14, 14]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT EnvironmentalFactor Excel", f"{EnvironmentalFactor.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="bank-avamel-mohiti.xlsx"'
+    return response
+
+
+@login_required
+def environmental_factor_import(request):
+    if not _has_perm(request, "strategic.add_environmentalfactor"):
+        return redirect("strategic:environmental_factors")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:environmental_factors")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:environmental_factors")
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    def _f(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    EnvironmentalFactor.objects.all().delete()
+    created, skipped = 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[2] if len(row) > 2 else None):
+            skipped += 1
+            continue
+        EnvironmentalFactor.objects.create(
+            order=_i(row[0]) or 0,
+            category=_s(row[1]) if len(row) > 1 else "",
+            factor_text=_s(row[2]),
+            detail=_s(row[3]) if len(row) > 3 else "",
+            effect_type=_s(row[4]) if len(row) > 4 else "",
+            scoring_guide=_s(row[5]) if len(row) > 5 else "",
+            avg_score=_f(row[6]) if len(row) > 6 else None,
+            freq_high=_i(row[7]) if len(row) > 7 else None,
+            freq_very_high=_i(row[8]) if len(row) > 8 else None,
+            freq_total=_i(row[9]) if len(row) > 9 else None,
+        )
+        created += 1
+
+    _log_action(request, "IMPORT EnvironmentalFactor Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
+    messages.success(request, f"جایگزینی انجام شد: بانک قبلی پاک شد و {created} عامل از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:environmental_factors")

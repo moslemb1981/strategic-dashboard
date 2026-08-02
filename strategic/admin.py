@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
-    OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI,
+    OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
 )
 
 
@@ -173,3 +173,18 @@ class DocumentAdmin(admin.ModelAdmin):
 class StrategicKPIAdmin(admin.ModelAdmin):
     list_display = ("name", "objective", "target", "actual", "status")
     list_filter = ("status", "trend")
+
+
+@admin.register(LegalRequirement)
+class LegalRequirementAdmin(admin.ModelAdmin):
+    list_display = ("title", "source", "department", "is_legal", "is_organizational")
+    list_filter = ("is_legal", "is_organizational", "department")
+    search_fields = ("title", "source", "department")
+
+
+@admin.register(EnvironmentalFactor)
+class EnvironmentalFactorAdmin(admin.ModelAdmin):
+    list_display = ("order", "category", "factor_text", "avg_score", "effect_type")
+    list_filter = ("category", "effect_type")
+    search_fields = ("factor_text", "detail")
+    ordering = ("-avg_score",)

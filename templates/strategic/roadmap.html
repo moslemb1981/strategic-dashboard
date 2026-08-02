@@ -50,7 +50,7 @@
       {% if i.objectives.all %}
       <div class="meta" style="margin-top:6px;">
         <i class="fa-solid fa-bullseye"></i>
-        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;" title="{{ o.title }}">{{ o.code }}</span>{% endfor %}
+        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;" title="{{ o.title }}&#10;منظر: {{ o.get_perspective_display }}&#10;وضعیت: {{ o.get_status_display }}{% if o.kpi %}&#10;KPI: {{ o.kpi }}{% endif %}">{{ o.code }}</span>{% endfor %}
       </div>
       {% endif %}
     </div>

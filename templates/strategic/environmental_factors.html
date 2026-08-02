@@ -1,0 +1,254 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}بانک عوامل محیطی{% endblock %}
+{% block crumb %}بانک عوامل محیطی{% endblock %}
+
+{% block extra_css %}
+<style>
+  .ef-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:16px;}
+  .ef-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .ef-filters input,.ef-filters select{border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;}
+  .ef-count{font-size:11.5px;color:var(--ink-faint);align-self:center;margin-inline-start:auto;}
+
+  .ef-table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;}
+  .ef-table th{background:var(--bg);text-align:right;padding:8px 10px;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .ef-livesearch-row th{padding:5px 8px 8px;border-bottom:2px solid var(--primary);}
+  .ef-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;background:#fff;}
+  .ef-live-input:focus{outline:none;border-color:var(--primary);}
+  .ef-table tr.ef-hidden{display:none;}
+  .ef-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;white-space:normal;word-break:break-word;}
+  .ef-table tr.ef-row{cursor:pointer;}
+  .ef-table tr.ef-row:hover td{background:var(--bg);}
+  .ef-empty{padding:14px;text-align:center;color:var(--ink-faint);}
+  .ef-score{display:inline-block;font-size:11px;font-weight:800;border-radius:6px;padding:2px 9px;color:#fff;min-width:34px;text-align:center;}
+  .ef-effect-tag{display:inline-block;font-size:9.5px;font-weight:700;border-radius:5px;padding:1px 7px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--border);}
+  .ci-tag{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;background:var(--primary-soft);
+    color:var(--primary-dark);border-radius:5px;padding:1px 6px;margin-inline-start:5px;}
+  .ef-detail-row{display:none;background:var(--bg);}
+  .ef-detail-row.open{display:table-row;}
+  .ef-detail-row td{padding:10px 16px;font-size:11px;color:var(--ink-soft);line-height:1.8;}
+  .ef-detail-row .g{font-weight:700;color:var(--ink);margin-inline-end:4px;}
+  .ef-toggle-icon{color:var(--ink-faint);font-size:10px;margin-inline-start:6px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>بانک عوامل محیطی</h1><div class="sub">شناسایی و امتیازدهی عوامل تأثیرگذار محیطی (PESTEL + پنج نیروی رقابتی) — مرتب‌شده بر اساس اولویت</div></div>
+  <div style="display:flex;gap:8px;">
+    {% if perms.strategic.add_environmentalfactor %}
+    <button class="btn accent" onclick="newFactor()"><i class="fa-solid fa-plus"></i>افزودن عامل</button>
+    {% endif %}
+    <a href="{% url 'strategic:environmental_factor_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل کامل</button></a>
+    {% if perms.strategic.add_environmentalfactor %}
+    <button type="button" class="btn ghost" onclick="document.getElementById('efImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="ef-note"><i class="fa-solid fa-circle-info"></i> این بانک، منبع شناسایی و امتیازدهی عوامل محیطی است — عوامل با بالاترین امتیاز، مبنای انتخاب «عوامل کلیدی» ماتریس اثر متقابل قرار گرفته‌اند (برچسب «🔗 در ماتریس اثر متقابل» را ببینید). روی هر ردیف کلیک کنید تا توضیح تفصیلی و راهنمای امتیازدهی آن باز شود.</div>
+
+<form method="get" class="ef-filters">
+  <input type="text" name="q" value="{{ q }}" placeholder="جست‌وجو در دسته، شرح عامل، نوع اثر..." style="width:280px;">
+  <select name="cat" onchange="this.form.submit()">
+    <option value="">همه‌ی دسته‌بندی‌ها</option>
+    {% for c in categories %}<option value="{{ c }}" {% if c == cat %}selected{% endif %}>{{ c }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn ghost">اعمال فیلتر</button>
+  <span class="ef-count">{{ items|length }} از {{ total_count }} عامل</span>
+</form>
+
+<div style="overflow-x:auto;">
+<table class="ef-table">
+  <colgroup>
+    <col style="width:16%;"><col style="width:26%;"><col style="width:10%;">
+    <col style="width:9%;"><col style="width:12%;"><col style="width:17%;"><col style="width:50px;">
+  </colgroup>
+  <thead><tr>
+    <th>دسته‌بندی محیط</th><th>شرح عامل تأثیرگذار</th><th>نوع اثر</th>
+    <th>میانگین امتیاز</th><th>فراوانی اثر بالا</th><th>ارتباط</th><th></th>
+  </tr>
+  <tr class="ef-livesearch-row">
+    <th><input type="text" id="liveCategory" class="ef-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveFactor" class="ef-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveEffect" class="ef-live-input" placeholder="جستجو..."></th>
+    <th></th><th></th><th></th>
+    <th style="font-size:10.5px;color:var(--ink-faint);font-weight:400;">
+      <span id="liveCount"></span>
+      <button type="button" id="liveClear" style="display:none;border:none;background:none;color:var(--primary);cursor:pointer;font-size:10.5px;">پاک</button>
+    </th>
+  </tr>
+  </thead>
+  <tbody id="efBody">
+    {% for i in items %}
+    <tr class="ef-row" onclick="toggleDetail({{ i.pk }})">
+      <td>{{ i.category|default:"—" }}</td>
+      <td>{{ i.factor_text }}<i class="fa-solid fa-chevron-down ef-toggle-icon" id="chev-{{ i.pk }}"></i></td>
+      <td><span class="ef-effect-tag">{{ i.effect_type|default:"—" }}</span></td>
+      <td>{% if i.avg_score %}<span class="ef-score" style="background:{{ i.score_color }};">{{ i.avg_score }}</span>{% else %}—{% endif %}</td>
+      <td>{% if i.freq_total %}{{ i.freq_very_high|default:0 }}+{{ i.freq_high|default:0 }} = {{ i.freq_total }}{% else %}—{% endif %}</td>
+      <td>
+        {% for cf in i.linked_cross_impact_factors %}<span class="ci-tag" title="{{ cf.get_quadrant_display }}"><i class="fa-solid fa-arrows-turn-to-dots"></i> در ماتریس اثر متقابل</span>{% endfor %}
+      </td>
+      <td style="white-space:nowrap;" onclick="event.stopPropagation();">
+        {% if perms.strategic.change_environmentalfactor %}
+        <button type="button" onclick="editFactor(this)"
+          data-id="{{ i.pk }}" data-category="{{ i.category }}" data-factor="{{ i.factor_text }}" data-detail="{{ i.detail }}"
+          data-effect="{{ i.effect_type }}" data-guide="{{ i.scoring_guide }}" data-avg="{{ i.avg_score|default:'' }}"
+          data-freqhigh="{{ i.freq_high|default:'' }}" data-freqvhigh="{{ i.freq_very_high|default:'' }}"
+          data-freqtotal="{{ i.freq_total|default:'' }}" data-order="{{ i.order }}"
+          style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_environmentalfactor %}
+        <form method="post" action="{% url 'strategic:environmental_factor_delete' i.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">
+          {% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    <tr class="ef-detail-row" id="detail-{{ i.pk }}">
+      <td colspan="7">
+        {% if i.detail %}<span class="g">توضیح تفصیلی:</span>{{ i.detail }}<br>{% endif %}
+        {% if i.scoring_guide %}<span class="g">راهنمای امتیازدهی:</span>{{ i.scoring_guide }}{% endif %}
+        {% if not i.detail and not i.scoring_guide %}توضیحی ثبت نشده{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="ef-empty">عاملی یافت نشد</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if perms.strategic.add_environmentalfactor %}
+<div class="overlay" id="efImportOverlay">
+  <div class="modal-card">
+    <h3>ورود بانک عوامل محیطی از اکسل</h3>
+    <form method="post" action="{% url 'strategic:environmental_factor_import' %}" enctype="multipart/form-data" onsubmit="return confirm('این کار کل بانک فعلی عوامل محیطی را پاک و با محتوای این فایل جایگزین می‌کند. ادامه می‌دهید؟');">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (باید دقیقاً مطابق ستون‌های خروجی اکسل همین صفحه باشد)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:#B0413E;line-height:1.7;font-weight:600;">
+        ⚠ توجه: این عملیات کل بانک فعلی را پاک و با محتوای این فایل جایگزین می‌کند (نه افزودن).
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('efImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">جایگزینی و وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="overlay" id="overlay">
+  <div class="modal-card" style="max-width:520px;">
+    <h3 id="modalTitle">افزودن عامل</h3>
+    <form method="post" id="efForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>دسته‌بندی محیط</label>{{ form.category }}</div>
+      <div class="field-group"><label>شرح عامل تأثیرگذار</label>{{ form.factor_text }}</div>
+      <div class="field-group"><label>توضیح تفصیلی</label>{{ form.detail }}</div>
+      <div class="field-group"><label>نوع اثر</label>{{ form.effect_type }}</div>
+      <div class="field-group"><label>راهنمای امتیازدهی</label>{{ form.scoring_guide }}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
+        <div class="field-group"><label>میانگین امتیاز</label>{{ form.avg_score }}</div>
+        <div class="field-group"><label>فراوانی ۷-۸</label>{{ form.freq_high }}</div>
+        <div class="field-group"><label>فراوانی ۹-۱۰</label>{{ form.freq_very_high }}</div>
+        <div class="field-group"><label>جمع فراوانی</label>{{ form.freq_total }}</div>
+      </div>
+      <div class="field-group"><label>ردیف اصلی</label>{{ form.order }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت عامل</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function toggleDetail(id){
+    const row = document.getElementById('detail-' + id);
+    const chev = document.getElementById('chev-' + id);
+    if (!row) return;
+    row.classList.toggle('open');
+    if (chev) chev.classList.toggle('fa-chevron-up');
+  }
+
+  (function(){
+    const catInput = document.getElementById('liveCategory');
+    const factorInput = document.getElementById('liveFactor');
+    const effectInput = document.getElementById('liveEffect');
+    const clearBtn = document.getElementById('liveClear');
+    const countEl = document.getElementById('liveCount');
+    const rows = Array.from(document.querySelectorAll('#efBody tr.ef-row'));
+    if (!catInput) return;
+
+    function applyLiveFilter(){
+      const c = catInput.value.trim().toLowerCase();
+      const f = factorInput.value.trim().toLowerCase();
+      const e = effectInput.value.trim().toLowerCase();
+      const anyActive = c || f || e;
+      let visible = 0;
+      rows.forEach(function(row){
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 3){ return; }
+        const catTxt = cells[0].textContent.toLowerCase();
+        const factorTxt = cells[1].textContent.toLowerCase();
+        const effectTxt = cells[2].textContent.toLowerCase();
+        const match = (!c || catTxt.includes(c)) && (!f || factorTxt.includes(f)) && (!e || effectTxt.includes(e));
+        row.classList.toggle('ef-hidden', !match);
+        const detailRow = row.nextElementSibling;
+        if (detailRow && detailRow.classList.contains('ef-detail-row')) {
+          detailRow.style.display = match ? '' : 'none';
+          if (!match) detailRow.classList.remove('open');
+        }
+        if (match) visible++;
+      });
+      clearBtn.style.display = anyActive ? 'inline' : 'none';
+      countEl.textContent = anyActive ? (visible + ' مورد') : '';
+    }
+
+    [catInput, factorInput, effectInput].forEach(function(inp){
+      inp.addEventListener('input', applyLiveFilter);
+    });
+    clearBtn.addEventListener('click', function(){
+      catInput.value = ''; factorInput.value = ''; effectInput.value = '';
+      applyLiveFilter();
+    });
+  })();
+
+  function newFactor(){
+    document.getElementById('efForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.getElementById('modalTitle').textContent = 'افزودن عامل';
+    document.getElementById('submitBtn').textContent = 'ثبت عامل';
+    openModal();
+  }
+
+  function editFactor(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_category').value = d.category;
+    document.getElementById('id_factor_text').value = d.factor;
+    document.getElementById('id_detail').value = d.detail;
+    document.getElementById('id_effect_type').value = d.effect;
+    document.getElementById('id_scoring_guide').value = d.guide;
+    document.getElementById('id_avg_score').value = d.avg;
+    document.getElementById('id_freq_high').value = d.freqhigh;
+    document.getElementById('id_freq_very_high').value = d.freqvhigh;
+    document.getElementById('id_freq_total').value = d.freqtotal;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('modalTitle').textContent = 'ویرایش عامل';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+</script>
+{% endblock %}
