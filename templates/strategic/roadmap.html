@@ -50,7 +50,15 @@
       {% if i.objectives.all %}
       <div class="meta" style="margin-top:6px;">
         <i class="fa-solid fa-bullseye"></i>
-        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;" title="{{ o.title }}&#10;منظر: {{ o.get_perspective_display }}&#10;وضعیت: {{ o.get_status_display }}{% if o.kpi %}&#10;KPI: {{ o.kpi }}{% endif %}">{{ o.code }}</span>{% endfor %}
+        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;" title="{{ o.title }}&#10;منظر: {{ o.get_perspective_display }}&#10;وضعیت: {{ o.get_status_display }}{% if o.kpi %}&#10;KPI توضیحی: {{ o.kpi }}{% endif %}{% if o.source_tows %}&#10;برخاسته از راهبرد {{ o.source_tows.get_category_display }}: {{ o.source_tows.text|truncatechars:80 }}{% endif %}">{{ o.code }}</span>{% endfor %}
+      </div>
+      {% endif %}
+      {% if i.source_kpi.all or i.source_tows.all or i.source_risk.all %}
+      <div class="meta" style="margin-top:6px;">
+        <i class="fa-solid fa-seedling"></i> منشأ:
+        {% for k in i.source_kpi.all %}<span class="status-pill" style="background:var(--accent-soft);color:#7A4711;margin-inline-end:4px;" title="شاخص {{ k.code }} — {{ k.name }}&#10;حوزه: {{ k.get_domain_display }}&#10;هدف سال جاری: {{ k.target_1405|default:'—' }} / عملکرد: {{ k.actual_1405|default:'—' }}">شکاف {{ k.code }}</span>{% endfor %}
+        {% for t in i.source_tows.all %}<span class="status-pill" style="background:#EAF1F7;color:#2E5C8A;margin-inline-end:4px;" title="راهبرد {{ t.get_category_display }}&#10;{{ t.text }}">راهبرد {{ t.get_category_display }}</span>{% endfor %}
+        {% for rk in i.source_risk.all %}<span class="status-pill" style="background:#FBEAEA;color:#B0413E;margin-inline-end:4px;" title="{{ rk.title }}&#10;دسته: {{ rk.get_category_display }}&#10;احتمال/اثر فعلی: {{ rk.likelihood }}/{{ rk.impact }}&#10;مسئول: {{ rk.owner|default:'—' }}">ریسک: {{ rk.title|truncatechars:20 }}</span>{% endfor %}
       </div>
       {% endif %}
     </div>
@@ -61,6 +69,9 @@
       data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
       data-progress="{{ i.progress }}" data-status="{{ i.status }}"
       data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+      data-source-kpi="{% for k in i.source_kpi.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+      data-source-tows="{% for t in i.source_tows.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+      data-source-risk="{% for rk in i.source_risk.all %}{{ rk.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:0 4px;">
       <i class="fa-solid fa-pen"></i>
     </button>
@@ -88,6 +99,9 @@
       <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="field-group"><label>اهداف استراتژیک مرتبط</label>{{ form.objectives }}</div>
+      <div class="field-group"><label>شکاف‌های شاخص مبنا (اختیاری)</label><div class="picker-box">{{ form.source_kpi }}</div></div>
+      <div class="field-group"><label>راهبردهای TOWS مبنا (اختیاری)</label><div class="picker-box">{{ form.source_tows }}</div></div>
+      <div class="field-group"><label>ریسک‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_risk }}</div></div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="submitBtn">ثبت پروژه</button>
@@ -110,6 +124,11 @@
     background:var(--surface);color:var(--ink-soft);text-decoration:none;white-space:nowrap;}
   .bu-tab:hover{border-color:var(--accent);color:var(--accent);}
   .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .picker-box{max-height:160px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#fff;}
+  .picker-box label{display:block;font-size:11.5px;line-height:1.6;padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+  .picker-box label:hover{background:var(--bg);}
+  .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
+  .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
 </style>
 {% endblock %}
 
@@ -120,9 +139,29 @@
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 
+  function syncPickerBoxes(){
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+      cb.closest('label').classList.toggle('picked', cb.checked);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.picker-box label').forEach(function(lbl){
+      const cb = lbl.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      lbl.addEventListener('click', function(e){
+        if (e.target === cb) return;
+        e.preventDefault();
+        cb.checked = !cb.checked;
+        syncPickerBoxes();
+      });
+    });
+  });
+
   function newInitiative(){
     document.getElementById('initForm').reset();
     document.getElementById('obj_id').value = '';
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(cb => cb.checked = false);
+    syncPickerBoxes();
     document.getElementById('modalTitle').textContent = 'افزودن پروژه جدید';
     document.getElementById('submitBtn').textContent = 'ثبت پروژه';
     openModal();
@@ -140,6 +179,13 @@
     const objIds = (d.objectives || '').split(',').filter(Boolean);
     const sel = document.getElementById('id_objectives');
     if (sel) { Array.from(sel.options).forEach(o => { o.selected = objIds.includes(o.value); }); }
+    const kpiIds = (d.sourceKpi || '').split(',').filter(Boolean);
+    const towsIds = (d.sourceTows || '').split(',').filter(Boolean);
+    const riskIds = (d.sourceRisk || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="source_kpi"]').forEach(cb => { cb.checked = kpiIds.includes(cb.value); });
+    document.querySelectorAll('input[name="source_tows"]').forEach(cb => { cb.checked = towsIds.includes(cb.value); });
+    document.querySelectorAll('input[name="source_risk"]').forEach(cb => { cb.checked = riskIds.includes(cb.value); });
+    syncPickerBoxes();
     document.getElementById('modalTitle').textContent = 'ویرایش پروژه';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

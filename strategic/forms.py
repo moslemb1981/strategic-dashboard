@@ -53,12 +53,18 @@ class InitiativeForm(forms.ModelForm):
 
     class Meta:
         model = Initiative
-        fields = ["title", "owner", "start_date", "end_date", "progress", "status", "objectives"]
+        fields = [
+            "title", "owner", "start_date", "end_date", "progress", "status", "objectives",
+            "source_kpi", "source_tows", "source_risk",
+        ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دیجیتالی‌سازی گزارش‌های ماهانه"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: واحد مطالعات"}),
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
             "objectives": forms.SelectMultiple(attrs={"size": 8}),
+            "source_kpi": forms.CheckboxSelectMultiple(),
+            "source_tows": forms.CheckboxSelectMultiple(),
+            "source_risk": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, business_unit=None, **kwargs):
@@ -68,6 +74,20 @@ class InitiativeForm(forms.ModelForm):
             StrategicObjective.objects.filter(business_unit=bu) if bu else StrategicObjective.objects.none()
         )
         self.fields["objectives"].required = False
+
+        self.fields["source_kpi"].required = False
+        self.fields["source_kpi"].queryset = CompanyKPI.objects.all()
+        self.fields["source_kpi"].label_from_instance = lambda o: f"{o.code} — {o.name}"
+
+        self.fields["source_tows"].required = False
+        self.fields["source_tows"].queryset = (
+            TOWSStrategy.objects.filter(business_unit=bu) if bu else TOWSStrategy.objects.none()
+        )
+        self.fields["source_tows"].label_from_instance = lambda o: f"{o.get_category_display()} — {o.text[:60]}"
+
+        self.fields["source_risk"].required = False
+        self.fields["source_risk"].queryset = Risk.objects.all()
+        self.fields["source_risk"].label_from_instance = lambda o: o.title
 
 
 class RiskForm(forms.ModelForm):

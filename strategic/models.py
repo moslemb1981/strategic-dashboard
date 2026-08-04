@@ -61,6 +61,15 @@ class Initiative(models.Model):
         "StrategicObjective", blank=True, related_name="initiatives",
         verbose_name="اهداف استراتژیک مرتبط",
     )
+    source_kpi = models.ManyToManyField(
+        "CompanyKPI", blank=True, related_name="initiatives", verbose_name="شکاف‌های شاخص مبنا (اختیاری)",
+    )
+    source_tows = models.ManyToManyField(
+        "TOWSStrategy", blank=True, related_name="initiatives", verbose_name="راهبردهای TOWS مبنا (اختیاری)",
+    )
+    source_risk = models.ManyToManyField(
+        "Risk", blank=True, related_name="initiatives", verbose_name="ریسک‌های مبنا (اختیاری)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

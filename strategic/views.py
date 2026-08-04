@@ -467,8 +467,23 @@ def cross_impact_matrix(request):
                 cells.append({"to_factor": g, "is_diag": False, "score": links.get((f.pk, g.pk), 0)})
         matrix_rows.append({"from_factor": f, "cells": cells})
 
+    max_influence = max((r["influence"] for r in results), default=1) or 1
+    max_dependence = max((r["dependence"] for r in results), default=1) or 1
+
+    plot_left, plot_right = 74, 650
+    plot_top, plot_bottom = 26, 396
+    for r in results:
+        r["plot_x"] = round(plot_left + (r["dependence"] / max_dependence) * (plot_right - plot_left), 1)
+        r["plot_y"] = round(plot_bottom - (r["influence"] / max_influence) * (plot_bottom - plot_top), 1)
+    plot_median_x = round(plot_left + (median_dependence / max_dependence) * (plot_right - plot_left), 1)
+    plot_median_y = round(plot_bottom - (median_influence / max_influence) * (plot_bottom - plot_top), 1)
+
     return render(request, "strategic/cross_impact_matrix.html", {
         "active_page": "cross_impact", "factors": factors, "results": results, "matrix_rows": matrix_rows,
+        "median_influence": median_influence, "median_dependence": median_dependence,
+        "max_influence": max_influence, "max_dependence": max_dependence,
+        "plot_median_x": plot_median_x, "plot_median_y": plot_median_y,
+        "plot_left": plot_left, "plot_right": plot_right, "plot_top": plot_top, "plot_bottom": plot_bottom,
     })
 
 

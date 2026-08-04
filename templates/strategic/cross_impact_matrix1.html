@@ -18,8 +18,6 @@
   table.cim-matrix th.corner{background:var(--surface);position:sticky;right:0;z-index:3;}
 
   .cim-results{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;}
-  .cim-scatter-wrap{border:1px solid var(--border);border-radius:10px;padding:14px 10px 4px;margin-bottom:16px;background:#fff;
-    max-width:660px;margin-inline:auto;}
   .cim-results table{width:100%;border-collapse:collapse;font-size:11.5px;}
   .cim-results th{background:var(--bg);padding:8px 10px;text-align:right;font-size:11px;color:var(--ink-soft);}
   .cim-results td{padding:7px 10px;border-top:1px solid var(--border);}
@@ -99,50 +97,6 @@
   </div>
   <button type="submit" class="btn accent"><i class="fa-solid fa-floppy-disk"></i> ذخیره ماتریس و محاسبه مجدد</button>
 </form>
-
-<div class="section-title" style="margin-top:26px;font-size:15px;font-weight:800;margin-bottom:10px;">نمودار پراکندگی اثرگذاری/وابستگی</div>
-<div class="cim-scatter-wrap">
-  <svg viewBox="0 0 700 420" style="width:100%;height:auto;font-family:inherit;">
-    <!-- ناحیه‌های زمینه -->
-    <rect x="{{ plot_left }}" y="{{ plot_top }}" width="{{ plot_median_x|add:'-74' }}" height="{{ plot_median_y|add:'-26' }}" fill="#B0413E" opacity="0.06"/>
-    <rect x="{{ plot_median_x }}" y="{{ plot_top }}" width="650" height="{{ plot_median_y|add:'-26' }}" fill="#C97A2B" opacity="0.06"/>
-    <rect x="{{ plot_left }}" y="{{ plot_median_y }}" width="{{ plot_median_x|add:'-74' }}" height="400" fill="#5a6474" opacity="0.06"/>
-    <rect x="{{ plot_median_x }}" y="{{ plot_median_y }}" width="650" height="400" fill="#2E5C8A" opacity="0.06"/>
-
-    <!-- محورها -->
-    <line x1="{{ plot_left }}" y1="{{ plot_top }}" x2="{{ plot_left }}" y2="{{ plot_bottom }}" stroke="#c7ccd3" stroke-width="1.5"/>
-    <line x1="{{ plot_left }}" y1="{{ plot_bottom }}" x2="{{ plot_right }}" y2="{{ plot_bottom }}" stroke="#c7ccd3" stroke-width="1.5"/>
-    <!-- خط میانه -->
-    <line x1="{{ plot_median_x }}" y1="{{ plot_top }}" x2="{{ plot_median_x }}" y2="{{ plot_bottom }}" stroke="#9aa1ab" stroke-width="1" stroke-dasharray="4,4"/>
-    <line x1="{{ plot_left }}" y1="{{ plot_median_y }}" x2="{{ plot_right }}" y2="{{ plot_median_y }}" stroke="#9aa1ab" stroke-width="1" stroke-dasharray="4,4"/>
-
-    <!-- برچسب محورها -->
-    <text x="362" y="415" text-anchor="middle" font-size="12" font-weight="700" fill="#5a6474">وابستگی ←</text>
-    <text x="20" y="211" text-anchor="middle" font-size="12" font-weight="700" fill="#5a6474" transform="rotate(-90 20 211)">اثرگذاری ←</text>
-
-    <!-- برچسب ۴ ناحیه -->
-    <text x="{{ plot_left|add:'8' }}" y="{{ plot_top|add:'16' }}" text-anchor="start" font-size="11" font-weight="700" fill="#B0413E">پیشران‌ها</text>
-    <text x="{{ plot_right|add:'-8' }}" y="{{ plot_top|add:'16' }}" text-anchor="end" font-size="11" font-weight="700" fill="#C97A2B">دوجانبه</text>
-    <text x="{{ plot_left|add:'8' }}" y="{{ plot_bottom|add:'-8' }}" text-anchor="start" font-size="11" font-weight="700" fill="#5a6474">خنثی</text>
-    <text x="{{ plot_right|add:'-8' }}" y="{{ plot_bottom|add:'-8' }}" text-anchor="end" font-size="11" font-weight="700" fill="#2E5C8A">رصد و دیده‌بانی</text>
-
-    <!-- نقاط عوامل -->
-    {% for r in results %}
-    <g>
-      <circle cx="{{ r.plot_x }}" cy="{{ r.plot_y }}" r="4.5" fill="{{ r.factor.quadrant_color }}" stroke="#fff" stroke-width="1.2">
-        <title>{{ r.factor.text }} — اثرگذاری: {{ r.influence }}، وابستگی: {{ r.dependence }}</title>
-      </circle>
-      {% if forloop.counter0|divisibleby:2 %}
-      <text x="{{ r.plot_x }}" y="{{ r.plot_y|add:'-10' }}" text-anchor="middle"
-        font-size="9.5" font-weight="600" fill="#1B2430" paint-order="stroke" stroke="#fff" stroke-width="3.5" stroke-linejoin="round">{{ r.factor.text|truncatechars:14 }}</text>
-      {% else %}
-      <text x="{{ r.plot_x }}" y="{{ r.plot_y|add:'17' }}" text-anchor="middle"
-        font-size="9.5" font-weight="600" fill="#1B2430" paint-order="stroke" stroke="#fff" stroke-width="3.5" stroke-linejoin="round">{{ r.factor.text|truncatechars:14 }}</text>
-      {% endif %}
-    </g>
-    {% endfor %}
-  </svg>
-</div>
 
 <div class="section-title" style="margin-top:26px;font-size:15px;font-weight:800;margin-bottom:10px;">نتیجه محاسبه</div>
 <div class="cim-results">
