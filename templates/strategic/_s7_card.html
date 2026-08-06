@@ -1,0 +1,26 @@
+{% load static %}
+<div class="s7-card" id="s7-card-{{ c.component }}" style="--pc:{{ c.color }};--pcs:{{ c.soft }};">
+  <div class="p-head">
+    <div class="icon"><i class="fa-solid {{ c.icon }}"></i></div>
+    <div class="ttl"><b>{{ c.get_component_display }}{% if c.swot_items.all %}<span class="used-badge" title="{% for si in c.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ c.swot_items.all|length }}</span>{% endif %}</b><small>{{ c.english }}</small></div>
+    {% if perms.strategic.change_mckinsey7s %}
+    <button type="button" class="s7-edit" onclick="editComponent(this)"
+      data-id="{{ c.pk }}" data-status="{{ c.status }}" data-strengths="{{ c.strengths }}" data-weaknesses="{{ c.weaknesses }}">
+      <i class="fa-solid fa-pen"></i>
+    </button>
+    {% endif %}
+  </div>
+  <div class="p-body">
+    <div class="s7-status">{{ c.status|default:"وضعیت فعلی ثبت نشده" }}</div>
+    <div class="s7-cols">
+      <div>
+        <div class="s7-col-title s"><i class="fa-solid fa-circle-check"></i>نقاط قوت</div>
+        <ul>{% for s in c.strengths_list %}<li>{{ s }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
+      </div>
+      <div>
+        <div class="s7-col-title w"><i class="fa-solid fa-triangle-exclamation"></i>نقاط ضعف/ریسک‌ها</div>
+        <ul>{% for w in c.weaknesses_list %}<li>{{ w }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+</div>

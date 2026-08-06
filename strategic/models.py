@@ -62,7 +62,7 @@ class Initiative(models.Model):
         verbose_name="اهداف استراتژیک مرتبط",
     )
     source_kpi = models.ManyToManyField(
-        "CompanyKPI", blank=True, related_name="initiatives", verbose_name="شکاف‌های شاخص مبنا (اختیاری)",
+        "CompanyKPI", blank=True, related_name="initiatives", verbose_name="شاخص‌های مبنا (اختیاری)",
     )
     source_tows = models.ManyToManyField(
         "TOWSStrategy", blank=True, related_name="initiatives", verbose_name="راهبردهای TOWS مبنا (اختیاری)",
@@ -386,9 +386,6 @@ class StrategicObjective(models.Model):
     linked_kpis = models.ManyToManyField(
         "CompanyKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
     )
-    linked_company_kpis = models.ManyToManyField(
-        "CompanyKPI", blank=True, related_name="linked_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
-    )
     business_unit = models.ForeignKey(
         BusinessUnit, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="objectives", verbose_name="کسب‌وکار",
@@ -470,6 +467,14 @@ class PestelFactor(models.Model):
     trend = models.CharField(max_length=10, choices=TREND_CHOICES, default="flat", verbose_name="روند تغییر")
     created_at = models.DateTimeField(default=timezone.now)
 
+    EFFECT_TYPE_CHOICES = [
+        ("opportunity", "فرصت"), ("threat", "تهدید"), ("both", "فرصت/تهدید"),
+    ]
+    effect_type = models.CharField(max_length=15, choices=EFFECT_TYPE_CHOICES, blank=True, verbose_name="نوع اثر")
+    related_standard = models.CharField(max_length=150, blank=True, verbose_name="استاندارد مرتبط")
+    detailed_description = models.TextField(blank=True, verbose_name="توضیح تفصیلی (راهنمای درک و امتیازدهی)")
+    scoring_guide = models.TextField(blank=True, verbose_name="راهنمای امتیازدهی")
+
     class Meta:
         ordering = ["category", "order"]
         verbose_name = "عامل PESTEL"
@@ -489,30 +494,58 @@ class PestelFactor(models.Model):
 
 class PorterForce(models.Model):
     FORCE_CHOICES = [
-        ("rivalry", "شدت رقابت موجود"),
-        ("buyer_power", "قدرت چانه‌زنی مشتریان"),
+        ("rivalry", "قدرت رقبای موجود"),
+        ("buyer_power", "قدرت چانه‌زنی خریداران"),
         ("supplier_power", "قدرت چانه‌زنی تأمین‌کنندگان"),
-        ("new_entrants", "تهدید ورود رقبای جدید"),
+        ("new_entrants", "تهدید تازه‌واردان"),
         ("substitutes", "تهدید کالاها/خدمات جایگزین"),
     ]
-    LEVEL_CHOICES = [
-        ("low", "کم"), ("medium", "متوسط"), ("high", "زیاد"), ("very_high", "بسیار زیاد"),
+    FORCE_STYLE = {
+        # مرکز (رقبای موجود) رنگ برجسته‌ی خودش را دارد؛ ۴ نیروی بیرونی رنگ‌های متفاوت
+        "rivalry": ("#A8321E", "#FBE7E3", "fa-chess-king"),
+        "buyer_power": ("#0EA5E9", "#E3F4FC", "fa-user-tag"),
+        "supplier_power": ("#8B5CF6", "#EFE9FD", "fa-truck"),
+        "new_entrants": ("#EAB308", "#FDF6DD", "fa-door-open"),
+        "substitutes": ("#22C55E", "#E4F8EA", "fa-retweet"),
+    }
+    SCALE_CHOICES = [(i, str(i)) for i in range(1, 6)]
+    UNCERTAINTY_CHOICES = [("low", "کم"), ("medium", "متوسط"), ("high", "زیاد")]
+    HORIZON_CHOICES = [("short", "کوتاه‌مدت"), ("medium", "میان‌مدت"), ("long", "بلندمدت")]
+    TREND_CHOICES = [("up", "صعودی"), ("down", "نزولی"), ("flat", "ثابت")]
+    UNCERTAINTY_COLOR = {"low": "var(--success)", "medium": "var(--accent)", "high": "#B0413E"}
+    EFFECT_TYPE_CHOICES = [
+        ("opportunity", "فرصت"), ("threat", "تهدید"), ("both", "فرصت/تهدید"),
     ]
-    LEVEL_COLOR = {"low": "var(--success)", "medium": "var(--accent)", "high": "#B0413E", "very_high": "#7B1E1E"}
 
-    force = models.CharField(max_length=20, choices=FORCE_CHOICES, unique=True, verbose_name="نیرو")
-    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default="medium", verbose_name="شدت")
-    reasons = models.TextField(blank=True, verbose_name="دلایل (هر خط یک مورد)")
-    conclusion = models.TextField(blank=True, verbose_name="نتیجه")
-    updated_at = models.DateTimeField(auto_now=True)
+    force = models.CharField(max_length=20, choices=FORCE_CHOICES, verbose_name="نیروی رقابتی")
+    text = models.CharField(max_length=500, verbose_name="متن")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    impact_level = models.PositiveSmallIntegerField(choices=SCALE_CHOICES, default=3, verbose_name="میزان اثر")
+    probability = models.PositiveSmallIntegerField(choices=SCALE_CHOICES, default=3, verbose_name="احتمال وقوع")
+    uncertainty = models.CharField(max_length=10, choices=UNCERTAINTY_CHOICES, default="medium", verbose_name="میزان عدم‌قطعیت")
+    horizon = models.CharField(max_length=10, choices=HORIZON_CHOICES, default="medium", verbose_name="افق زمانی")
+    trend = models.CharField(max_length=10, choices=TREND_CHOICES, default="flat", verbose_name="روند تغییر")
+    effect_type = models.CharField(max_length=15, choices=EFFECT_TYPE_CHOICES, blank=True, verbose_name="نوع اثر")
+    related_standard = models.CharField(max_length=150, blank=True, verbose_name="استاندارد مرتبط")
+    detailed_description = models.TextField(blank=True, verbose_name="توضیح تفصیلی (راهنمای درک و امتیازدهی)")
+    scoring_guide = models.TextField(blank=True, verbose_name="راهنمای امتیازدهی")
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        ordering = ["force"]
-        verbose_name = "نیروی پورتر"
+        ordering = ["force", "order"]
+        verbose_name = "عامل پورتر"
         verbose_name_plural = "تحلیل پنج نیروی پورتر"
 
+    @property
+    def priority_score(self):
+        return self.impact_level * self.probability
+
+    @property
+    def uncertainty_color(self):
+        return self.UNCERTAINTY_COLOR.get(self.uncertainty, "var(--ink-faint)")
+
     def __str__(self):
-        return self.get_force_display()
+        return f"{self.get_force_display()} — {self.text}"
 
     @property
     def reasons_list(self):
@@ -527,6 +560,7 @@ class OrgIdentity(models.Model):
     """رکورد تکی (singleton) برای چشم‌انداز، مأموریت و امضای مدیریت ارشد."""
     vision = models.TextField(blank=True, verbose_name="چشم‌انداز")
     mission = models.TextField(blank=True, verbose_name="مأموریت")
+    management_statement = models.TextField(blank=True, verbose_name="پیام مدیریت ارشد (بالای امضا)")
     signed_by = models.CharField(max_length=150, blank=True, verbose_name="امضاکننده")
     signed_role = models.CharField(max_length=150, blank=True, verbose_name="سمت امضاکننده")
     signed_date = models.CharField(max_length=50, blank=True, verbose_name="تاریخ امضا (شمسی، متن آزاد)")
@@ -540,9 +574,44 @@ class OrgIdentity(models.Model):
 
 
 class OrgValue(models.Model):
+    ICON_CHOICES = [
+        ("fa-solid fa-trophy", "جام (رقابت/دستاورد)"),
+        ("fa-solid fa-handshake", "دست‌دادن (اعتماد/شفافیت)"),
+        ("fa-solid fa-shield-halved", "سپر (کرامت/حفاظت از حقوق)"),
+        ("fa-solid fa-bullhorn", "بلندگو (اطلاع‌رسانی)"),
+        ("fa-solid fa-people-group", "گروه افراد (کارتیمی/کارکنان)"),
+        ("fa-solid fa-lightbulb", "لامپ (نوآوری)"),
+        ("fa-solid fa-users", "کاربران (وحدت/مشتری)"),
+        ("fa-solid fa-heart", "قلب (مشتری‌مداری)"),
+        ("fa-solid fa-graduation-cap", "کلاه فارغ‌التحصیلی (آموزش/توسعه)"),
+        ("fa-solid fa-compass", "قطب‌نما (جهت‌گیری)"),
+        ("fa-solid fa-star", "ستاره (پیش‌فرض)"),
+    ]
+    COLOR_CHOICES = [
+        ("#F59E0B", "کهربایی"),
+        ("#EC4899", "صورتی"),
+        ("#8B5CF6", "بنفش"),
+        ("#0EA5E9", "آبی"),
+        ("#F43F5E", "قرمز مرجانی"),
+        ("#EAB308", "زرد طلایی"),
+        ("#22C55E", "سبز"),
+        ("#A8321E", "قرمز آجری (مرکز)"),
+    ]
+
     text = models.CharField(max_length=150, verbose_name="ارزش سازمانی")
     is_center = models.BooleanField(default=False, verbose_name="آیا مرکز چرخ است؟")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    icon = models.CharField(max_length=40, blank=True, default="fa-solid fa-star",
+                             choices=ICON_CHOICES, verbose_name="آیکون")
+    color = models.CharField(max_length=20, blank=True, default="#C97A2B",
+                              choices=COLOR_CHOICES, verbose_name="رنگ")
+    definition = models.TextField(blank=True, verbose_name="تعریف")
+    expected_behaviors = models.TextField(blank=True, verbose_name="رفتارهای مورد انتظار (هر خط یک رفتار)")
+    examples = models.TextField(blank=True, verbose_name="نمونه‌های اجرایی در سازمان (هر خط یک نمونه)")
+    related_policy = models.ForeignKey(
+        "QualityPolicyPoint", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="linked_values", verbose_name="بند خط‌مشی مرتبط",
+    )
 
     class Meta:
         ordering = ["order"]
@@ -551,6 +620,14 @@ class OrgValue(models.Model):
 
     def __str__(self):
         return self.text
+
+    @property
+    def behaviors_list(self):
+        return [b.strip() for b in self.expected_behaviors.splitlines() if b.strip()]
+
+    @property
+    def examples_list(self):
+        return [e.strip() for e in self.examples.splitlines() if e.strip()]
 
 
 class QualityPolicyPoint(models.Model):
@@ -577,6 +654,16 @@ class McKinsey7S(models.Model):
         ("staff", "کارکنان"),
         ("style", "سبک"),
     ]
+    # رنگ، آیکون، نام انگلیسیِ مصوبِ خودِ مدل مکنزی، و گروه (سخت/نرم/مرکز)
+    STYLE = {
+        "strategy": ("#2E5C8A", "#E3EBF2", "fa-chess-knight", "Strategy", "hard"),
+        "structure": ("#1E3F60", "#E3EBF2", "fa-sitemap", "Structure", "hard"),
+        "systems": ("#1D7A73", "#DFF0EE", "fa-gears", "Systems", "hard"),
+        "shared_values": ("#C97A2B", "#F5E6D3", "fa-star", "Shared Values", "center"),
+        "skills": ("#6C56A3", "#ECE8F5", "fa-graduation-cap", "Skills", "soft"),
+        "staff": ("#B5583F", "#F7E3DC", "fa-users", "Staff", "soft"),
+        "style": ("#3E7A52", "#E1EDE4", "fa-handshake", "Style", "soft"),
+    }
 
     component = models.CharField(max_length=20, choices=COMPONENT_CHOICES, unique=True, verbose_name="مؤلفه")
     status = models.TextField(blank=True, verbose_name="وضعیت فعلی")
@@ -648,6 +735,8 @@ class Stakeholder(models.Model):
 
     department = models.CharField(max_length=200, verbose_name="واحد/مدیریت ثبت‌کننده", blank=True)
     name = models.CharField(max_length=200, verbose_name="نام ذینفع")
+    is_internal = models.BooleanField(default=False, verbose_name="درون سازمانی")
+    is_external = models.BooleanField(default=False, verbose_name="برون سازمانی")
     channel = models.CharField(max_length=300, verbose_name="کانال ارتباطی", blank=True)
     need = models.TextField(verbose_name="نیاز/انتظار ذینفع", blank=True)
     need_flag = models.BooleanField(default=False, verbose_name="نوع: نیاز")
@@ -693,6 +782,10 @@ class CrossImpactFactor(models.Model):
     linked_pestel = models.ForeignKey(
         "PestelFactor", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="cross_impact_factors", verbose_name="عامل PESTEL مرتبط (اختیاری)",
+    )
+    linked_porter = models.ForeignKey(
+        "PorterForce", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="cross_impact_factors", verbose_name="نیروی پورتر مرتبط (اختیاری)",
     )
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -989,6 +1082,8 @@ class LegalRequirement(models.Model):
     source = models.CharField(max_length=200, blank=True, verbose_name="مأخذ الزام")
     is_legal = models.BooleanField(default=False, verbose_name="قانونی")
     is_organizational = models.BooleanField(default=False, verbose_name="سازمانی")
+    is_internal = models.BooleanField(default=False, verbose_name="درون سازمانی")
+    is_external = models.BooleanField(default=False, verbose_name="برون سازمانی")
     revision_date = models.CharField(max_length=40, blank=True, verbose_name="تاریخ ویرایش الزام")
     related_documents = models.TextField(blank=True, verbose_name="مستندات داخلی مرتبط")
     scope = models.CharField(max_length=300, blank=True, verbose_name="محل کاربرد")

@@ -56,7 +56,7 @@
       {% if i.source_kpi.all or i.source_tows.all or i.source_risk.all %}
       <div class="meta" style="margin-top:6px;">
         <i class="fa-solid fa-seedling"></i> منشأ:
-        {% for k in i.source_kpi.all %}<span class="status-pill" style="background:var(--accent-soft);color:#7A4711;margin-inline-end:4px;" title="شاخص {{ k.code }} — {{ k.name }}&#10;حوزه: {{ k.get_domain_display }}&#10;هدف سال جاری: {{ k.target_1405|default:'—' }} / عملکرد: {{ k.actual_1405|default:'—' }}">شکاف {{ k.code }}</span>{% endfor %}
+        {% for k in i.source_kpi.all %}<span class="status-pill" style="background:var(--accent-soft);color:#7A4711;margin-inline-end:4px;" title="شاخص {{ k.code }} — {{ k.name }}&#10;حوزه: {{ k.get_domain_display }}&#10;هدف سال جاری: {{ k.target_1405|default:'—' }} / عملکرد: {{ k.actual_1405|default:'—' }}">شاخص {{ k.code }}</span>{% endfor %}
         {% for t in i.source_tows.all %}<span class="status-pill" style="background:#EAF1F7;color:#2E5C8A;margin-inline-end:4px;" title="راهبرد {{ t.get_category_display }}&#10;{{ t.text }}">راهبرد {{ t.get_category_display }}</span>{% endfor %}
         {% for rk in i.source_risk.all %}<span class="status-pill" style="background:#FBEAEA;color:#B0413E;margin-inline-end:4px;" title="{{ rk.title }}&#10;دسته: {{ rk.get_category_display }}&#10;احتمال/اثر فعلی: {{ rk.likelihood }}/{{ rk.impact }}&#10;مسئول: {{ rk.owner|default:'—' }}">ریسک: {{ rk.title|truncatechars:20 }}</span>{% endfor %}
       </div>
@@ -99,7 +99,7 @@
       <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="field-group"><label>اهداف استراتژیک مرتبط</label>{{ form.objectives }}</div>
-      <div class="field-group"><label>شکاف‌های شاخص مبنا (اختیاری)</label><div class="picker-box">{{ form.source_kpi }}</div></div>
+      <div class="field-group"><label>شاخص‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_kpi }}</div></div>
       <div class="field-group"><label>راهبردهای TOWS مبنا (اختیاری)</label><div class="picker-box">{{ form.source_tows }}</div></div>
       <div class="field-group"><label>ریسک‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_risk }}</div></div>
       <div class="modal-actions">

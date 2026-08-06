@@ -5,38 +5,41 @@
 
 {% block extra_css %}
 <style>
+  .pestel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+  @media(max-width:900px){.pestel-grid{grid-template-columns:1fr;}}
   .pestel-cat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
-    box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
-  .pestel-cat .cat-head{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--pcs);}
-  .pestel-cat .cat-head .icon{width:34px;height:34px;border-radius:9px;background:var(--pc);color:#fff;
-    display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;}
-  .pestel-cat .cat-head h4{margin:0;font-size:15px;color:var(--pc);}
-  .pestel-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;}
-  .pestel-col{padding:14px 16px;}
-  .pestel-col:not(:last-child){border-left:1px solid var(--border);}
-  .pestel-col .col-lbl{font-size:11px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-  .pestel-col.factor .col-lbl{color:var(--ink-soft);}
-  .pestel-col.opportunity .col-lbl{color:var(--success);}
-  .pestel-col.threat .col-lbl{color:var(--coral, #C0392B);}
-  .pestel-item{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;font-size:12.5px;
-    line-height:1.7;padding:7px 0;border-top:1px solid var(--border);}
+    box-shadow:var(--shadow);margin-bottom:0;overflow:hidden;}
+  .pestel-cat .cat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--pcs);}
+  .pestel-cat .cat-head .icon{width:30px;height:30px;border-radius:8px;background:var(--pc);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .pestel-cat .cat-head h4{margin:0;font-size:14px;color:var(--pc);}
+  .cat-count{margin-inline-start:auto;font-size:10.5px;font-weight:700;color:var(--pc);
+    background:var(--surface);border:1px solid var(--pc);border-radius:20px;padding:2px 10px;flex:none;}
+  .pestel-col{padding:10px 16px;}
+  .pestel-item{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;font-size:12px;
+    line-height:1.65;padding:8px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
   .pestel-item:first-child{border-top:none;padding-top:0;}
-  .pestel-item .txt{flex:1;}
-  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
-    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
+  .pestel-item .txt{flex:1;cursor:help;min-width:0;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
+    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:4px;}
+  .effect-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
+    padding:1px 6px;margin-inline-start:4px;}
+  .effect-badge.opportunity{background:var(--success-soft);color:var(--success-dark, #1c6b3e);}
+  .effect-badge.threat{background:#FCE7E7;color:#B0413E;}
+  .effect-badge.both{background:var(--accent-soft);color:#7A4711;}
+  .standard-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;border-radius:5px;
+    padding:1px 6px;margin-inline-start:4px;background:var(--bg);color:var(--ink-faint);border:1px solid var(--border);cursor:help;}
   .pestel-item .acts{display:flex;gap:5px;flex:none;margin-top:2px;}
   .pestel-item .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;}
   .pestel-empty{font-size:11.5px;color:var(--ink-faint);}
-  @media(max-width:900px){.pestel-cols{grid-template-columns:1fr;}
-    .pestel-col:not(:last-child){border-left:none;border-bottom:1px solid var(--border);}}
 
-  /* --- برچسب‌های فشرده تحلیل آینده‌پژوهی (اثر/احتمال/عدم‌قطعیت/افق/روند) --- */
-  .pfx-tags{display:flex;gap:3px;margin-top:4px;flex-wrap:nowrap;align-items:center;overflow-x:auto;}
-  .pfx-tag{display:inline-flex;align-items:center;gap:2px;font-size:9px;font-weight:700;
+  /* --- ردیف تگ‌های زیر هر عامل (استاندارد/اولویت/اثر/احتمال/عدم‌قطعیت/افق/روند/راهنما) --- */
+  .pfx-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;align-items:center;}
+  .pfx-tag{display:inline-flex;align-items:center;gap:2px;font-size:8.5px;font-weight:700;
     padding:1.5px 5px;border-radius:4px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--border);
-    line-height:1.5;white-space:nowrap;flex-shrink:0;}
+    line-height:1.5;white-space:nowrap;}
   .pfx-tag.pri{color:#fff;border-color:transparent;}
-  .pfx-tag i{font-size:7.5px;}
+  .pfx-tag i{font-size:7px;}
 
   /* --- کارت عوامل کلیدی (برترین‌ها بر اساس اثر×احتمال) --- */
   .pestel-top{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
@@ -110,7 +113,8 @@
         <button type="button" class="sticky-edit-btn" onclick="editFactor(this)"
           data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
           data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
-          data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}">
+          data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}" data-effecttype="{{ item.effect_type }}"
+          data-standard="{{ item.related_standard }}" data-description="{{ item.detailed_description }}" data-scoringguide="{{ item.scoring_guide }}">
           <i class="fa-solid fa-pen"></i>
         </button>
         {% endif %}
@@ -126,88 +130,46 @@
   {% endfor %}
 </div>
 
+{% comment %}آماده‌سازی گرید دو ستونه: بُعدها کنار هم نمایش داده می‌شن{% endcomment %}
+<div class="pestel-grid">
 {% for group in grouped %}
 <div class="pestel-cat" style="--pc:{{ group.color }};--pcs:{{ group.soft }};">
-  <div class="cat-head"><div class="icon"><i class="fa-solid {{ group.icon }}"></i></div><h4>{{ group.label }}</h4></div>
-  <div class="pestel-cols">
-    <div class="pestel-col factor">
-      <div class="col-lbl"><i class="fa-solid fa-circle-info"></i>عوامل محیطی</div>
-      {% for item in group.factors %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
-        <span class="acts">
-          {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
-            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
-            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
-          {% endif %}
-          {% if perms.strategic.delete_pestelfactor %}
-          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
-          {% endif %}
-        </span>
-      </div>
-      <div class="pfx-tags">
-        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
-        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
-        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
-        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
-        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
-        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
-      </div>
-      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
+  <div class="cat-head"><div class="icon"><i class="fa-solid {{ group.icon }}"></i></div><h4>{{ group.label }}</h4><span class="cat-count">{{ group.items|length }} عامل</span></div>
+  <div class="pestel-col">
+    {% for item in group.items %}
+    <div class="pestel-item">
+      <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>{{ item.text }}
+        {% if item.effect_type %}<span class="effect-badge {{ item.effect_type }}">{{ item.get_effect_type_display }}</span>{% endif %}
+        {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">{{ item.related_standard }}</span>{% endif %}
+      </span>
+      <span class="acts">
+        {% if perms.strategic.change_pestelfactor %}
+        <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+          data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+          data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}" data-effecttype="{{ item.effect_type }}"
+          data-standard="{{ item.related_standard }}" data-description="{{ item.detailed_description }}" data-scoringguide="{{ item.scoring_guide }}"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_pestelfactor %}
+        <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+        {% endif %}
+      </span>
     </div>
-    <div class="pestel-col opportunity">
-      <div class="col-lbl"><i class="fa-solid fa-arrow-trend-up"></i>فرصت‌ها</div>
-      {% for item in group.opportunities %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
-        <span class="acts">
-          {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
-            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
-            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
-          {% endif %}
-          {% if perms.strategic.delete_pestelfactor %}
-          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
-          {% endif %}
-        </span>
-      </div>
-      <div class="pfx-tags">
-        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
-        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
-        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
-        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
-        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
-        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
-      </div>
-      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
+    <div class="pfx-tags">
+      {% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}
+      {% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}
+      <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
+      <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
+      <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
+      <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
+      <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
+      <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
+      {% if item.scoring_guide %}<span class="pfx-tag" title="راهنمای امتیازدهی: {{ item.scoring_guide }}"><i class="fa-solid fa-circle-info"></i> راهنما</span>{% endif %}
     </div>
-    <div class="pestel-col threat">
-      <div class="col-lbl"><i class="fa-solid fa-triangle-exclamation"></i>تهدیدها</div>
-      {% for item in group.threats %}
-      <div class="pestel-item"><span class="txt">{{ item.text }}{% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}{% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-arrows-turn-to-dots"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}</span>
-        <span class="acts">
-          {% if perms.strategic.change_pestelfactor %}
-          <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-category="{{ item.category }}" data-kind="{{ item.kind }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
-            data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
-            data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}"><i class="fa-solid fa-pen"></i></button>
-          {% endif %}
-          {% if perms.strategic.delete_pestelfactor %}
-          <form method="post" action="{% url 'strategic:pestel_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
-          {% endif %}
-        </span>
-      </div>
-      <div class="pfx-tags">
-        <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
-        <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
-        <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
-        <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
-        <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
-        <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
-      </div>
-      {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
-    </div>
+    {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
   </div>
 </div>
 {% endfor %}
+</div>
 
 <div class="overlay" id="overlay">
   <div class="modal-card">
@@ -216,7 +178,6 @@
       {% csrf_token %}
       <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>بُعد</label>{{ form.category }}</div>
-      <div class="field-group"><label>نوع</label>{{ form.kind }}</div>
       <div class="field-group"><label>متن</label>{{ form.text }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -226,6 +187,10 @@
         <div class="field-group"><label>افق زمانی</label>{{ form.horizon }}</div>
       </div>
       <div class="field-group"><label>روند تغییر</label>{{ form.trend }}</div>
+      <div class="field-group"><label>نوع اثر</label>{{ form.effect_type }}</div>
+      <div class="field-group"><label>استاندارد مرتبط</label>{{ form.related_standard }}</div>
+      <div class="field-group"><label>توضیح تفصیلی (راهنمای درک و امتیازدهی)</label>{{ form.detailed_description }}</div>
+      <div class="field-group"><label>راهنمای امتیازدهی</label>{{ form.scoring_guide }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="submitBtn">ثبت مورد</button>
@@ -257,7 +222,6 @@
     const d = btn.dataset;
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_category').value = d.category;
-    document.getElementById('id_kind').value = d.kind;
     document.getElementById('id_text').value = d.text;
     document.getElementById('id_order').value = d.order;
     document.getElementById('id_impact_level').value = d.impact || 3;
@@ -265,6 +229,10 @@
     document.getElementById('id_uncertainty').value = d.uncertainty || 'medium';
     document.getElementById('id_horizon').value = d.horizon || 'medium';
     document.getElementById('id_trend').value = d.trend || 'flat';
+    document.getElementById('id_effect_type').value = d.effecttype || '';
+    document.getElementById('id_related_standard').value = d.standard || '';
+    document.getElementById('id_detailed_description').value = d.description || '';
+    document.getElementById('id_scoring_guide').value = d.scoringguide || '';
     document.getElementById('modalTitle').textContent = 'ویرایش مورد PESTEL';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

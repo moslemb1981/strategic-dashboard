@@ -74,6 +74,8 @@
       <td>{{ i.title }}
         {% if i.is_legal %}<span class="lg-tag" style="background:var(--primary-soft);color:var(--primary-dark);">قانونی</span>{% endif %}
         {% if i.is_organizational %}<span class="lg-tag" style="background:var(--accent-soft);color:#7A4711;">سازمانی</span>{% endif %}
+        {% if i.is_internal %}<span class="lg-tag" style="background:var(--success-soft);color:var(--success-dark);">درون سازمانی</span>{% endif %}
+        {% if i.is_external %}<span class="lg-tag" style="background:#FCE7E7;color:#B0413E;">برون سازمانی</span>{% endif %}
       </td>
       <td>{{ i.source|default:"—" }}</td>
       <td>{{ i.scope|default:"—" }}</td>
@@ -85,6 +87,7 @@
         <button type="button" onclick="editLegal(this)"
           data-id="{{ i.pk }}" data-title="{{ i.title }}" data-source="{{ i.source }}"
           data-islegal="{{ i.is_legal|yesno:'1,0' }}" data-isorg="{{ i.is_organizational|yesno:'1,0' }}"
+          data-isinternal="{{ i.is_internal|yesno:'1,0' }}" data-isexternal="{{ i.is_external|yesno:'1,0' }}"
           data-revdate="{{ i.revision_date }}" data-docs="{{ i.related_documents }}" data-scope="{{ i.scope }}"
           data-risk="{{ i.risk_text }}" data-opp="{{ i.opportunity_text }}" data-notes="{{ i.notes }}" data-department="{{ i.department }}"
           style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
@@ -133,9 +136,11 @@
       <input type="hidden" name="obj_id" id="obj_id" value="">
       <div class="field-group"><label>عنوان الزام</label>{{ form.title }}</div>
       <div class="field-group"><label>مأخذ الزام</label>{{ form.source }}</div>
-      <div style="display:flex;gap:16px;margin-bottom:10px;">
+      <div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_legal }} قانونی</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_organizational }} سازمانی</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_internal }} درون سازمانی</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_external }} برون سازمانی</label>
       </div>
       <div class="field-group"><label>تاریخ ویرایش الزام</label>{{ form.revision_date }}</div>
       <div class="field-group"><label>مستندات داخلی مرتبط</label>{{ form.related_documents }}</div>
@@ -222,6 +227,8 @@
     document.getElementById('id_source').value = d.source;
     document.getElementById('id_is_legal').checked = (d.islegal === '1');
     document.getElementById('id_is_organizational').checked = (d.isorg === '1');
+    document.getElementById('id_is_internal').checked = (d.isinternal === '1');
+    document.getElementById('id_is_external').checked = (d.isexternal === '1');
     document.getElementById('id_revision_date').value = d.revdate;
     document.getElementById('id_related_documents').value = d.docs;
     document.getElementById('id_scope').value = d.scope;

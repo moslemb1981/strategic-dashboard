@@ -1,6 +1,7 @@
 import logging
 import re
 import io
+import math
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -327,9 +328,7 @@ def pestel(request):
         grouped.append({
             "key": key, "label": label, "color": color, "soft": soft, "icon": icon,
             "letter": LETTERS[key],
-            "factors": [f for f in cat_items if f.kind == "factor"],
-            "opportunities": [f for f in cat_items if f.kind == "opportunity"],
-            "threats": [f for f in cat_items if f.kind == "threat"],
+            "items": cat_items,
             "summary": cat_items[:6],
         })
 
@@ -490,28 +489,52 @@ def cross_impact_matrix(request):
 # ---------------- Porter's Five Forces ----------------
 
 def porter(request):
-    # مطمئن می‌شویم هر ۵ نیرو همیشه یک رکورد دارند
-    for key, _ in PorterForce.FORCE_CHOICES:
-        PorterForce.objects.get_or_create(force=key)
-
     if request.method == "POST":
-        force_id = request.POST.get("obj_id")
-        if _has_perm(request, "strategic.change_porterforce"):
-            instance = get_object_or_404(PorterForce, pk=force_id)
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_porterforce" if obj_id else "strategic.add_porterforce"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(PorterForce, pk=obj_id) if obj_id else None
             form = PorterForceForm(request.POST, instance=instance)
             if form.is_valid():
                 form.save()
-                _log_action(request, "UPDATE PorterForce", str(instance))
+                _log_action(request, "UPDATE PorterForce" if obj_id else "CREATE PorterForce", str(form.instance))
                 return redirect("strategic:porter")
+        else:
+            form = PorterForceForm()
+    else:
+        form = PorterForceForm()
 
-    forces = list(PorterForce.objects.all().prefetch_related("swot_items__business_unit"))
-    level_rank = {"low": 1, "medium": 2, "high": 3, "very_high": 4}
-    forces.sort(key=lambda f: list(dict(PorterForce.FORCE_CHOICES).keys()).index(f.force))
-    overall = round(sum(level_rank.get(f.level, 2) for f in forces) / len(forces), 1) if forces else 0
+    forces = PorterForce.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors")
+    grouped = []
+    for key, label in PorterForce.FORCE_CHOICES:
+        color, soft, icon = PorterForce.FORCE_STYLE[key]
+        cat_items = [f for f in forces if f.force == key]
+        grouped.append({
+            "key": key, "label": label, "color": color, "soft": soft, "icon": icon,
+            "items": cat_items,
+        })
+
+    segments, connectors = _wheel_geometry(len(grouped), r_out=194, r_in=82, content_r=142)
+    wheel_wedges = [
+        dict(group=g, path=seg["path"], content_x=seg["content_x"], content_y=seg["content_y"])
+        for g, seg in zip(grouped, segments)
+    ]
 
     return render(request, "strategic/porter.html", {
-        "active_page": "porter", "forces": forces, "overall": overall, "form": PorterForceForm(),
+        "active_page": "porter", "grouped": grouped,
+        "wheel_wedges": wheel_wedges, "wheel_connectors": connectors,
+        "form": form,
     })
+
+
+@login_required
+def porter_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_porterforce"):
+        _obj = get_object_or_404(PorterForce, pk=pk)
+        _label = str(_obj)
+        _obj.delete()
+        _log_action(request, "DELETE PorterForce", _label)
+    return redirect("strategic:porter")
 
 
 # ---------------- McKinsey 7S ----------------
@@ -533,9 +556,15 @@ def mckinsey7s(request):
     components = list(McKinsey7S.objects.all().prefetch_related("swot_items__business_unit"))
     order = list(dict(McKinsey7S.COMPONENT_CHOICES).keys())
     components.sort(key=lambda c: order.index(c.component))
+    for c in components:
+        c.color, c.soft, c.icon, c.english, c.group = McKinsey7S.STYLE[c.component]
+    center = next((c for c in components if c.group == "center"), None)
+    hard_items = [c for c in components if c.group == "hard"]
+    soft_items = [c for c in components if c.group == "soft"]
 
     return render(request, "strategic/mckinsey7s.html", {
         "active_page": "mckinsey7s", "components": components, "form": McKinsey7SForm(),
+        "center": center, "hard_items": hard_items, "soft_items": soft_items,
     })
 
 
@@ -731,6 +760,37 @@ def stratmap_print(request):
         bands.append({"label": p_label, "css": PERSP_KEYS[p_key], "nodes": [o for o in objectives if o.perspective == p_key]})
 
     return render(request, "strategic/stratmap_print.html", {"current_bu": current_bu, "bands": bands, "links": links})
+
+
+@login_required
+def stratmap_print_full(request):
+    """خروجی کامل تک‌صفحه‌ای نقشه استراتژیک — اندازه‌ی صفحه دینامیک، بدون تقسیم به چند برگه."""
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+
+    objectives = list(
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        if current_bu else StrategicObjective.objects.none()
+    )
+    links = []
+    for o in objectives:
+        o.theme_name = o.theme.name if o.theme_id else ""
+        targets = list(o.feeds_into.all())
+        o.feeds_codes = [t.code for t in targets]
+        for t in targets:
+            links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+
+    bands = []
+    PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
+    for p_key, p_label in StrategicObjective.PERSPECTIVE_CHOICES:
+        bands.append({"label": p_label, "css": PERSP_KEYS[p_key], "nodes": [o for o in objectives if o.perspective == p_key]})
+
+    return render(request, "strategic/stratmap_print_full.html", {"current_bu": current_bu, "bands": bands, "links": links})
 
 
 @login_required
@@ -1028,6 +1088,65 @@ def risk_delete(request, pk):
 # ---------------- چشم‌انداز، مأموریت و ارزش‌های سازمانی ----------------
 # ویرایش این بخش فقط برای ادمین اصلی (Superuser) مجاز است، نه گروه «ویرایشگران».
 
+def _wheel_geometry(n, cx=200, cy=200, r_out=194, r_in=82, gap_deg=1.6, content_r=142):
+    """هندسه‌ی چرخ SVG (پای‌چارت واقعی، نه چیدمان دایره‌ای CSS): برای n قطعه‌ی بیرونی،
+    مسیر هر قطعه (donut sector) + مختصات محتوای هر قطعه + نقاط اتصال بین قطعات را
+    برمی‌گرداند. زاویه‌ی صفر = بالای چرخ (۱۲)، در جهت عقربه‌های ساعت."""
+    if n <= 0:
+        return [], []
+
+    def polar(r, deg):
+        rad = math.radians(deg)
+        return cx + r * math.sin(rad), cy - r * math.cos(rad)
+
+    step = 360.0 / n
+    segments = []
+    for i in range(n):
+        start = i * step + gap_deg / 2
+        end = (i + 1) * step - gap_deg / 2
+        x1, y1 = polar(r_out, start)
+        x2, y2 = polar(r_out, end)
+        x3, y3 = polar(r_in, end)
+        x4, y4 = polar(r_in, start)
+        large_arc = 1 if (end - start) > 180 else 0
+        path = (
+            f"M {x1:.2f} {y1:.2f} A {r_out} {r_out} 0 {large_arc} 1 {x2:.2f} {y2:.2f} "
+            f"L {x3:.2f} {y3:.2f} A {r_in} {r_in} 0 {large_arc} 0 {x4:.2f} {y4:.2f} Z"
+        )
+        mid = (start + end) / 2
+        content_x, content_y = polar(content_r, mid)
+        arrow_x, arrow_y = polar(r_in + 14, mid)
+        arrow_deg = mid + 180
+        segments.append(dict(
+            path=path, content_x=round(content_x, 1), content_y=round(content_y, 1),
+            arrow_x=round(arrow_x, 1), arrow_y=round(arrow_y, 1), arrow_deg=round(arrow_deg, 1),
+        ))
+
+    connectors = []
+    for i in range(n):
+        x, y = polar(r_out, i * step)
+        connectors.append(dict(x=round(x, 1), y=round(y, 1)))
+
+    return segments, connectors
+
+
+# استانداردهای مدیریتی — نمایشی/ثابت، مطابق پوستر رسمی خط‌مشی سیستم‌های مدیریتی سایپا یدک.
+ORG_ISO_STANDARDS = [
+    dict(code="ISO 9001:2015", title="مدیریت کیفیت", domain="کلیه فرایندها"),
+    dict(code="ISO 10002:2018", title="مدیریت شکایات مشتریان", domain="خدمات پس از فروش"),
+    dict(code="ISO 10004:2018", title="اندازه‌گیری رضایت مشتری", domain="بازاریابی و فروش"),
+    dict(code="ISO 10015:2019", title="مدیریت آموزش", domain="توسعه منابع انسانی"),
+    dict(code="ISO 14001:2015", title="مدیریت زیست‌محیطی", domain="تمامی فعالیت‌ها"),
+]
+
+# زنجیره‌ی ارزش ← هدف استراتژیک ← شاخص کلیدی ← پروژه‌های مرتبط — صرفاً نمونه‌ی نمایشی برای
+# توضیح نوع ارتباط؛ به داده‌ی واقعی نقشه استراتژیک/KPI وصل نیست (طبق تصمیم صریح کاربر).
+ORG_VALUE_CHAIN_SAMPLES = [
+    dict(value="مشتری‌مداری", goal="افزایش رضایت مشتریان از خدمات پس از فروش",
+         kpi="شاخص رضایت مشتری (CSI)", project="پلتفرم یکپارچه مدیریت ارتباط با مشتری (CRM)"),
+]
+
+
 def org_identity(request):
     identity, _ = OrgIdentity.objects.get_or_create(pk=1)
 
@@ -1037,6 +1156,7 @@ def org_identity(request):
         if form_kind == "identity":
             identity.vision = request.POST.get("vision", "").strip()
             identity.mission = request.POST.get("mission", "").strip()
+            identity.management_statement = request.POST.get("management_statement", "").strip()
             identity.signed_by = request.POST.get("signed_by", "").strip()
             identity.signed_role = request.POST.get("signed_role", "").strip()
             identity.signed_date = request.POST.get("signed_date", "").strip()
@@ -1048,11 +1168,22 @@ def org_identity(request):
             obj_id = request.POST.get("obj_id")
             text = request.POST.get("text", "").strip()
             is_center = bool(request.POST.get("is_center"))
+            icon = request.POST.get("icon", "").strip() or "fa-solid fa-star"
+            color = request.POST.get("color", "").strip() or "#C97A2B"
+            definition = request.POST.get("definition", "").strip()
+            expected_behaviors = request.POST.get("expected_behaviors", "").strip()
+            examples = request.POST.get("examples", "").strip()
+            related_policy_id = request.POST.get("related_policy") or None
             if text:
+                field_values = dict(
+                    text=text, is_center=is_center, icon=icon, color=color,
+                    definition=definition, expected_behaviors=expected_behaviors, examples=examples,
+                    related_policy_id=related_policy_id,
+                )
                 if obj_id:
-                    OrgValue.objects.filter(pk=obj_id).update(text=text, is_center=is_center)
+                    OrgValue.objects.filter(pk=obj_id).update(**field_values)
                 else:
-                    OrgValue.objects.create(text=text, is_center=is_center, order=OrgValue.objects.count())
+                    OrgValue.objects.create(order=OrgValue.objects.count(), **field_values)
                 _log_action(request, "UPDATE OrgValue" if obj_id else "CREATE OrgValue", text)
             return redirect("strategic:org_identity")
 
@@ -1073,10 +1204,30 @@ def org_identity(request):
     center_value = next((v for v in values if v.is_center), None)
     policy_points = list(QualityPolicyPoint.objects.all())
 
+    segments, connectors = _wheel_geometry(len(outer_values))
+    wheel_wedges = [
+        dict(value=v, path=seg["path"], content_x=seg["content_x"], content_y=seg["content_y"])
+        for v, seg in zip(outer_values, segments)
+    ]
+
+    values_for_js = {
+        str(v.pk): {
+            "text": v.text, "icon": v.icon, "color": v.color, "is_center": v.is_center,
+            "policy_number": v.related_policy.number if v.related_policy else None,
+            "policy_text": v.related_policy.text if v.related_policy else None,
+        } for v in values
+    }
+
     return render(request, "strategic/org_identity.html", {
         "active_page": "org_identity", "identity": identity,
         "outer_values": outer_values, "center_value": center_value,
         "policy_points": policy_points,
+        "wheel_wedges": wheel_wedges, "wheel_connectors": connectors,
+        "values_for_js": values_for_js,
+        "iso_standards": ORG_ISO_STANDARDS,
+        "value_chain_samples": ORG_VALUE_CHAIN_SAMPLES,
+        "icon_choices": OrgValue.ICON_CHOICES,
+        "color_choices": OrgValue.COLOR_CHOICES,
     })
 
 
@@ -1504,7 +1655,8 @@ def cross_impact_matrix_import(request):
 # ---------------- ورود/خروجی اکسل کامل مخزن ذینفعان ----------------
 
 _STAKEHOLDER_EXCEL_HEADERS = [
-    "واحد/مدیریت", "نام ذینفع", "کانال ارتباطی", "نیاز/انتظار ذینفع", "نوع: نیاز (بله/خیر)", "نوع: انتظار (بله/خیر)",
+    "واحد/مدیریت", "نام ذینفع", "درون سازمانی (بله/خیر)", "برون سازمانی (بله/خیر)", "کانال ارتباطی",
+    "نیاز/انتظار ذینفع", "نوع: نیاز (بله/خیر)", "نوع: انتظار (بله/خیر)",
     "ریسک", "احتمال وقوع ریسک", "شدت ریسک", "قابلیت تشخیص ریسک", "عدد ریسک",
     "فرصت", "امتیاز اهمیت فرصت", "امتیاز تأثیر فرصت", "عدد فرصت",
     "اقدام تعریف‌شده", "حوزه", "وضعیت رسیدگی",
@@ -1532,7 +1684,7 @@ def stakeholder_export(request):
     status_fa = dict(Stakeholder.STATUS_CHOICES)
     for row_i, s in enumerate(Stakeholder.objects.all(), start=2):
         values = [
-            s.department, s.name, s.channel, s.need,
+            s.department, s.name, "بله" if s.is_internal else "", "بله" if s.is_external else "", s.channel, s.need,
             "بله" if s.need_flag else "", "بله" if s.expectation_flag else "",
             s.risk_text, s.risk_occurrence, s.risk_severity, s.risk_detection, s.risk_score,
             s.opportunity_text, s.opportunity_importance, s.opportunity_impact, s.opportunity_score,
@@ -1541,7 +1693,7 @@ def stakeholder_export(request):
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [22, 26, 20, 30, 10, 10, 26, 10, 10, 10, 10, 30, 10, 10, 10, 30, 16, 14]
+    widths = [22, 26, 14, 14, 20, 30, 10, 10, 26, 10, 10, 10, 10, 30, 10, 10, 10, 30, 16, 14]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -1595,22 +1747,24 @@ def stakeholder_import(request):
         Stakeholder.objects.create(
             department=_s(row[0]),
             name=_s(row[1]),
-            channel=_s(row[2]) if len(row) > 2 else "",
-            need=_s(row[3]) if len(row) > 3 else "",
-            need_flag=_s(row[4]).startswith("بل") if len(row) > 4 else False,
-            expectation_flag=_s(row[5]).startswith("بل") if len(row) > 5 else False,
-            risk_text=_s(row[6]) if len(row) > 6 else "",
-            risk_occurrence=_i(row[7]) if len(row) > 7 else None,
-            risk_severity=_i(row[8]) if len(row) > 8 else None,
-            risk_detection=_i(row[9]) if len(row) > 9 else None,
-            risk_score=_i(row[10]) if len(row) > 10 else None,
-            opportunity_text=_s(row[11]) if len(row) > 11 else "",
-            opportunity_importance=_i(row[12]) if len(row) > 12 else None,
-            opportunity_impact=_i(row[13]) if len(row) > 13 else None,
-            opportunity_score=_i(row[14]) if len(row) > 14 else None,
-            action=_s(row[15]) if len(row) > 15 else "",
-            domain=_s(row[16]) if len(row) > 16 else "",
-            status=status_by_fa.get(_s(row[17]), "open") if len(row) > 17 else "open",
+            is_internal=_s(row[2]).startswith("بل") if len(row) > 2 else False,
+            is_external=_s(row[3]).startswith("بل") if len(row) > 3 else False,
+            channel=_s(row[4]) if len(row) > 4 else "",
+            need=_s(row[5]) if len(row) > 5 else "",
+            need_flag=_s(row[6]).startswith("بل") if len(row) > 6 else False,
+            expectation_flag=_s(row[7]).startswith("بل") if len(row) > 7 else False,
+            risk_text=_s(row[8]) if len(row) > 8 else "",
+            risk_occurrence=_i(row[9]) if len(row) > 9 else None,
+            risk_severity=_i(row[10]) if len(row) > 10 else None,
+            risk_detection=_i(row[11]) if len(row) > 11 else None,
+            risk_score=_i(row[12]) if len(row) > 12 else None,
+            opportunity_text=_s(row[13]) if len(row) > 13 else "",
+            opportunity_importance=_i(row[14]) if len(row) > 14 else None,
+            opportunity_impact=_i(row[15]) if len(row) > 15 else None,
+            opportunity_score=_i(row[16]) if len(row) > 16 else None,
+            action=_s(row[17]) if len(row) > 17 else "",
+            domain=_s(row[18]) if len(row) > 18 else "",
+            status=status_by_fa.get(_s(row[19]), "open") if len(row) > 19 else "open",
         )
         created += 1
 
@@ -1667,7 +1821,8 @@ def legal_requirement_delete(request, pk):
 
 
 _LEGAL_EXCEL_HEADERS = [
-    "الزامات قانونی و سازمانی", "مأخذ الزام", "قانونی (بله/خیر)", "سازمانی (بله/خیر)", "تاریخ ویرایش الزام",
+    "الزامات قانونی و سازمانی", "مأخذ الزام", "قانونی (بله/خیر)", "سازمانی (بله/خیر)",
+    "درون سازمانی (بله/خیر)", "برون سازمانی (بله/خیر)", "تاریخ ویرایش الزام",
     "مستندات داخلی مرتبط", "محل کاربرد", "ریسک", "فرصت", "توضیحات", "نام مدیریت/معاونت",
 ]
 
@@ -1693,13 +1848,14 @@ def legal_requirement_export(request):
     for row_i, r in enumerate(LegalRequirement.objects.all(), start=2):
         values = [
             r.title, r.source, "بله" if r.is_legal else "", "بله" if r.is_organizational else "",
+            "بله" if r.is_internal else "", "بله" if r.is_external else "",
             r.revision_date, r.related_documents, r.scope, r.risk_text, r.opportunity_text,
             r.notes, r.department,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [34, 20, 12, 12, 16, 28, 20, 28, 28, 24, 22]
+    widths = [34, 20, 12, 12, 14, 14, 16, 28, 20, 28, 28, 24, 22]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -1748,13 +1904,15 @@ def legal_requirement_import(request):
             source=_s(row[1]) if len(row) > 1 else "",
             is_legal=_s(row[2]).startswith("بل") if len(row) > 2 else False,
             is_organizational=_s(row[3]).startswith("بل") if len(row) > 3 else False,
-            revision_date=_s(row[4]) if len(row) > 4 else "",
-            related_documents=_s(row[5]) if len(row) > 5 else "",
-            scope=_s(row[6]) if len(row) > 6 else "",
-            risk_text=_s(row[7]) if len(row) > 7 else "",
-            opportunity_text=_s(row[8]) if len(row) > 8 else "",
-            notes=_s(row[9]) if len(row) > 9 else "",
-            department=_s(row[10]) if len(row) > 10 else "",
+            is_internal=_s(row[4]).startswith("بل") if len(row) > 4 else False,
+            is_external=_s(row[5]).startswith("بل") if len(row) > 5 else False,
+            revision_date=_s(row[6]) if len(row) > 6 else "",
+            related_documents=_s(row[7]) if len(row) > 7 else "",
+            scope=_s(row[8]) if len(row) > 8 else "",
+            risk_text=_s(row[9]) if len(row) > 9 else "",
+            opportunity_text=_s(row[10]) if len(row) > 10 else "",
+            notes=_s(row[11]) if len(row) > 11 else "",
+            department=_s(row[12]) if len(row) > 12 else "",
         )
         created += 1
 
@@ -1915,3 +2073,355 @@ def environmental_factor_import(request):
     _log_action(request, "IMPORT EnvironmentalFactor Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
     messages.success(request, f"جایگزینی انجام شد: بانک قبلی پاک شد و {created} عامل از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
     return redirect("strategic:environmental_factors")
+
+
+# ---------------- خروجی اکسل جامع نقشه استراتژیک (۴ شیت، هر کسب‌وکار جدا) ----------------
+
+def _kpi_pct_color(pct):
+    if pct is None:
+        return None
+    if pct < 60:
+        return "red"
+    if pct < 90:
+        return "yellow"
+    return "green"
+
+
+def _objective_kpi_entries(o):
+    """لیست شاخص‌های وصل به یک هدف (مشترک + اختصاصی) با کد/نام/هدف/عملکرد/درصد."""
+    entries = []
+    for k in o.linked_kpis.all():
+        entries.append({
+            "code": k.code, "name": k.name, "target": k.target_1405, "actual": k.actual_1405,
+            "pct": k.manual_progress_value,
+        })
+    for k in o.kpis.all():
+        entries.append({
+            "code": "", "name": k.name, "target": k.target, "actual": k.actual,
+            "pct": k.progress_pct,
+        })
+    return entries
+
+
+def _objective_overall_pct(entries):
+    vals = [e["pct"] for e in entries if e["pct"] is not None]
+    return round(sum(vals) / len(vals)) if vals else None
+
+
+def _objective_swot_items(o):
+    return list(o.source_tows.source_items.all()) if o.source_tows_id else []
+
+
+@login_required
+def stratmap_export_excel(request):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.formatting.rule import DataBarRule
+    from openpyxl.utils import get_column_letter
+
+    business_units = list(BusinessUnit.objects.all())
+    bu_id = request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+    if not current_bu:
+        messages.error(request, "هیچ کسب‌وکاری برای خروجی وجود ندارد.")
+        return redirect("strategic:stratmap")
+
+    objectives = list(
+        StrategicObjective.objects.filter(business_unit=current_bu)
+        .select_related("theme", "source_tows")
+        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "kpis", "source_tows__source_items")
+    )
+
+    HEADER_FILL = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    HEADER_FONT = Font(color="FFFFFF", bold=True, size=10.5)
+    WRAP = Alignment(horizontal="right", vertical="top", wrap_text=True)
+    CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    THIN = Side(style="thin", color="D9D9D9")
+    BORDER = Border(top=THIN, bottom=THIN, left=THIN, right=THIN)
+    GREEN_FILL = PatternFill(start_color="D9EAD9", end_color="D9EAD9", fill_type="solid")
+    YELLOW_FILL = PatternFill(start_color="FCE8B2", end_color="FCE8B2", fill_type="solid")
+    RED_FILL = PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid")
+    PCT_FILL = {"green": GREEN_FILL, "yellow": YELLOW_FILL, "red": RED_FILL}
+    STATUS_EMOJI = {"green": "🟢 مطلوب", "yellow": "🟡 نیازمند توجه", "red": "🔴 بحرانی"}
+
+    def style_header_row(ws, row, ncols):
+        for c in range(1, ncols + 1):
+            cell = ws.cell(row=row, column=c)
+            cell.fill = HEADER_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = CENTER
+            cell.border = BORDER
+
+    wb = openpyxl.Workbook()
+
+    # ============= شیت ۱: داشبورد استراتژیک =============
+    ws1 = wb.active
+    ws1.title = "داشبورد استراتژیک"
+    ws1.sheet_view.rightToLeft = True
+    ws1.cell(row=1, column=1, value=f"داشبورد استراتژیک — {current_bu.name}").font = Font(bold=True, size=14)
+    ws1.merge_cells("A1:F1")
+
+    headers1 = ["منظر", "تعداد اهداف", "تحقق میانگین", "سبز", "زرد", "قرمز"]
+    for c, h in enumerate(headers1, start=1):
+        ws1.cell(row=3, column=c, value=h)
+    style_header_row(ws1, 3, len(headers1))
+
+    persp_map = [("financial", "مالی"), ("customer", "مشتری"), ("process", "فرآیند"), ("learning", "یادگیری و رشد")]
+    row = 4
+    for p_key, p_label in persp_map:
+        p_objs = [o for o in objectives if o.perspective == p_key]
+        pcts = []
+        g = y = r = 0
+        for o in p_objs:
+            entries = _objective_kpi_entries(o)
+            pct = _objective_overall_pct(entries)
+            if pct is not None:
+                pcts.append(pct)
+                color = _kpi_pct_color(pct)
+                if color == "green":
+                    g += 1
+                elif color == "yellow":
+                    y += 1
+                else:
+                    r += 1
+        avg_pct = round(sum(pcts) / len(pcts)) if pcts else None
+        ws1.cell(row=row, column=1, value=p_label)
+        ws1.cell(row=row, column=2, value=len(p_objs))
+        ws1.cell(row=row, column=3, value=(f"{avg_pct}%" if avg_pct is not None else "—"))
+        ws1.cell(row=row, column=4, value=g)
+        ws1.cell(row=row, column=5, value=y)
+        ws1.cell(row=row, column=6, value=r)
+        for c in range(1, 7):
+            ws1.cell(row=row, column=c).border = BORDER
+            ws1.cell(row=row, column=c).alignment = CENTER
+        row += 1
+
+    row += 2
+    ws1.cell(row=row, column=1, value="خلاصه کلی").font = Font(bold=True, size=12)
+    row += 1
+    summary_rows = [
+        ("تعداد اهداف استراتژیک", len(objectives)),
+        ("تعداد راهبردهای TOWS", sum(1 for o in objectives if o.source_tows_id)),
+        ("تعداد شاخص‌های وصل‌شده (مشترک+اختصاصی)", sum(len(_objective_kpi_entries(o)) for o in objectives)),
+        ("تعداد پروژه‌های تحول", Initiative.objects.filter(business_unit=current_bu).count()),
+        ("تعداد ریسک‌های وصل به این کسب‌وکار", Risk.objects.filter(linked_objective__business_unit=current_bu).distinct().count()),
+    ]
+    for label, val in summary_rows:
+        ws1.cell(row=row, column=1, value=label).font = Font(bold=True)
+        ws1.cell(row=row, column=2, value=val)
+        row += 1
+
+    for col, w in zip("ABCDEF", [22, 14, 14, 8, 8, 8]):
+        ws1.column_dimensions[col].width = w
+
+    # ============= شیت ۲: نقشه استراتژیک =============
+    ws2 = wb.create_sheet("نقشه استراتژیک")
+    ws2.sheet_view.rightToLeft = True
+    headers2 = ["کد", "هدف استراتژیک", "منظر", "محور", "KPIها", "تحقق", "وضعیت", "TOWS", "SWOT", "اهداف مرتبط", "منشأ تحلیل"]
+    for c, h in enumerate(headers2, start=1):
+        ws2.cell(row=1, column=c, value=h)
+    style_header_row(ws2, 1, len(headers2))
+    ws2.freeze_panes = "A2"
+
+    PERSP_LABEL = dict(StrategicObjective.PERSPECTIVE_CHOICES)
+    r = 2
+    for o in objectives:
+        entries = _objective_kpi_entries(o)
+        overall_pct = _objective_overall_pct(entries)
+        color = _kpi_pct_color(overall_pct)
+
+        kpi_lines = []
+        for e in entries:
+            label = f"{e['code']} {e['name']}".strip() if e["code"] else e["name"]
+            pct_txt = f"{e['pct']}%" if e["pct"] is not None else "—"
+            kpi_lines.append(f"{label}\nهدف:{e['target'] or '—'}  عملکرد:{e['actual'] or '—'}  تحقق:{pct_txt}")
+        kpi_cell = "\n\n".join(kpi_lines) if kpi_lines else "—"
+
+        tows_cell = f"{o.source_tows.get_category_display()}\n{o.source_tows.text}" if o.source_tows_id else "—"
+
+        swot_items = _objective_swot_items(o)
+        swot_groups = {}
+        for it in swot_items:
+            swot_groups.setdefault(it.category, []).append(it)
+        swot_lines = []
+        cat_label = {"s": "قوت‌ها", "w": "ضعف‌ها", "o": "فرصت‌ها", "t": "تهدیدها"}
+        for cat in ["s", "o", "w", "t"]:
+            if cat in swot_groups:
+                for it in swot_groups[cat]:
+                    swot_lines.append(f"{it.category.upper()}: {it.text}")
+        swot_cell = "\n".join(swot_lines) if swot_lines else "—"
+
+        conn_lines = []
+        for t in o.feeds_into.all():
+            conn_lines.append(f"→ {t.code}\n{t.title}")
+        for f in o.fed_by.all():
+            conn_lines.append(f"← {f.code}\n{f.title}")
+        conn_cell = "\n\n".join(conn_lines) if conn_lines else "—"
+
+        source_lines = []
+        for it in swot_items:
+            if it.source_label:
+                source_lines.append(it.source_label)
+        source_cell = "\n".join(source_lines) if source_lines else "—"
+
+        ws2.cell(row=r, column=1, value=o.code)
+        ws2.cell(row=r, column=2, value=o.title)
+        ws2.cell(row=r, column=3, value=PERSP_LABEL.get(o.perspective, o.perspective))
+        ws2.cell(row=r, column=4, value=o.theme.name if o.theme_id else "—")
+        ws2.cell(row=r, column=5, value=kpi_cell)
+        pct_cell = ws2.cell(row=r, column=6, value=(overall_pct / 100 if overall_pct is not None else None))
+        pct_cell.number_format = "0%"
+        ws2.cell(row=r, column=7, value=STATUS_EMOJI.get(color, "—"))
+        ws2.cell(row=r, column=8, value=tows_cell)
+        ws2.cell(row=r, column=9, value=swot_cell)
+        ws2.cell(row=r, column=10, value=conn_cell)
+        ws2.cell(row=r, column=11, value=source_cell)
+
+        for c in range(1, 12):
+            cell = ws2.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        if color:
+            ws2.cell(row=r, column=7).fill = PCT_FILL[color]
+        r += 1
+
+    widths2 = [8, 26, 10, 14, 34, 9, 15, 26, 30, 26, 26]
+    for i, w in enumerate(widths2, start=1):
+        ws2.column_dimensions[get_column_letter(i)].width = w
+    for rr in range(2, r):
+        ws2.row_dimensions[rr].height = 70
+
+    if r > 2:
+        databar = DataBarRule(start_type="num", start_value=0, end_type="num", end_value=1, color="3E7A52")
+        ws2.conditional_formatting.add(f"F2:F{r-1}", databar)
+
+    # ============= شیت ۳: Strategic Traceability =============
+    ws3 = wb.create_sheet("Strategic Traceability")
+    ws3.sheet_view.rightToLeft = True
+    headers3 = ["کد", "هدف", "TOWS", "SWOT", "منشأ SWOT", "KPI"]
+    for c, h in enumerate(headers3, start=1):
+        ws3.cell(row=1, column=c, value=h)
+    style_header_row(ws3, 1, len(headers3))
+    ws3.freeze_panes = "A2"
+
+    r = 2
+    for o in objectives:
+        tows_cell = f"{o.source_tows.get_category_display()}\n{o.source_tows.text[:120]}" if o.source_tows_id else "—"
+        swot_items = _objective_swot_items(o)
+        swot_cell = "\n".join(f"{it.category.upper()}: {it.text}" for it in swot_items) if swot_items else "—"
+        source_cell = "\n".join(it.source_label for it in swot_items if it.source_label) if swot_items else "—"
+        entries = _objective_kpi_entries(o)
+        kpi_cell = "\n".join(
+            f"{(e['code'] + ' ' if e['code'] else '')}{e['name']} — {e['pct']}%" if e["pct"] is not None
+            else f"{(e['code'] + ' ' if e['code'] else '')}{e['name']}"
+            for e in entries
+        ) if entries else "—"
+
+        ws3.cell(row=r, column=1, value=o.code)
+        ws3.cell(row=r, column=2, value=o.title)
+        ws3.cell(row=r, column=3, value=tows_cell)
+        ws3.cell(row=r, column=4, value=swot_cell)
+        ws3.cell(row=r, column=5, value=source_cell)
+        ws3.cell(row=r, column=6, value=kpi_cell)
+        for c in range(1, 7):
+            cell = ws3.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        r += 1
+
+    widths3 = [8, 26, 30, 30, 26, 26]
+    for i, w in enumerate(widths3, start=1):
+        ws3.column_dimensions[get_column_letter(i)].width = w
+    for rr in range(2, r):
+        ws3.row_dimensions[rr].height = 80
+
+    # ============= شیت ۴: همه KPIهای مرتبط با این کسب‌وکار =============
+    ws4 = wb.create_sheet("همه KPIها")
+    ws4.sheet_view.rightToLeft = True
+    headers4 = ["کد", "شاخص", "نوع", "هدف", "عملکرد", "تحقق", "اهداف مرتبط", "SWOT مرتبط (از طریق اهداف)"]
+    for c, h in enumerate(headers4, start=1):
+        ws4.cell(row=1, column=c, value=h)
+    style_header_row(ws4, 1, len(headers4))
+    ws4.freeze_panes = "A2"
+
+    # جمع‌آوری منحصربه‌فرد شاخص‌های مشترک و اختصاصی مرتبط با اهداف این کسب‌وکار
+    shared_map = {}   # kpi_pk -> {"kpi": obj, "objectives": [o,...]}
+    custom_list = []  # list of (StrategicKPI, objective)
+    for o in objectives:
+        for k in o.linked_kpis.all():
+            shared_map.setdefault(k.pk, {"kpi": k, "objectives": []})
+            shared_map[k.pk]["objectives"].append(o)
+        for k in o.kpis.all():
+            custom_list.append((k, o))
+
+    r = 2
+    for entry in shared_map.values():
+        k = entry["kpi"]
+        objs = entry["objectives"]
+        pct = k.manual_progress_value
+        color = _kpi_pct_color(pct)
+        obj_cell = "\n".join(f"{o.code} — {o.title}" for o in objs)
+        swot_lines = []
+        for o in objs:
+            for it in _objective_swot_items(o):
+                swot_lines.append(f"{it.category.upper()}: {it.text}")
+        swot_cell = "\n".join(dict.fromkeys(swot_lines)) if swot_lines else "—"
+
+        ws4.cell(row=r, column=1, value=k.code)
+        ws4.cell(row=r, column=2, value=k.name)
+        ws4.cell(row=r, column=3, value="مشترک شرکت")
+        ws4.cell(row=r, column=4, value=k.target_1405 or "—")
+        ws4.cell(row=r, column=5, value=k.actual_1405 or "—")
+        ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))
+        ws4.cell(row=r, column=7, value=obj_cell)
+        ws4.cell(row=r, column=8, value=swot_cell)
+        if color:
+            ws4.cell(row=r, column=6).fill = PCT_FILL[color]
+        for c in range(1, 9):
+            cell = ws4.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        r += 1
+
+    for k, o in custom_list:
+        pct = k.progress_pct
+        color = _kpi_pct_color(pct)
+        swot_cell = "\n".join(f"{it.category.upper()}: {it.text}" for it in _objective_swot_items(o)) or "—"
+
+        ws4.cell(row=r, column=1, value="—")
+        ws4.cell(row=r, column=2, value=k.name)
+        ws4.cell(row=r, column=3, value="اختصاصی هدف")
+        ws4.cell(row=r, column=4, value=k.target or "—")
+        ws4.cell(row=r, column=5, value=k.actual or "—")
+        ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))
+        ws4.cell(row=r, column=7, value=f"{o.code} — {o.title}")
+        ws4.cell(row=r, column=8, value=swot_cell)
+        if color:
+            ws4.cell(row=r, column=6).fill = PCT_FILL[color]
+        for c in range(1, 9):
+            cell = ws4.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        r += 1
+
+    widths4 = [8, 28, 14, 12, 12, 10, 30, 30]
+    for i, w in enumerate(widths4, start=1):
+        ws4.column_dimensions[get_column_letter(i)].width = w
+    for rr in range(2, r):
+        ws4.row_dimensions[rr].height = 46
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT StratMap Excel (4 sheets)", f"{current_bu.name} — {len(objectives)} هدف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    safe_name = current_bu.name.replace(" ", "-")
+    response["Content-Disposition"] = f'attachment; filename="nagshe-esteratejik-{safe_name}.xlsx"'
+    return response

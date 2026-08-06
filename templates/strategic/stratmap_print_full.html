@@ -3,13 +3,13 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>نقشه استراتژیک — {{ current_bu.name|default:"سایپا یدک" }}</title>
+<title>نقشه استراتژیک (خروجی کامل تک‌صفحه‌ای) — {{ current_bu.name|default:"سایپا یدک" }}</title>
 <link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
 <style>
-  @page{ size: A4 landscape; margin: 8mm 10mm; }
+  @page{ size: 1600mm 1000mm; margin: 12mm; }
   *{box-sizing:border-box;}
   body{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;margin:0;padding:14px 16px;color:#14202f;
-       background:#fff;direction:rtl;font-size:11px;}
+       background:#fff;direction:rtl;font-size:14px;}
   .toolbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;}
   .toolbar button{font-family:inherit;font-size:12px;font-weight:600;border:1px solid #dcdfe4;background:#f7f8fa;
        color:#14202f;padding:7px 14px;border-radius:8px;cursor:pointer;}
@@ -29,23 +29,23 @@
   .persp{margin-bottom:16px;position:relative;z-index:2;}
   .persp-head{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
   .persp-bar{width:4px;height:11px;border-radius:2px;}
-  .persp-title{font-size:10px;font-weight:800;}
-  .persp-count{font-size:7.5px;color:#8b93a1;font-weight:600;}
+  .persp-title{font-size:12px;font-weight:800;}
+  .persp-count{font-size:9px;color:#8b93a1;font-weight:600;}
 
-  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 4px;row-gap:12px;}
-  .card{border:1px solid #e2e5ea;border-radius:5px;padding:4px 6px;break-inside:avoid;background:#fbfbfa;position:relative;}
+  .cards{display:grid;grid-template-columns:repeat(8,1fr);gap:6px 6px;row-gap:14px;}
+  .card{border:1px solid #e2e5ea;border-radius:6px;padding:6px 8px;break-inside:avoid;background:#fbfbfa;position:relative;}
   .card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;}
-  .card .code{font-size:7px;font-weight:800;color:#fff;border-radius:3px;padding:1px 4px;}
-  .card .ttl{font-size:8px;font-weight:700;line-height:1.25;}
-  .card .kpi{font-size:6.8px;color:#5a6474;line-height:1.25;margin-top:2px;}
-  .empty{font-size:8px;color:#8b93a1;padding:4px 0;}
+  .card .code{font-size:9px;font-weight:800;color:#fff;border-radius:3px;padding:1px 5px;}
+  .card .ttl{font-size:10px;font-weight:700;line-height:1.3;}
+  .card .kpi{font-size:8.5px;color:#5a6474;line-height:1.3;margin-top:3px;}
+  .empty{font-size:9px;color:#8b93a1;padding:4px 0;}
 
   .fin .persp-bar{background:#0f8a6a;} .fin .code{background:#0f8a6a;}
   .cust .persp-bar{background:#1183c9;} .cust .code{background:#1183c9;}
   .proc .persp-bar{background:#7b5cd6;} .proc .code{background:#7b5cd6;}
   .learn .persp-bar{background:#d08a1f;} .learn .code{background:#d08a1f;}
 
-  footer{margin-top:6px;padding-top:4px;border-top:1px solid #e2e5ea;font-size:7px;color:#8b93a1;text-align:center;position:relative;z-index:2;}
+  footer{margin-top:6px;padding-top:4px;border-top:1px solid #e2e5ea;font-size:8px;color:#8b93a1;text-align:center;position:relative;z-index:2;}
 
   @media print{
     .toolbar{display:none;}
@@ -68,7 +68,7 @@
     <div>
       <div class="co">سایپا یدک</div>
       <div class="bu-name">{{ current_bu.name|default:"—" }}</div>
-      <div class="bu-sub">نقشه استراتژیک — مدل کارت امتیازی متوازن (BSC)</div>
+      <div class="bu-sub">نقشه استراتژیک — خروجی کامل تک‌صفحه‌ای (مدل BSC)</div>
     </div>
     <div class="meta">تاریخ گزارش<br>{% load jalali_tags %}{% jalali_now %}</div>
   </header>
@@ -137,46 +137,29 @@
       return links.length;
     }
 
-    function fitToPage(){
+    function setDynamicPageSize(){
       const canvas = document.getElementById('canvas');
-      const cardGrids = document.querySelectorAll('.cards');
-      // فضای قابل استفاده صفحه A4 افقی با حاشیه ۸/۱۰ میلی‌متر، تقریبی بر حسب پیکسل (۹۶dpi)
-      const MM = 3.7795;
-      const availW = (297 - 20) * MM;
-      const availH = (210 - 16 - 26) * MM; // ۲۶ میلی‌متر برای هدر/فوتر کنار گذاشته می‌شود
-
-      canvas.style.zoom = 1;
-      canvas.style.width = availW + 'px'; // محدود کردن عرض به عرض واقعی چاپ، نه عرض پنجره مرورگر
-
-      // جستجوی بهترین تعداد ستون تا محتوا دقیقاً با ارتفاع صفحه جفت شود
-      let bestN = 6, bestDiff = Infinity;
-      for (let n = 3; n <= 12; n++){
-        cardGrids.forEach(el => el.style.gridTemplateColumns = `repeat(${n},1fr)`);
-        const h = canvas.scrollHeight;
-        const diff = availH - h;
-        if (diff >= 0 && diff < bestDiff){ bestDiff = diff; bestN = n; }
-      }
-      cardGrids.forEach(el => el.style.gridTemplateColumns = `repeat(${bestN},1fr)`);
-
-      // یک تنظیم دقیق کوچک نهایی (حداکثر ۱۵٪) برای پر کردن باقی فاصله خالی
-      const finalH = canvas.scrollHeight;
-      let scale = Math.min(availH / finalH, 1.15);
-      scale = Math.max(scale, 0.85);
-      canvas.style.zoom = scale;
+      const MM = 3.7795; // پیکسل به میلی‌متر در ۹۶dpi
+      const marginMM = 12;
+      const widthMM = Math.ceil(canvas.scrollWidth / MM) + marginMM * 2;
+      const heightMM = Math.ceil(canvas.scrollHeight / MM) + marginMM * 2 + 30; // ۳۰mm برای هدر/فوتر
+      const styleTag = document.createElement('style');
+      styleTag.textContent = `@page{ size: ${widthMM}mm ${heightMM}mm; margin: ${marginMM}mm; }`;
+      document.head.appendChild(styleTag);
     }
 
     window.addEventListener('load', function(){
-      fitToPage();
       requestAnimationFrame(function(){
         const n = drawArrows();
-        document.getElementById('status').textContent = n + ' رابطه رسم شد';
+        setDynamicPageSize();
+        document.getElementById('status').textContent = n + ' رابطه رسم شد — اندازه صفحه با محتوا تنظیم شد';
         setTimeout(function(){
           document.getElementById('status').style.display = 'none';
           window.print();
-        }, 300);
+        }, 400);
       });
     });
-    window.addEventListener('resize', function(){ fitToPage(); drawArrows(); });
+    window.addEventListener('resize', function(){ drawArrows(); });
   </script>
 </body>
 </html>

@@ -1,0 +1,29 @@
+{% load static %}
+<div class="porter-item">
+  <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>{{ item.text }}
+    {% if item.effect_type %}<span class="effect-badge {{ item.effect_type }}">{{ item.get_effect_type_display }}</span>{% endif %}
+    {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">{{ item.related_standard }}</span>{% endif %}
+  </span>
+  <span class="acts">
+    {% if perms.strategic.change_porterforce %}
+    <button type="button" onclick="editFactor(this)" data-id="{{ item.pk }}" data-force="{{ item.force }}" data-text="{{ item.text }}" data-order="{{ item.order }}"
+      data-impact="{{ item.impact_level }}" data-probability="{{ item.probability }}" data-uncertainty="{{ item.uncertainty }}"
+      data-horizon="{{ item.horizon }}" data-trend="{{ item.trend }}" data-effecttype="{{ item.effect_type }}"
+      data-standard="{{ item.related_standard }}" data-description="{{ item.detailed_description }}" data-scoringguide="{{ item.scoring_guide }}"><i class="fa-solid fa-pen"></i></button>
+    {% endif %}
+    {% if perms.strategic.delete_porterforce %}
+    <form method="post" action="{% url 'strategic:porter_delete' item.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>
+    {% endif %}
+  </span>
+</div>
+<div class="pfx-tags">
+  {% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}
+  {% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}
+  <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
+  <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
+  <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
+  <span class="pfx-tag" style="color:{{ item.uncertainty_color }};border-color:{{ item.uncertainty_color }};" title="میزان عدم‌قطعیت">{{ item.get_uncertainty_display }}</span>
+  <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
+  <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
+  {% if item.scoring_guide %}<span class="pfx-tag" title="راهنمای امتیازدهی: {{ item.scoring_guide }}"><i class="fa-solid fa-circle-info"></i> راهنما</span>{% endif %}
+</div>

@@ -42,7 +42,7 @@
     <!-- aside اول در DOM می‌آید تا در RTL سمت راست بنشیند -->
     <aside class="sidebar">
       <div class="brand">
-        <img class="mark" src="{% static 'images/logo.svg' %}" alt="سایپا یدک">
+        <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="سایپا یدک">
         <div class="company">سایپا یدک</div>
         <div class="office">اداره مطالعات و توسعه استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
       </div>
@@ -50,25 +50,40 @@
         <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه</a>
         <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان</a>
-        <div class="nav-label">تحلیل محیط بیرونی</div>
-        <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</a>
-        <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-people-group"></i>تحلیل ذینفعان</a>
-        <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</a>
-        <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل PESTEL</a>
-        <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>پنج نیروی رقابتی Porter</a>
-        <div class="nav-label">تحلیل محیط داخلی</div>
-        <a class="nav-item {% if active_page == 'mckinsey7s' %}active{% endif %}" href="{% url 'strategic:mckinsey7s' %}"><i class="fa-solid fa-diagram-project"></i>تحلیل McKinsey 7S</a>
-        <a class="nav-item {% if active_page == 'value_chain' %}active{% endif %}" href="{% url 'strategic:value_chain' %}"><i class="fa-solid fa-link"></i>زنجیره ارزش پورتر <small style="opacity:.6;font-size:9px;">(تحلیل محیطی)</small></a>
-        <div class="nav-label">آینده‌پژوهی</div>
-        <a class="nav-item {% if active_page == 'cross_impact' %}active{% endif %}" href="{% url 'strategic:cross_impact' %}"><i class="fa-solid fa-arrows-turn-to-dots"></i>ماتریس اثر متقابل</a>
+
+        <button type="button" class="nav-parent {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
+          <i class="fa-solid fa-earth-americas nav-ico"></i>تحلیل محیط بیرونی
+          <i class="fa-solid fa-chevron-down nav-chevron"></i>
+        </button>
+        <div class="nav-children {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open{% endif %}"
+             style="display:{% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
+          <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</a>
+          <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-user"></i>تحلیل ذینفعان</a>
+          <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</a>
+          <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل Pestel (محیط بیرون دور)</a>
+          <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>تحلیل Porter (محیط بیرون نزدیک)</a>
+        </div>
+
+        <button type="button" class="nav-parent {% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
+          <i class="fa-solid fa-building nav-ico"></i>تحلیل محیط داخلی
+          <i class="fa-solid fa-chevron-down nav-chevron"></i>
+        </button>
+        <div class="nav-children {% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}open{% endif %}"
+             style="display:{% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
+          <a class="nav-item {% if active_page == 'mckinsey7s' %}active{% endif %}" href="{% url 'strategic:mckinsey7s' %}"><i class="fa-solid fa-diagram-project"></i>تحلیل McKinsey 7S</a>
+          <a class="nav-item {% if active_page == 'value_chain' %}active{% endif %}" href="{% url 'strategic:value_chain' %}"><i class="fa-solid fa-link"></i>زنجیره ارزش پورتر <small style="opacity:.6;font-size:9px;">(تحلیل محیطی)</small></a>
+        </div>
+
+        <div class="nav-label">آینده‌پژوهی (سناریوپردازی)</div>
+        <a class="nav-item {% if active_page == 'cross_impact' %}active{% endif %}" href="{% url 'strategic:cross_impact' %}"><i class="fa-solid fa-table-cells"></i>ماتریس اثر متقابل</a>
         <a class="nav-item {% if active_page == 'scenarios' %}active{% endif %}" href="{% url 'strategic:scenarios' %}"><i class="fa-solid fa-road"></i>سناریوهای راهبردی</a>
         <div class="nav-label">تدوین راهبرد</div>
         <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
+        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
         <div class="nav-label">اجرا و پایش</div>
         <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت</a>
-        <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
         <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>پروژه‌های تحول</a>
-        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
       </nav>
       <div class="sidebar-footer">نسخه داخلی — تیر ۱۴۰۵</div>
     </aside>
@@ -87,6 +102,26 @@
 </div>
 
 <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+<script>
+  function toggleNavGroup(btn){
+    const children = btn.nextElementSibling;
+    const willOpen = !btn.classList.contains('open');
+
+    // اول همه‌ی گروه‌های دیگر را ببند (فقط یکی هم‌زمان باز بماند)
+    document.querySelectorAll('.nav-parent.open').forEach(function(otherBtn){
+      if (otherBtn !== btn){
+        otherBtn.classList.remove('open');
+        const otherChildren = otherBtn.nextElementSibling;
+        otherChildren.classList.remove('open');
+        otherChildren.style.display = 'none';
+      }
+    });
+
+    btn.classList.toggle('open', willOpen);
+    children.classList.toggle('open', willOpen);
+    children.style.display = willOpen ? 'flex' : 'none';
+  }
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

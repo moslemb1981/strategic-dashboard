@@ -89,8 +89,8 @@ class PestelFactorAdmin(admin.ModelAdmin):
 
 @admin.register(PorterForce)
 class PorterForceAdmin(admin.ModelAdmin):
-    list_display = ("force", "level", "updated_at")
-    list_editable = ("level",)
+    list_display = ("force", "text", "impact_level", "probability")
+    list_filter = ("force",)
 
 
 @admin.register(OrgIdentity)

@@ -6,68 +6,148 @@
 {% block extra_css %}
 <style>
   .id-hero{background:linear-gradient(120deg,#0d1b2e,#1a3352);border-radius:var(--radius-lg);padding:26px 30px;
-    margin-bottom:22px;display:flex;align-items:center;gap:18px;box-shadow:0 20px 40px -20px rgba(13,27,46,.5);}
+    margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+    box-shadow:0 20px 40px -20px rgba(13,27,46,.5);}
+  .id-hero .id-hero-main{display:flex;align-items:center;gap:18px;}
   .id-hero img{height:44px;flex:none;}
   .id-hero .t1{color:#fff;font-size:19px;font-weight:900;margin-bottom:2px;}
   .id-hero .t2{color:#a9c1de;font-size:12px;}
+  .id-badges{display:flex;gap:8px;flex-wrap:wrap;}
+  .id-badge{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+    color:#dbe6f2;font-size:11px;padding:6px 12px;border-radius:20px;}
+  .id-badge.on{background:rgba(62,122,82,.22);border-color:rgba(62,122,82,.4);color:#a9e0ba;}
+  .id-badge i{font-size:10px;}
 
-  .id-banner{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:30px;}
+  .id-banner{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:34px;}
   @media(max-width:800px){.id-banner{grid-template-columns:1fr;}}
-  .id-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--sm-brake,#C97A2B);
+  .id-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);
     border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:20px 24px;position:relative;}
-  .id-card .id-icon{width:38px;height:38px;border-radius:50%;background:var(--accent-soft,#F5E6D3);color:var(--sm-brake,#C97A2B);
+  .id-card .id-icon{width:38px;height:38px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
     display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:10px;}
   .id-card h3{margin:0 0 10px;font-size:15px;color:var(--ink);font-weight:800;}
   .id-card p{margin:0;font-size:12.5px;line-height:2;color:var(--ink-soft);}
   .id-edit-btn{position:absolute;top:16px;left:18px;border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;}
-  .id-edit-btn:hover{color:var(--sm-brake,#C97A2B);}
+  .id-edit-btn:hover{color:var(--accent);}
 
   .section-title{font-size:16px;font-weight:900;color:var(--ink);margin:34px 0 4px;text-align:center;}
   .section-sub{font-size:11.5px;color:var(--ink-faint);text-align:center;margin-bottom:16px;}
+  .section-hint{font-size:10.5px;color:var(--ink-faint);text-align:center;margin:-10px auto 18px;max-width:480px;
+    display:flex;align-items:center;justify-content:center;gap:6px;}
 
-  .values-wheel{position:relative;width:420px;height:420px;margin:10px auto 30px;}
-  .value-center{position:absolute;top:50%;left:50%;width:136px;height:136px;margin:-68px 0 0 -68px;border-radius:50%;
-    background:radial-gradient(circle at 35% 30%,#ec7c53,#a8321e);color:#fff;display:flex;align-items:center;justify-content:center;
-    text-align:center;font-weight:900;font-size:14px;padding:10px;z-index:2;box-shadow:0 18px 34px -10px rgba(168,50,30,.55),
-    0 0 0 6px rgba(224,103,63,.12);}
-  .spoke{position:absolute;top:50%;left:50%;width:166px;height:2px;transform-origin:0 50%;
-    background:linear-gradient(90deg,rgba(224,103,63,.55),rgba(224,103,63,.08));z-index:1;}
-  .value-item{position:absolute;top:50%;left:50%;--ang:calc(360deg / var(--n) * var(--i));z-index:3;
-    transform:translate(calc(-50% + 166px * cos(var(--ang))), calc(-50% + 166px * sin(var(--ang))));}
-  .value-item .bubble{position:relative;width:128px;padding:11px 13px;border-radius:12px;background:#fff;
-    border:1px solid var(--border);border-top:2px solid var(--sm-brake,#C97A2B);box-shadow:0 10px 22px -12px rgba(13,27,46,.25);
-    font-size:11px;font-weight:700;text-align:center;line-height:1.5;color:var(--ink);transition:transform .15s;}
-  .value-item .bubble:hover{transform:translateY(-3px);}
-  .v-acts{position:absolute;top:-8px;left:-6px;display:flex;gap:3px;}
-  .v-acts button{border:none;background:var(--sm-ink,#0d1b2e);color:#fff;width:16px;height:16px;border-radius:4px;
+  /* --- چرخ ارزش‌ها (SVG donut واقعی) --- */
+  .values-wheel-wrap{position:relative;width:400px;height:400px;margin:10px auto 22px;}
+  @media(max-width:480px){.values-wheel-wrap{width:320px;height:320px;}}
+  .values-wheel-wrap svg{width:100%;height:100%;overflow:visible;}
+  .wedge-path{cursor:pointer;stroke:var(--bg);stroke-width:3;transition:filter .15s,opacity .15s;}
+  .wedge-path:hover{filter:brightness(1.08);}
+  .wedge-path.active{filter:brightness(1.1);}
+  .wedge-content-btn{all:unset;box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:5px;cursor:pointer;text-align:center;}
+  .wedge-ico{width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;
+    justify-content:center;font-size:14px;box-shadow:0 3px 8px rgba(13,27,46,.25);flex:none;}
+  .wedge-txt{font-size:10.5px;font-weight:800;line-height:1.35;color:var(--ink);text-shadow:0 1px 0 rgba(255,255,255,.4);}
+  .wedge-acts{position:absolute;top:-4px;left:50%;transform:translateX(-50%);display:flex;gap:3px;}
+  .wedge-acts button{border:none;background:rgba(13,27,46,.7);color:#fff;width:16px;height:16px;border-radius:4px;
     font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .wheel-connector{width:26px;height:26px;border-radius:50%;background:var(--bg);border:2px solid #fff;
+    box-shadow:0 2px 6px rgba(13,27,46,.18);display:flex;align-items:center;justify-content:center;
+    color:var(--ink-faint);font-size:10px;pointer-events:none;}
+  .value-center{position:absolute;top:50%;left:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    background:var(--surface);border:1px solid var(--border);color:var(--ink);text-align:center;font-weight:900;
+    font-size:13px;padding:10px;z-index:2;cursor:pointer;box-shadow:0 10px 24px -10px rgba(13,27,46,.25);
+    transition:transform .15s,box-shadow .15s;}
+  .value-center:hover{transform:scale(1.04);}
+  .value-center i{font-size:22px;color:var(--vcenter-color,var(--accent));}
   .values-add-row{text-align:center;margin-bottom:20px;}
+  .wheel-tip{text-align:center;font-size:10.5px;color:var(--ink-faint);margin-top:-8px;margin-bottom:18px;}
 
-  .policy-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1020px;margin:0 auto 10px;}
-  @media(max-width:800px){.policy-grid{grid-template-columns:1fr;}}
-  .policy-pill{display:flex;align-items:center;gap:14px;background:var(--surface);
-    border:1px solid var(--border);border-radius:14px;padding:14px 18px;position:relative;
-    box-shadow:0 8px 20px -14px rgba(13,27,46,.2);transition:transform .15s;}
-  .policy-pill:hover{transform:translateY(-2px);}
-  .policy-num{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ec7c53,#a8321e);color:#fff;
-    font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;flex:none;
+  /* --- پنل جزئیات ارزش --- */
+  .value-detail-panel{max-width:760px;margin:0 auto 30px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:22px 26px;position:relative;
+    border-inline-start:5px solid var(--vcolor,var(--accent));}
+  .value-detail-panel .vd-close{position:absolute;top:14px;left:16px;border:none;background:none;color:var(--ink-faint);
+    cursor:pointer;font-size:13px;}
+  .value-detail-panel .vd-close:hover{color:var(--danger);}
+  .value-detail-panel .vd-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .value-detail-panel .vd-ico{width:42px;height:42px;border-radius:50%;background:var(--vcolor,var(--accent));
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;}
+  .value-detail-panel .vd-title{font-size:15px;font-weight:900;color:var(--ink);}
+  .value-detail-panel h5{font-size:11.5px;font-weight:800;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:6px;}
+  .value-detail-panel h5 i{color:var(--vcolor,var(--accent));font-size:11px;}
+  .vd-policy-text{font-size:12.5px;line-height:2;color:var(--ink-soft);margin:0;}
+
+  /* --- خط‌مشی: کاروسل --- */
+  .policy-wrap{position:relative;max-width:1040px;margin:0 auto 10px;}
+  .policy-track{display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 14px;scroll-snap-type:x proximity;}
+  .policy-track::-webkit-scrollbar{height:5px;}
+  .policy-track::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+  .policy-pill{flex:0 0 300px;scroll-snap-align:start;display:flex;flex-direction:column;gap:10px;background:var(--surface);
+    border:1px solid var(--border);border-radius:14px;padding:16px 18px;position:relative;
+    box-shadow:0 8px 20px -14px rgba(13,27,46,.2);}
+  .policy-pill .p-top{display:flex;align-items:center;gap:12px;}
+  .policy-num{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ec7c53,#a8321e);color:#fff;
+    font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;flex:none;
     box-shadow:0 0 0 4px rgba(224,103,63,.12);}
-  .policy-txt{font-size:12px;line-height:1.75;color:var(--ink-soft);flex:1;}
-  .policy-acts{display:flex;gap:4px;flex:none;align-self:flex-start;}
+  .policy-txt{font-size:11.5px;line-height:1.75;color:var(--ink-soft);}
+  .policy-acts{display:flex;gap:4px;flex:none;align-self:flex-start;margin-inline-start:auto;}
   .policy-acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;}
-  .policy-acts button:hover{color:var(--sm-brake,#C97A2B);}
+  .policy-acts button:hover{color:var(--accent);}
+  .policy-nav{position:absolute;top:38%;width:32px;height:32px;border-radius:50%;background:var(--surface);
+    border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;color:var(--ink-soft);font-size:12px;z-index:2;}
+  .policy-nav:hover{color:var(--accent);}
+  .policy-nav.prev{right:-14px;}
+  .policy-nav.next{left:-14px;}
+  @media(max-width:700px){.policy-nav{display:none;}}
+
+  /* --- استانداردهای ISO --- */
+  .iso-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;max-width:1100px;margin:0 auto 10px;}
+  .iso-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;
+    box-shadow:0 4px 14px -10px rgba(13,27,46,.15);}
+  .iso-card .iso-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .iso-card .iso-ico{width:38px;height:38px;border-radius:50%;background:var(--primary-soft);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
+  .iso-card .iso-code{font-size:12.5px;font-weight:900;color:var(--ink);}
+  .iso-card .iso-title{font-size:10px;color:var(--ink-soft);margin-top:1px;}
+  .iso-card hr{border:none;border-top:1px solid var(--border);margin:0 0 10px;}
+  .iso-card .iso-domain{font-size:10px;color:var(--ink-soft);}
+  .iso-card .iso-domain b{color:var(--ink);font-weight:700;}
+
+  /* --- زنجیره‌ی ارزش‌ها با اهداف و نتایج --- */
+  .chain-wrap{max-width:1040px;margin:0 auto 10px;}
+  .chain-row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px;margin-bottom:12px;}
+  @media(max-width:900px){.chain-row{grid-template-columns:1fr;}}
+  .chain-cell{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:11px;
+    color:var(--ink-soft);display:flex;flex-direction:column;gap:4px;justify-content:center;}
+  .chain-cell b{font-size:10px;color:var(--ink-faint);font-weight:700;}
+  .chain-cell.value-cell{border-inline-start:3px solid var(--accent);}
+  .chain-arrow{display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:13px;}
+  @media(max-width:900px){.chain-arrow{transform:rotate(90deg);padding:2px 0;}}
 
   .id-sign{text-align:center;margin-top:30px;padding-top:20px;border-top:1px solid var(--border);font-size:11.5px;color:var(--ink-faint);}
   .id-sign b{display:block;color:var(--ink);font-size:14px;margin-bottom:3px;}
+  .id-sign-statement{max-width:640px;margin:0 auto 16px;font-size:12.5px;line-height:2;color:var(--ink-soft);}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="id-hero">
-  <img src="{% static 'images/logo.svg' %}" alt="">
-  <div>
-    <div class="t1">سایپا یدک</div>
-    <div class="t2">ارکان جهت‌ساز سازمان — چشم‌انداز، مأموریت، ارزش‌ها و خط‌مشی کیفیت</div>
+  <div class="id-hero-main">
+    <img src="{% static 'images/logo.png' %}" alt="">
+    <div>
+      <div class="t1">سایپا یدک</div>
+      <div class="t2">ارکان جهت‌ساز سازمان — مبنای جهت‌گیری‌ها و تصمیم‌گیری‌های راهبردی سازمان</div>
+    </div>
+  </div>
+  <div class="id-badges">
+    <span class="id-badge on"><i class="fa-solid fa-circle-check"></i> فعال</span>
+    {% if identity.signed_by %}
+    <span class="id-badge"><i class="fa-solid fa-stamp"></i> تصویب‌شده توسط {{ identity.signed_role|default:"مدیریت ارشد" }}</span>
+    {% endif %}
+    {% if identity.signed_date %}
+    <span class="id-badge"><i class="fa-regular fa-calendar"></i> {{ identity.signed_date }}</span>
+    {% endif %}
   </div>
 </div>
 
@@ -87,56 +167,131 @@
   </div>
 </div>
 
-<div class="section-title">ارزش‌ها بر اساس اصطلاح «مشکات نور»</div>
+<div class="section-title">نظام ارزشیابی سایپا یدک (مشکات نور)</div>
 <div class="section-sub">مشتری‌مداری در مرکز همه‌ی ارزش‌های سازمانی</div>
-<div class="values-wheel" style="--n:{{ outer_values|length|default:1 }};">
-  <div class="value-center">{{ center_value.text|default:"مشتری‌مداری" }}</div>
-  {% for v in outer_values %}
-  <div class="spoke" style="--ang:calc(360deg / {{ outer_values|length }} * {{ forloop.counter0 }});
-    transform:rotate(calc(360deg / {{ outer_values|length }} * {{ forloop.counter0 }}));"></div>
-  <div class="value-item" style="--i:{{ forloop.counter0 }};">
-    <div class="bubble">
-      {{ v.text }}
-      {% if user.is_superuser %}
-      <div class="v-acts">
-        <button type="button" onclick="editValue(this)" data-id="{{ v.pk }}" data-text="{{ v.text }}"><i class="fa-solid fa-pen"></i></button>
-        <form method="post" action="{% url 'strategic:org_value_delete' v.pk %}" style="display:inline;" onsubmit="return confirm('این ارزش حذف شود؟');">
-          {% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button>
-        </form>
+<div class="values-wheel-wrap">
+  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    {% for w in wheel_wedges %}
+    <path class="wedge-path" d="{{ w.path }}" fill="{{ w.value.color|default:'#C97A2B' }}"
+      data-vid="{{ w.value.pk }}" onclick="showValueDetail(this)"></path>
+    {% endfor %}
+    {% for c in wheel_connectors %}
+    <foreignObject x="{{ c.x|add:'-13' }}" y="{{ c.y|add:'-13' }}" width="26" height="26">
+      <div xmlns="http://www.w3.org/1999/xhtml" class="wheel-connector"><i class="fa-solid fa-rotate"></i></div>
+    </foreignObject>
+    {% endfor %}
+    {% for w in wheel_wedges %}
+    <foreignObject x="{{ w.content_x|add:'-62' }}" y="{{ w.content_y|add:'-40' }}" width="124" height="80">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:100%;height:100%;">
+        <button type="button" class="wedge-content-btn" data-vid="{{ w.value.pk }}" onclick="showValueDetail(this)">
+          <div class="wedge-ico" style="color:{{ w.value.color|default:'#C97A2B' }};"><i class="{{ w.value.icon|default:'fa-solid fa-star' }}"></i></div>
+          <div class="wedge-txt">{{ w.value.text }}</div>
+        </button>
+        {% if user.is_superuser %}
+        <div class="wedge-acts">
+          <button type="button" onclick="event.stopPropagation();editValue(this)"
+            data-id="{{ w.value.pk }}" data-text="{{ w.value.text }}" data-icon="{{ w.value.icon }}" data-color="{{ w.value.color }}"
+            data-related-policy="{{ w.value.related_policy_id|default:'' }}">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <form method="post" action="{% url 'strategic:org_value_delete' w.value.pk %}" style="display:inline;" onsubmit="return confirm('این ارزش حذف شود؟');">
+            {% csrf_token %}<button type="submit" onclick="event.stopPropagation();"><i class="fa-solid fa-xmark"></i></button>
+          </form>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endfor %}
+    </foreignObject>
+    {% endfor %}
+  </svg>
+  <button type="button" class="value-center" data-vid="{{ center_value.pk }}" onclick="showValueDetail(this)"
+    style="--vcenter-color:{{ center_value.color|default:'#A8321E' }};">
+    <i class="{{ center_value.icon|default:'fa-solid fa-heart' }}"></i>
+    {{ center_value.text|default:"مشتری‌مداری" }}
+  </button>
 </div>
+<div class="wheel-tip"><i class="fa-solid fa-hand-pointer"></i> روی هر ارزش کلیک کنید تا بند خط‌مشی مرتبط با آن نمایش داده شود</div>
+
+<div class="value-detail-panel" id="valueDetailPanel" style="display:none;">
+  <button class="vd-close" onclick="closeValueDetail()"><i class="fa-solid fa-xmark"></i></button>
+  <div class="vd-head">
+    <div class="vd-ico" id="vd-ico"><i class="fa-solid fa-star"></i></div>
+    <div class="vd-title" id="vd-title"></div>
+  </div>
+  <h5 id="vd-policy-heading"><i class="fa-solid fa-list-check"></i> بند خط‌مشی مرتبط</h5>
+  <p class="vd-policy-text" id="vd-policy-text"></p>
+</div>
+
 {% if user.is_superuser %}
 <div class="values-add-row"><button class="btn ghost" onclick="newValue()"><i class="fa-solid fa-plus"></i> افزودن ارزش</button></div>
 {% endif %}
 
-<div class="section-title">خط‌مشی سیستم‌های مدیریتی (بر اساس استانداردهای ISO)</div>
-<div class="policy-grid">
-  {% for p in policy_points %}
-  <div class="policy-pill">
-    <span class="policy-num">{{ p.number }}</span>
-    <span class="policy-txt">{{ p.text }}</span>
-    {% if user.is_superuser %}
-    <span class="policy-acts">
-      <button type="button" onclick="editPolicy(this)" data-id="{{ p.pk }}" data-number="{{ p.number }}" data-text="{{ p.text }}"><i class="fa-solid fa-pen"></i></button>
-      <form method="post" action="{% url 'strategic:policy_point_delete' p.pk %}" style="display:inline;" onsubmit="return confirm('این بند حذف شود؟');">
-        {% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button>
-      </form>
-    </span>
-    {% endif %}
+<div class="section-title">خط‌مشی سیستم‌های مدیریتی</div>
+<div class="section-sub">بر اساس استانداردهای ISO9001:2015 و ISO10002:2018 و ISO10004:2018 و ISO10015:2019 و ISO14001:2015</div>
+<div class="policy-wrap">
+  <div class="policy-nav prev" onclick="scrollPolicy(1)"><i class="fa-solid fa-chevron-right"></i></div>
+  <div class="policy-nav next" onclick="scrollPolicy(-1)"><i class="fa-solid fa-chevron-left"></i></div>
+  <div class="policy-track" id="policyTrack">
+    {% for p in policy_points %}
+    <div class="policy-pill">
+      <div class="p-top">
+        <span class="policy-num">{{ p.number }}</span>
+        {% if user.is_superuser %}
+        <span class="policy-acts">
+          <button type="button" onclick="editPolicy(this)" data-id="{{ p.pk }}" data-number="{{ p.number }}" data-text="{{ p.text }}"><i class="fa-solid fa-pen"></i></button>
+          <form method="post" action="{% url 'strategic:policy_point_delete' p.pk %}" style="display:inline;" onsubmit="return confirm('این بند حذف شود؟');">
+            {% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button>
+          </form>
+        </span>
+        {% endif %}
+      </div>
+      <span class="policy-txt">{{ p.text }}</span>
+    </div>
+    {% empty %}
+    <div class="empty" style="width:100%;">بندی ثبت نشده</div>
+    {% endfor %}
   </div>
-  {% empty %}
-  <div class="empty" style="grid-column:1/-1;">بندی ثبت نشده</div>
-  {% endfor %}
 </div>
 {% if user.is_superuser %}
 <div class="values-add-row"><button class="btn ghost" onclick="newPolicy()"><i class="fa-solid fa-plus"></i> افزودن بند</button></div>
 {% endif %}
 
+<div class="section-title">استانداردهای سیستم مدیریت</div>
+<div class="iso-grid">
+  {% for iso in iso_standards %}
+  <div class="iso-card">
+    <div class="iso-head">
+      <div class="iso-ico"><i class="fa-solid fa-award"></i></div>
+      <div>
+        <div class="iso-code">{{ iso.code }}</div>
+        <div class="iso-title">{{ iso.title }}</div>
+      </div>
+    </div>
+    <hr>
+    <div class="iso-domain"><b>دامنه:</b> {{ iso.domain }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="section-title">ارتباط ارزش‌ها با اهداف و نتایج سازمان</div>
+<div class="section-hint"><i class="fa-solid fa-circle-info"></i> نمونه‌ی نمایشی برای نوع این ارتباط — به داده‌ی واقعی نقشه استراتژیک وصل نیست</div>
+<div class="chain-wrap">
+  {% for row in value_chain_samples %}
+  <div class="chain-row">
+    <div class="chain-cell value-cell"><b>ارزش سازمانی</b>{{ row.value }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>هدف استراتژیک</b>{{ row.goal }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>شاخص کلیدی (KPI)</b>{{ row.kpi }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>پروژه‌های مرتبط</b>{{ row.project }}</div>
+  </div>
+  {% endfor %}
+</div>
+
 <div class="id-sign">
+  {% if identity.management_statement %}
+  <p class="id-sign-statement">{{ identity.management_statement }}</p>
+  {% endif %}
   <b>{{ identity.signed_by|default:"—" }}</b>
   {{ identity.signed_role }}{% if identity.signed_role and identity.signed_date %} · {% endif %}{{ identity.signed_date }}
 </div>
@@ -150,6 +305,7 @@
       <input type="hidden" name="form_kind" value="identity">
       <div class="field-group"><label>چشم‌انداز</label><textarea name="vision" rows="4">{{ identity.vision }}</textarea></div>
       <div class="field-group"><label>مأموریت</label><textarea name="mission" rows="4">{{ identity.mission }}</textarea></div>
+      <div class="field-group"><label>پیام مدیریت ارشد (بالای امضا نمایش داده می‌شود)</label><textarea name="management_statement" rows="2">{{ identity.management_statement }}</textarea></div>
       <div class="field-group"><label>امضاکننده</label><input type="text" name="signed_by" value="{{ identity.signed_by }}"></div>
       <div class="field-group"><label>سمت</label><input type="text" name="signed_role" value="{{ identity.signed_role }}"></div>
       <div class="field-group"><label>تاریخ</label><input type="text" name="signed_date" value="{{ identity.signed_date }}"></div>
@@ -162,13 +318,38 @@
 </div>
 
 <div class="overlay" id="valueOverlay">
-  <div class="modal-card" style="max-width:360px;">
+  <div class="modal-card" style="max-width:460px;">
     <h3 id="valueModalTitle">افزودن ارزش</h3>
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="form_kind" value="value">
       <input type="hidden" name="obj_id" id="value_obj_id" value="">
       <div class="field-group"><label>متن ارزش</label><input type="text" name="text" id="value_text" required></div>
+      <div class="field-group">
+        <label>آیکون</label>
+        <select name="icon" id="value_icon">
+          {% for val, label in icon_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>رنگ</label>
+        <select name="color" id="value_color">
+          {% for val, label in color_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>بند خط‌مشی مرتبط (نمایش‌داده‌شده هنگام کلیک روی این ارزش)</label>
+        <select name="related_policy" id="value_related_policy">
+          <option value="">— انتخاب نشده —</option>
+          {% for p in policy_points %}
+          <option value="{{ p.pk }}">بند {{ p.number }} — {{ p.text|truncatechars:40 }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('valueOverlay').classList.remove('open')">انصراف</button>
         <button type="submit" class="btn accent">ثبت</button>
@@ -194,15 +375,76 @@
   </div>
 </div>
 {% endif %}
+
+{{ values_for_js|json_script:"values-data" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  const VALUES_DATA = JSON.parse(document.getElementById('values-data').textContent);
+  let activeValueId = null;
+
+  function showValueDetail(btn){
+    const vid = btn.dataset.vid;
+    const panel = document.getElementById('valueDetailPanel');
+    document.querySelectorAll('.wedge-path, .wedge-content-btn, .value-center').forEach(b => b.classList.remove('active'));
+
+    if(activeValueId === vid){
+      // همون مقدار دوباره کلیک شد: پنل رو ببند
+      panel.style.display = 'none';
+      activeValueId = null;
+      return;
+    }
+
+    const d = VALUES_DATA[vid];
+    if(!d) return;
+    activeValueId = vid;
+    document.querySelectorAll('[data-vid="' + vid + '"]').forEach(el => el.classList.add('active'));
+
+    panel.style.setProperty('--vcolor', d.color || '#C97A2B');
+    document.getElementById('vd-ico').style.background = d.color || '#C97A2B';
+    document.getElementById('vd-ico').innerHTML = '<i class="' + (d.icon || 'fa-solid fa-star') + '"></i>';
+    document.getElementById('vd-title').textContent = d.text;
+
+    const heading = document.getElementById('vd-policy-heading');
+    const pText = document.getElementById('vd-policy-text');
+    if(d.is_center){
+      // مشتری‌مداری: صرفاً خودش نمایش داده می‌شود، بدون هیچ توضیح یا بند مرتبطی
+      heading.style.display = 'none';
+      pText.style.display = 'none';
+    } else if(d.policy_number && d.policy_text){
+      heading.style.display = '';
+      pText.style.display = '';
+      pText.innerHTML = '<b>بند ' + d.policy_number + ':</b> ';
+      pText.appendChild(document.createTextNode(d.policy_text));
+    } else {
+      heading.style.display = '';
+      pText.style.display = '';
+      pText.textContent = 'برای این ارزش هنوز بند خط‌مشی مرتبطی انتخاب نشده است.';
+    }
+
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  function closeValueDetail(){
+    document.getElementById('valueDetailPanel').style.display = 'none';
+    document.querySelectorAll('.wedge-path, .wedge-content-btn, .value-center').forEach(b => b.classList.remove('active'));
+    activeValueId = null;
+  }
+
+  function scrollPolicy(dir){
+    document.getElementById('policyTrack').scrollBy({left: dir * 320, behavior:'smooth'});
+  }
+
   function openIdentityModal(){ document.getElementById('identityOverlay').classList.add('open'); }
 
   function newValue(){
     document.getElementById('value_obj_id').value = '';
     document.getElementById('value_text').value = '';
+    document.getElementById('value_icon').value = 'fa-solid fa-star';
+    document.getElementById('value_color').value = '#C97A2B';
+    document.getElementById('value_related_policy').value = '';
     document.getElementById('valueModalTitle').textContent = 'افزودن ارزش';
     document.getElementById('valueOverlay').classList.add('open');
   }
@@ -210,6 +452,9 @@
     const d = btn.dataset;
     document.getElementById('value_obj_id').value = d.id;
     document.getElementById('value_text').value = d.text;
+    if(d.icon) document.getElementById('value_icon').value = d.icon;
+    if(d.color) document.getElementById('value_color').value = d.color;
+    document.getElementById('value_related_policy').value = d.relatedPolicy || '';
     document.getElementById('valueModalTitle').textContent = 'ویرایش ارزش';
     document.getElementById('valueOverlay').classList.add('open');
   }

@@ -46,9 +46,9 @@
       <div class="q-head"><div><div class="q-title">دوجانبه (سیاست‌گذاری)</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.relay %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
           <span class="acts">
-            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
           </span>
         </div>
@@ -61,9 +61,9 @@
       <div class="q-head"><div><div class="q-title">پیشران‌ها (متغیرهای مستقل)</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.driver %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
           <span class="acts">
-            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
           </span>
         </div>
@@ -76,9 +76,9 @@
       <div class="q-head"><div><div class="q-title">رصد و دیده‌بانی (وابسته)</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.resultant %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
           <span class="acts">
-            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
           </span>
         </div>
@@ -91,9 +91,9 @@
       <div class="q-head"><div><div class="q-title">خنثی (خودمتصل)</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.watch %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
           <span class="acts">
-            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
           </span>
         </div>
@@ -115,6 +115,7 @@
       <div class="field-group"><label>نام عامل</label>{{ form.text }}</div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div class="field-group"><label>عامل PESTEL مرتبط (اختیاری)</label>{{ form.linked_pestel }}</div>
+      <div class="field-group"><label>نیروی پورتر مرتبط (اختیاری)</label>{{ form.linked_porter }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="submitBtn">ثبت عامل</button>
@@ -144,6 +145,7 @@
     document.getElementById('id_text').value = d.text;
     document.getElementById('id_quadrant').value = d.quadrant;
     document.getElementById('id_linked_pestel').value = d.pestel || '';
+    document.getElementById('id_linked_porter').value = d.porter || '';
     document.getElementById('modalTitle').textContent = 'ویرایش عامل';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

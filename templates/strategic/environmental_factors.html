@@ -88,7 +88,7 @@
       <td>{% if i.avg_score %}<span class="ef-score" style="background:{{ i.score_color }};">{{ i.avg_score }}</span>{% else %}—{% endif %}</td>
       <td>{% if i.freq_total %}{{ i.freq_very_high|default:0 }}+{{ i.freq_high|default:0 }} = {{ i.freq_total }}{% else %}—{% endif %}</td>
       <td>
-        {% for cf in i.linked_cross_impact_factors %}<span class="ci-tag" title="{{ cf.get_quadrant_display }}"><i class="fa-solid fa-arrows-turn-to-dots"></i> در ماتریس اثر متقابل</span>{% endfor %}
+        {% for cf in i.linked_cross_impact_factors %}<span class="ci-tag" title="{{ cf.get_quadrant_display }}"><i class="fa-solid fa-table-cells"></i> در ماتریس اثر متقابل</span>{% endfor %}
       </td>
       <td style="white-space:nowrap;" onclick="event.stopPropagation();">
         {% if perms.strategic.change_environmentalfactor %}

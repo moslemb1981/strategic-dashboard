@@ -530,7 +530,7 @@
         <label style="margin-top:8px;">نیروی پورتر مرتبط</label>
         <div class="picker-box">
           <label style="display:block;"><input type="radio" name="source_porter" value="" checked> — بدون ارتباط —</label>
-          {% for pf in porter_forces %}<label><input type="radio" name="source_porter" value="{{ pf.pk }}"> {{ pf.get_force_display }}</label>{% endfor %}
+          {% for pf in porter_forces %}<label><input type="radio" name="source_porter" value="{{ pf.pk }}"> {{ pf.get_force_display }} — {{ pf.text }}</label>{% endfor %}
         </div>
         <label style="margin-top:8px;">ذینفع مرتبط</label>
         <div class="picker-box">

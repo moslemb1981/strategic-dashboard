@@ -5,16 +5,47 @@
 
 {% block extra_css %}
 <style>
+  .s7-hero{display:flex;gap:20px;align-items:stretch;margin-bottom:8px;}
+  @media(max-width:960px){.s7-hero{flex-direction:column;}}
+  .s7-hero .network-card{flex:none;margin-bottom:0;}
+  .s7-hero .s7-center-col{flex:1;min-width:0;display:flex;}
+  .s7-hero .s7-center-col .s7-card{width:100%;}
+
+  /* --- دیاگرام شبکه‌ای --- */
+  .network-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow);padding:24px;margin-bottom:24px;}
+  .network-wrap{position:relative;width:440px;height:440px;margin:0 auto;}
+  @media(max-width:480px){.network-wrap{width:340px;height:340px;transform:scale(.85);margin-bottom:-40px;}}
+  .network-wrap svg{position:absolute;inset:0;width:100%;height:100%;}
+  .net-node{position:absolute;width:104px;height:104px;margin:-52px 0 0 -52px;border-radius:50%;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;
+    color:#fff;font-weight:700;font-size:11.5px;box-shadow:0 10px 22px -8px rgba(13,27,46,.35);cursor:pointer;
+    transition:transform .15s;border:4px solid var(--bg);}
+  .net-node:hover{transform:scale(1.06);}
+  .net-node.active{transform:scale(1.06);box-shadow:0 0 0 3px var(--accent),0 10px 22px -8px rgba(13,27,46,.35);}
+  .net-node i{font-size:18px;}
+  .net-node.center{width:122px;height:122px;margin:-61px 0 0 -61px;z-index:3;box-shadow:0 14px 28px -8px rgba(201,122,43,.5);}
+  .net-node.center.active{box-shadow:0 0 0 3px var(--ink),0 14px 28px -8px rgba(201,122,43,.5);}
+  .net-node .en{font-size:8.5px;font-weight:600;opacity:.85;}
+  .wheel-tip{text-align:center;font-size:11px;color:var(--ink-faint);margin-top:12px;}
+
+  /* --- کارت‌های سخت/نرم/مرکز --- */
+  .s7-section-label{font-size:12.5px;font-weight:800;margin:22px 0 10px;padding:0 2px;display:flex;align-items:center;gap:8px;}
+  .s7-section-label.hard{color:var(--primary-dark);}
+  .s7-section-label.soft{color:var(--coral);}
   .s7-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media(max-width:900px){.s7-grid{grid-template-columns:1fr;}}
   .s7-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
-    box-shadow:var(--shadow);overflow:hidden;}
-  .s7-card .p-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
-    border-bottom:1px solid var(--border);background:var(--primary-soft);}
-  .s7-card .p-title{font-size:14px;font-weight:800;color:var(--primary-dark);}
+    box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:20px;}
+  .s7-card .p-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--pcs);}
+  .s7-card .p-head .icon{width:30px;height:30px;border-radius:8px;background:var(--pc);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .s7-card .p-head .ttl{flex:1;}
+  .s7-card .p-head .ttl b{display:block;font-size:13.5px;color:var(--pc);}
+  .s7-card .p-head .ttl small{font-size:10px;color:var(--ink-faint);}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
     background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:6px;}
-  .s7-card .p-body{padding:14px 18px;}
+  .s7-card .p-body{padding:14px 16px;}
   .s7-status{font-size:12px;line-height:1.8;color:var(--ink-soft);margin-bottom:12px;padding-bottom:12px;
     border-bottom:1px dashed var(--border);}
   .s7-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -25,43 +56,69 @@
   .s7-cols li::before{content:"";position:absolute;right:0;top:.5em;width:5px;height:5px;border-radius:50%;}
   .s7-col-title.s + ul li::before{background:var(--success);}
   .s7-col-title.w + ul li::before{background:#B0413E;}
-  .s7-edit{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;}
-  .s7-edit:hover{color:var(--sm-brake,#d64528);}
+  .s7-edit{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;margin-inline-start:auto;}
+  .s7-edit:hover{color:var(--accent);}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-  <div><h1>تحلیل McKinsey 7S</h1><div class="sub">سنجش هماهنگی درونی سازمان از ۷ زاویه — استراتژی، ساختار، سیستم‌ها و...</div></div>
+  <div><h1>تحلیل McKinsey 7S</h1><div class="sub">هماهنگی درونی سازمان از ۷ زاویه‌ی به‌هم‌پیوسته، با «ارزش‌های مشترک» در هسته‌ی مرکزی</div></div>
 </div>
 
-<div class="s7-grid">
-  {% for c in components %}
-  <div class="s7-card">
-    <div class="p-head">
-      <span class="p-title">{{ c.get_component_display }}{% if c.swot_items.all %}<span class="used-badge" title="{% for si in c.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ c.swot_items.all|length }}</span>{% endif %}</span>
-      {% if perms.strategic.change_mckinsey7s %}
-      <button type="button" class="s7-edit" onclick="editComponent(this)"
-        data-id="{{ c.pk }}" data-status="{{ c.status }}" data-strengths="{{ c.strengths }}" data-weaknesses="{{ c.weaknesses }}">
-        <i class="fa-solid fa-pen"></i>
-      </button>
-      {% endif %}
+<div class="s7-hero">
+  <div class="network-card">
+    <div class="network-wrap">
+      <svg viewBox="0 0 440 440">
+        <line x1="220" y1="220" x2="220" y2="70"  stroke="#C9A27A" stroke-width="2"/>
+        <line x1="220" y1="220" x2="350" y2="145" stroke="#C9A27A" stroke-width="2"/>
+        <line x1="220" y1="220" x2="350" y2="295" stroke="#C9A27A" stroke-width="2"/>
+        <line x1="220" y1="220" x2="220" y2="370" stroke="#C9A27A" stroke-width="2"/>
+        <line x1="220" y1="220" x2="90"  y2="295" stroke="#C9A27A" stroke-width="2"/>
+        <line x1="220" y1="220" x2="90"  y2="145" stroke="#C9A27A" stroke-width="2"/>
+        <polygon points="220,70 350,145 350,295 220,370 90,295 90,145" fill="none" stroke="#D8D3C4" stroke-width="1.5"/>
+      </svg>
+      {% for c in components %}
+        {% if c.group == "center" %}
+        <button type="button" class="net-node center" data-comp="{{ c.component }}" onclick="focusComponent('{{ c.component }}', this)"
+          style="background:radial-gradient(circle at 35% 30%,#dd9a52,#a8621e);left:220px;top:220px;">
+          <i class="fa-solid {{ c.icon }}"></i>{{ c.get_component_display }}<span class="en">{{ c.english }}</span>
+        </button>
+        {% endif %}
+      {% endfor %}
+      {% for c in components %}
+        {% if c.group != "center" %}
+        <button type="button" class="net-node" data-comp="{{ c.component }}" onclick="focusComponent('{{ c.component }}', this)"
+          style="background:{{ c.color }};
+          {% if c.component == 'strategy' %}left:220px;top:70px;
+          {% elif c.component == 'structure' %}left:350px;top:145px;
+          {% elif c.component == 'systems' %}left:350px;top:295px;
+          {% elif c.component == 'skills' %}left:220px;top:370px;
+          {% elif c.component == 'staff' %}left:90px;top:295px;
+          {% elif c.component == 'style' %}left:90px;top:145px;{% endif %}">
+          <i class="fa-solid {{ c.icon }}"></i>{{ c.get_component_display }}<span class="en">{{ c.english }}</span>
+        </button>
+        {% endif %}
+      {% endfor %}
     </div>
-    <div class="p-body">
-      <div class="s7-status">{{ c.status|default:"وضعیت فعلی ثبت نشده" }}</div>
-      <div class="s7-cols">
-        <div>
-          <div class="s7-col-title s"><i class="fa-solid fa-circle-check"></i>نقاط قوت</div>
-          <ul>{% for s in c.strengths_list %}<li>{{ s }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
-        </div>
-        <div>
-          <div class="s7-col-title w"><i class="fa-solid fa-triangle-exclamation"></i>نقاط ضعف/ریسک‌ها</div>
-          <ul>{% for w in c.weaknesses_list %}<li>{{ w }}</li>{% empty %}<li style="opacity:.6;">ثبت نشده</li>{% endfor %}</ul>
-        </div>
-      </div>
-    </div>
+    <div class="wheel-tip"><i class="fa-solid fa-hand-pointer"></i> روی هر گره کلیک کنید تا کارت آن مؤلفه نمایش داده شود</div>
   </div>
-  {% endfor %}
+
+  {% if center %}
+  <div class="s7-center-col">
+    {% include "strategic/_s7_card.html" with c=center %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="s7-section-label hard"><i class="fa-solid fa-gears"></i> عناصر سخت (Hard S's)</div>
+<div class="s7-grid">
+  {% for c in hard_items %}{% include "strategic/_s7_card.html" %}{% endfor %}
+</div>
+
+<div class="s7-section-label soft"><i class="fa-solid fa-heart"></i> عناصر نرم (Soft S's)</div>
+<div class="s7-grid">
+  {% for c in soft_items %}{% include "strategic/_s7_card.html" %}{% endfor %}
 </div>
 
 <div class="overlay" id="overlay">
@@ -94,6 +151,16 @@
     document.getElementById('id_strengths').value = d.strengths;
     document.getElementById('id_weaknesses').value = d.weaknesses;
     openModal();
+  }
+
+  function focusComponent(key, nodeEl){
+    document.querySelectorAll('.net-node').forEach(function(n){ n.classList.remove('active'); });
+    nodeEl.classList.add('active');
+    const card = document.getElementById('s7-card-' + key);
+    if(!card) return;
+    card.scrollIntoView({behavior:'smooth', block:'center'});
+    card.style.boxShadow = '0 0 0 3px var(--pc), var(--shadow)';
+    setTimeout(function(){ card.style.boxShadow = ''; }, 1400);
   }
 </script>
 {% endblock %}

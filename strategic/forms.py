@@ -231,18 +231,32 @@ class PestelFactorForm(forms.ModelForm):
     class Meta:
         model = PestelFactor
         fields = [
-            "category", "kind", "text", "order",
+            "category", "text", "order",
             "impact_level", "probability", "uncertainty", "horizon", "trend",
+            "effect_type", "related_standard", "detailed_description", "scoring_guide",
         ]
         widgets = {
             "text": forms.TextInput(attrs={"placeholder": "متن عامل / فرصت / تهدید"}),
+            "related_standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 9001، ISO 14001"}),
+            "detailed_description": forms.Textarea(attrs={"rows": 3, "placeholder": "توضیح تفصیلی و راهنمای درک عامل"}),
+            "scoring_guide": forms.Textarea(attrs={"rows": 2, "placeholder": "راهنمای امتیازدهی این عامل"}),
         }
 
 
 class PorterForceForm(forms.ModelForm):
     class Meta:
         model = PorterForce
-        fields = ["level", "reasons", "conclusion"]
+        fields = [
+            "force", "text", "order",
+            "impact_level", "probability", "uncertainty", "horizon", "trend",
+            "effect_type", "related_standard", "detailed_description", "scoring_guide",
+        ]
+        widgets = {
+            "text": forms.TextInput(attrs={"placeholder": "متن عامل"}),
+            "related_standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 9001، ISO 14001"}),
+            "detailed_description": forms.Textarea(attrs={"rows": 3, "placeholder": "توضیح تفصیلی و راهنمای درک عامل"}),
+            "scoring_guide": forms.Textarea(attrs={"rows": 2, "placeholder": "راهنمای امتیازدهی این عامل"}),
+        }
         widgets = {
             "reasons": forms.Textarea(attrs={"rows": 5, "placeholder": "هر خط یک دلیل"}),
             "conclusion": forms.Textarea(attrs={"rows": 2, "placeholder": "نتیجه‌گیری"}),
@@ -273,7 +287,7 @@ class StakeholderForm(forms.ModelForm):
     class Meta:
         model = Stakeholder
         fields = [
-            "department", "name", "channel", "need", "need_flag", "expectation_flag",
+            "department", "name", "is_internal", "is_external", "channel", "need", "need_flag", "expectation_flag",
             "risk_text", "risk_occurrence", "risk_severity", "risk_detection", "risk_score",
             "opportunity_text", "opportunity_importance", "opportunity_impact", "opportunity_score",
             "action", "domain", "status",
@@ -293,7 +307,7 @@ class StakeholderForm(forms.ModelForm):
 class CrossImpactFactorForm(forms.ModelForm):
     class Meta:
         model = CrossImpactFactor
-        fields = ["text", "quadrant", "order", "linked_pestel"]
+        fields = ["text", "quadrant", "order", "linked_pestel", "linked_porter"]
         widgets = {
             "text": forms.TextInput(attrs={"placeholder": "نام عامل"}),
         }
@@ -301,6 +315,7 @@ class CrossImpactFactorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["linked_pestel"].required = False
+        self.fields["linked_porter"].required = False
 
 
 class ScenarioForm(forms.ModelForm):
@@ -372,7 +387,7 @@ class LegalRequirementForm(forms.ModelForm):
     class Meta:
         model = LegalRequirement
         fields = [
-            "title", "source", "is_legal", "is_organizational", "revision_date",
+            "title", "source", "is_legal", "is_organizational", "is_internal", "is_external", "revision_date",
             "related_documents", "scope", "risk_text", "opportunity_text", "notes", "department",
         ]
         widgets = {
