@@ -76,6 +76,7 @@
         {% if i.is_organizational %}<span class="lg-tag" style="background:var(--accent-soft);color:#7A4711;">سازمانی</span>{% endif %}
         {% if i.is_internal %}<span class="lg-tag" style="background:var(--success-soft);color:var(--success-dark);">درون سازمانی</span>{% endif %}
         {% if i.is_external %}<span class="lg-tag" style="background:#FCE7E7;color:#B0413E;">برون سازمانی</span>{% endif %}
+        {% if i.related_pestel %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="از بخش {{ i.related_pestel.letter }} ({{ i.related_pestel.get_category_display }}) — {{ i.related_pestel.text }}"><i class="fa-solid fa-earth-americas"></i> PESTEL</span>{% endif %}
       </td>
       <td>{{ i.source|default:"—" }}</td>
       <td>{{ i.scope|default:"—" }}</td>
@@ -90,6 +91,7 @@
           data-isinternal="{{ i.is_internal|yesno:'1,0' }}" data-isexternal="{{ i.is_external|yesno:'1,0' }}"
           data-revdate="{{ i.revision_date }}" data-docs="{{ i.related_documents }}" data-scope="{{ i.scope }}"
           data-risk="{{ i.risk_text }}" data-opp="{{ i.opportunity_text }}" data-notes="{{ i.notes }}" data-department="{{ i.department }}"
+          data-relatedpestel="{{ i.related_pestel_id|default:'' }}"
           style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
         {% endif %}
         {% if perms.strategic.delete_legalrequirement %}
@@ -149,6 +151,7 @@
       <div class="field-group"><label>فرصت</label>{{ form.opportunity_text }}</div>
       <div class="field-group"><label>توضیحات</label>{{ form.notes }}</div>
       <div class="field-group"><label>نام مدیریت/معاونت</label>{{ form.department }}</div>
+      <div class="field-group"><label>عامل PESTEL مرتبط (اختیاری)</label>{{ form.related_pestel }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
         <button type="submit" class="btn accent" id="submitBtn">ثبت الزام</button>
@@ -236,6 +239,7 @@
     document.getElementById('id_opportunity_text').value = d.opp;
     document.getElementById('id_notes').value = d.notes;
     document.getElementById('id_department').value = d.department;
+    document.getElementById('id_related_pestel').value = d.relatedpestel || '';
     document.getElementById('modalTitle').textContent = 'ویرایش الزام';
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();

@@ -186,7 +186,7 @@ def stakeholders(request):
     else:
         form = StakeholderForm()
 
-    items = Stakeholder.objects.all().prefetch_related("swot_items__business_unit")
+    items = Stakeholder.objects.all().prefetch_related("related_porters", "linked_pestel_factors", "swot_items__business_unit")
     q = request.GET.get("q", "").strip()
     dept = request.GET.get("dept", "").strip()
     if q:
@@ -213,6 +213,7 @@ def stakeholders(request):
         "active_page": "stakeholders", "items": items, "form": form, "q": q, "dept": dept,
         "departments": departments, "top_risks": top_risks, "top_opportunities": top_opportunities,
         "risk_threshold": RISK_THRESHOLD, "opp_threshold": OPP_THRESHOLD,
+        "porter_forces": PorterForce.objects.all(),
         "total_count": len(all_items),
     })
 
@@ -346,7 +347,7 @@ def pestel(request):
     LETTERS = {"political": "P", "economic": "E", "social": "S",
                "technological": "T", "environmental": "E", "legal": "L"}
 
-    factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors")
+    factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors", "linked_legal_requirements", "related_stakeholders")
     grouped = []
     for key, label in PestelFactor.CATEGORY_CHOICES:
         color, soft, icon = PestelFactor.CATEGORY_STYLE[key]
@@ -530,7 +531,7 @@ def porter(request):
     else:
         form = PorterForceForm()
 
-    forces = PorterForce.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors")
+    forces = PorterForce.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors", "linked_stakeholders")
     grouped = []
     for key, label in PorterForce.FORCE_CHOICES:
         color, soft, icon = PorterForce.FORCE_STYLE[key]
@@ -1820,7 +1821,7 @@ def legal_requirements(request):
     else:
         form = LegalRequirementForm()
 
-    items = LegalRequirement.objects.all()
+    items = LegalRequirement.objects.all().select_related("related_pestel")
     q = request.GET.get("q", "").strip()
     dept = request.GET.get("dept", "").strip()
     if q:

@@ -35,6 +35,11 @@
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;
     background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:5px;}
   .lg-tag{display:inline-block;font-size:9.5px;font-weight:700;border-radius:5px;padding:1px 6px;margin-inline-start:4px;}
+  .picker-box{max-height:160px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#fff;}
+  .picker-box label{display:block;font-size:11.5px;line-height:1.6;padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+  .picker-box label:hover{background:var(--bg);}
+  .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
+  .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
 </style>
 {% endblock %}
 
@@ -106,6 +111,8 @@
       <td>{{ i.name }}
         {% if i.is_internal %}<span class="lg-tag" style="background:var(--success-soft);color:var(--success-dark, #1c6b3e);">درون سازمانی</span>{% endif %}
         {% if i.is_external %}<span class="lg-tag" style="background:#FCE7E7;color:#B0413E;">برون سازمانی</span>{% endif %}
+        {% if i.related_porters.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="عوامل Porter مرتبط:&#10;{% for p in i.related_porters.all %}{{ p.get_force_display }} — {{ p.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-knight"></i> مرتبط با Porter ({{ i.related_porters.all|length }})</span>{% endif %}
+        {% if i.linked_pestel_factors.all %}<span class="used-badge" style="background:var(--success-soft);color:var(--success-dark, #1c6b3e);" title="عوامل PESTEL مرتبط (ثبت از صفحه PESTEL):&#10;{% for pf in i.linked_pestel_factors.all %}{{ pf.letter }} ({{ pf.get_category_display }}) — {{ pf.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-earth-americas"></i> مرتبط با PESTEL ({{ i.linked_pestel_factors.all|length }})</span>{% endif %}
         {% if i.swot_items.all %}<span class="used-badge" title="{% for si in i.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ i.swot_items.all|length }}</span>{% endif %}</td>
       <td>{{ i.need|default:"—" }}</td>
       <td>{% if i.risk_text %}<span class="sk-badge" style="background:#B0413E;">{{ i.risk_score|default:"—" }}</span> {{ i.risk_text }}{% else %}—{% endif %}</td>
@@ -115,7 +122,7 @@
         {% if perms.strategic.change_stakeholder %}
         <button type="button" onclick="editStakeholder(this)"
           data-id="{{ i.pk }}" data-department="{{ i.department }}" data-name="{{ i.name }}" data-channel="{{ i.channel }}"
-          data-isinternal="{{ i.is_internal|yesno:'1,0' }}" data-isexternal="{{ i.is_external|yesno:'1,0' }}"
+          data-isinternal="{{ i.is_internal|yesno:'1,0' }}" data-isexternal="{{ i.is_external|yesno:'1,0' }}" data-relatedporters="{% for p in i.related_porters.all %}{{ p.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
           data-need="{{ i.need }}" data-needflag="{{ i.need_flag|yesno:'1,0' }}" data-expflag="{{ i.expectation_flag|yesno:'1,0' }}"
           data-risk="{{ i.risk_text }}" data-riskoccurrence="{{ i.risk_occurrence|default:'' }}" data-riskseverity="{{ i.risk_severity|default:'' }}"
           data-riskdetection="{{ i.risk_detection|default:'' }}" data-riskscore="{{ i.risk_score|default:'' }}"
@@ -172,6 +179,7 @@
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_internal }} درون سازمانی</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_external }} برون سازمانی</label>
       </div>
+      <div class="field-group"><label>عوامل Porter مرتبط (اختیاری، می‌تواند چند مورد باشد)</label><div class="picker-box">{{ form.related_porters }}</div></div>
       <div class="field-group"><label>کانال ارتباطی</label>{{ form.channel }}</div>
       <div class="field-group"><label>نیاز/انتظار</label>{{ form.need }}</div>
       <div style="display:flex;gap:16px;margin-bottom:10px;">
@@ -257,9 +265,30 @@
     });
   })();
 
+  function syncPorterPicked(){
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+      cb.closest('label').classList.toggle('picked', cb.checked);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.picker-box label').forEach(function(lbl){
+      const cb = lbl.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      lbl.addEventListener('click', function(e){
+        if (e.target === cb) return;
+        e.preventDefault();
+        cb.checked = !cb.checked;
+        syncPorterPicked();
+      });
+    });
+  });
+
   function newStakeholder(){
     document.getElementById('skForm').reset();
     document.getElementById('obj_id').value = '';
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(cb => cb.checked = false);
+    syncPorterPicked();
     document.getElementById('modalTitle').textContent = 'افزودن ذینفع';
     document.getElementById('submitBtn').textContent = 'ثبت ذینفع';
     openModal();
@@ -276,6 +305,11 @@
     document.getElementById('id_expectation_flag').checked = (d.expflag === '1');
     document.getElementById('id_is_internal').checked = (d.isinternal === '1');
     document.getElementById('id_is_external').checked = (d.isexternal === '1');
+    const porterIds = (d.relatedporters || '').split(',').filter(Boolean);
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+      cb.checked = porterIds.includes(cb.value);
+    });
+    syncPorterPicked();
     document.getElementById('id_risk_text').value = d.risk;
     document.getElementById('id_risk_occurrence').value = d.riskoccurrence;
     document.getElementById('id_risk_severity').value = d.riskseverity;

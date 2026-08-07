@@ -436,6 +436,10 @@ class PestelFactor(models.Model):
         ("environmental", "زیست‌محیطی"),
         ("legal", "قانونی"),
     ]
+    CATEGORY_LETTER = {
+        "political": "P", "economic": "E", "social": "S",
+        "technological": "T", "environmental": "E", "legal": "L",
+    }
     CATEGORY_STYLE = {
         "political": ("var(--primary)", "var(--primary-soft)", "fa-flag"),
         "economic": ("var(--accent)", "var(--accent-soft)", "fa-coins"),
@@ -474,6 +478,9 @@ class PestelFactor(models.Model):
     related_standard = models.CharField(max_length=150, blank=True, verbose_name="استاندارد مرتبط")
     detailed_description = models.TextField(blank=True, verbose_name="توضیح تفصیلی (راهنمای درک و امتیازدهی)")
     scoring_guide = models.TextField(blank=True, verbose_name="راهنمای امتیازدهی")
+    related_stakeholders = models.ManyToManyField(
+        "Stakeholder", blank=True, related_name="linked_pestel_factors", verbose_name="ذینفعان مرتبط",
+    )
 
     class Meta:
         ordering = ["category", "order"]
@@ -483,6 +490,10 @@ class PestelFactor(models.Model):
     @property
     def priority_score(self):
         return self.impact_level * self.probability
+
+    @property
+    def letter(self):
+        return self.CATEGORY_LETTER.get(self.category, "")
 
     @property
     def uncertainty_color(self):
@@ -732,6 +743,9 @@ class Stakeholder(models.Model):
         ("in_progress", "در حال بررسی"),
         ("done", "رسیدگی‌شده"),
     ]
+    related_porters = models.ManyToManyField(
+        "PorterForce", blank=True, related_name="linked_stakeholders", verbose_name="عوامل Porter مرتبط",
+    )
 
     department = models.CharField(max_length=200, verbose_name="واحد/مدیریت ثبت‌کننده", blank=True)
     name = models.CharField(max_length=200, verbose_name="نام ذینفع")
@@ -1078,6 +1092,10 @@ class StrategicKPI(models.Model):
 
 class LegalRequirement(models.Model):
     """بانک الزامات قانونی و سازمانی سایپا یدک."""
+    related_pestel = models.ForeignKey(
+        "PestelFactor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="linked_legal_requirements", verbose_name="عامل PESTEL مرتبط",
+    )
     title = models.CharField(max_length=400, verbose_name="الزامات قانونی و سازمانی")
     source = models.CharField(max_length=200, blank=True, verbose_name="مأخذ الزام")
     is_legal = models.BooleanField(default=False, verbose_name="قانونی")

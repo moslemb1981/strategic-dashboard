@@ -3,6 +3,7 @@
   <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>{{ item.text }}
     {% if item.effect_type %}<span class="effect-badge {{ item.effect_type }}">{{ item.get_effect_type_display }}</span>{% endif %}
     {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">{{ item.related_standard }}</span>{% endif %}
+    {% if item.linked_stakeholders.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ذینفعان مرتبط:&#10;{% for sh in item.linked_stakeholders.all %}{{ sh.name }} — واحد: {{ sh.department|default:'—' }} — نیاز/انتظار: {{ sh.need|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-user"></i> {{ item.linked_stakeholders.all|length }}</span>{% endif %}
   </span>
   <span class="acts">
     {% if perms.strategic.change_porterforce %}

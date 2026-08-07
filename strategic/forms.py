@@ -233,13 +233,14 @@ class PestelFactorForm(forms.ModelForm):
         fields = [
             "category", "text", "order",
             "impact_level", "probability", "uncertainty", "horizon", "trend",
-            "effect_type", "related_standard", "detailed_description", "scoring_guide",
+            "effect_type", "related_standard", "detailed_description", "scoring_guide", "related_stakeholders",
         ]
         widgets = {
             "text": forms.TextInput(attrs={"placeholder": "متن عامل / فرصت / تهدید"}),
             "related_standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 9001، ISO 14001"}),
             "detailed_description": forms.Textarea(attrs={"rows": 3, "placeholder": "توضیح تفصیلی و راهنمای درک عامل"}),
             "scoring_guide": forms.Textarea(attrs={"rows": 2, "placeholder": "راهنمای امتیازدهی این عامل"}),
+            "related_stakeholders": forms.CheckboxSelectMultiple(),
         }
 
 
@@ -287,7 +288,7 @@ class StakeholderForm(forms.ModelForm):
     class Meta:
         model = Stakeholder
         fields = [
-            "department", "name", "is_internal", "is_external", "channel", "need", "need_flag", "expectation_flag",
+            "department", "name", "is_internal", "is_external", "related_porters", "channel", "need", "need_flag", "expectation_flag",
             "risk_text", "risk_occurrence", "risk_severity", "risk_detection", "risk_score",
             "opportunity_text", "opportunity_importance", "opportunity_impact", "opportunity_score",
             "action", "domain", "status",
@@ -299,6 +300,7 @@ class StakeholderForm(forms.ModelForm):
             "domain": forms.TextInput(attrs={"placeholder": "مثلاً: فرآیند"}),
             "need": forms.Textarea(attrs={"rows": 2}),
             "risk_text": forms.Textarea(attrs={"rows": 2}),
+            "related_porters": forms.CheckboxSelectMultiple(),
             "opportunity_text": forms.Textarea(attrs={"rows": 2}),
             "action": forms.Textarea(attrs={"rows": 2}),
         }
@@ -388,7 +390,7 @@ class LegalRequirementForm(forms.ModelForm):
         model = LegalRequirement
         fields = [
             "title", "source", "is_legal", "is_organizational", "is_internal", "is_external", "revision_date",
-            "related_documents", "scope", "risk_text", "opportunity_text", "notes", "department",
+            "related_documents", "scope", "risk_text", "opportunity_text", "notes", "department", "related_pestel",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دستورالعمل تأمین اضطراری قطعات"}),
