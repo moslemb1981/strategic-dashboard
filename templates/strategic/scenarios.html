@@ -80,7 +80,7 @@
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_positive }}</div>
     </div>
 
-    <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')">
+    <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')" title="{{ foggy_tooltip }}">
       {% if scenario_map.foggy.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.foggy.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.foggy.swot_items.all|length }}</span>{% endif %}{% if scenario_map.foggy.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.foggy.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.foggy.risks.all|length }}</span>{% endif %}</div>

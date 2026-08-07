@@ -1,161 +1,188 @@
 {% extends "strategic/base.html" %}
 {% load static %}
-{% block title %}خانه{% endblock %}
+{% block title %}سامانه هوشمند مدیریت عملکرد{% endblock %}
 {% block crumb %}خانه{% endblock %}
 
-{% block content %}
-<div class="topbar">
-  <div><h1>خانه</h1><div class="sub">نمای کلی وضعیت مطالعات، ریسک‌ها و شاخص‌های استراتژیک</div></div>
-  <div class="search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="جست‌وجو..."></div>
-</div>
+{% block extra_css %}
+<style>
+  .info-page{margin:-24px -28px;padding:20px 26px;border-radius:0;
+    background:radial-gradient(ellipse at top,#132b46,#0d1b2e 70%);color:#fff;min-height:calc(100vh - 0px);}
+  @media(max-width:900px){.info-page{margin:-16px;padding:16px;}}
 
-<div class="gauge-row">
-  <div class="gauge-card">
-    <div class="gauge-holder" id="gauge-goals"></div>
-    <div class="gauge-meta"><div class="label">پیشرفت اهداف استراتژیک</div><div class="value">{{ obj_total }} هدف ثبت‌شده</div><div class="trend">امتیاز ترکیبی بر اساس وضعیت اهداف</div></div>
-  </div>
-  <div class="gauge-card">
-    <div class="gauge-holder" id="gauge-initiatives"></div>
-    <div class="gauge-meta"><div class="label">پروژه‌های در مسیر تحول</div><div class="value">{{ init_on_track }} از {{ init_total }} پروژه</div>
-      {% if init_behind %}<div class="trend down">↓ {{ init_behind }} ابتکار نیازمند پیگیری</div>{% else %}<div class="trend up">همه ابتکارات در مسیرند</div>{% endif %}
-    </div>
-  </div>
-  <div class="gauge-card">
-    <div class="gauge-holder" id="gauge-research"></div>
-    <div class="gauge-meta"><div class="label">نرخ تکمیل مطالعات</div><div class="value">{{ study_done }} از {{ study_total }} مطالعه تکمیل‌شده</div><div class="trend">بر اساس وضعیت واقعی کتابخانه مطالعات</div></div>
-  </div>
-  <div class="gauge-card">
-    <div class="gauge-holder" id="gauge-risk" {% if not user.is_authenticated %}style="display:none;"{% endif %}></div>
-    {% if not user.is_authenticated %}
-    <div class="gauge-holder" style="display:flex;align-items:center;justify-content:center;background:var(--bg);border-radius:50%;color:var(--ink-faint);font-size:20px;"><i class="fa-solid fa-lock"></i></div>
-    {% endif %}
-    <div class="gauge-meta">
-      <div class="label">ریسک‌های استراتژیک باز</div>
-      {% if user.is_authenticated %}
-      <div class="value">{{ risk_total }} ریسک فعال</div>
-      {% if risk_high %}<div class="trend down">{{ risk_high }} ریسک با شدت بالا</div>{% else %}<div class="trend up">ریسک با شدت بالا ثبت نشده</div>{% endif %}
-      {% else %}
-      <div class="value" style="color:var(--ink-faint);">نیاز به ورود</div>
-      <div class="trend">این بخش برای کاربران لاگین‌کرده در دسترس است</div>
-      {% endif %}
-    </div>
-  </div>
-</div>
+  /* نوار بالای صفحه (breadcrumb) فقط توی همین صفحه، هم‌رنگ پس‌زمینه‌ی تیره بشه */
+  body.page-home .topheader{background:linear-gradient(90deg,#132b46,#0d1b2e);border-bottom-color:rgba(255,255,255,.08);}
+  body.page-home .topheader .crumb i,body.page-home .topheader .crumb span,body.page-home .topheader .crumb b{color:#fff;}
+  body.page-home .topheader .right span{color:#c3d2e0;}
+  body.page-home .topheader .right button{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#dbe6f0;}
+  body.page-home .topheader .right button:hover{background:rgba(255,255,255,.16);}
 
-<div class="section-title">ماژول‌ها</div>
-<div class="card-grid" style="margin-bottom:26px;">
-  <a class="module-card" href="{% url 'strategic:documents' %}">
-    <div class="icon"><i class="fa-solid fa-folder-open"></i></div>
-    <h3>اسناد و دستورالعمل‌ها</h3><p>اسناد بالادستی و دستورالعمل‌های سازمانی</p>
-    <div class="stat">{{ document_count }} سند ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:legal_requirements' %}">
-    <div class="icon"><i class="fa-solid fa-scale-balanced"></i></div>
-    <h3>الزامات قانونی</h3><p>بانک الزامات قانونی و سازمانی</p>
-    <div class="stat">{{ legal_requirement_count }} الزام ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:stakeholders' %}">
-    <div class="icon"><i class="fa-solid fa-user"></i></div>
-    <h3>تحلیل ذینفعان</h3><p>نیازها، ریسک‌ها و فرصت‌های ذینفعان</p>
-    <div class="stat">{{ stakeholder_count }} ذینفع ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:roadmap' %}">
-    <div class="icon"><i class="fa-solid fa-route"></i></div>
-    <h3>پروژه‌های تحول</h3><p>زمان‌بندی و اهداف مرتبط</p>
-    <div class="stat">{{ init_total }} ابتکار ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:environmental_factors' %}">
-    <div class="icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
-    <h3>بانک عوامل محیطی</h3><p>شناسایی و امتیازدهی عوامل تأثیرگذار</p>
-    <div class="stat">{{ environmental_factor_count }} عامل ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:pestel' %}">
-    <div class="icon"><i class="fa-solid fa-earth-americas"></i></div>
-    <h3>تحلیل PESTEL</h3><p>روندهای کلان محیط صنعت خودرو</p>
-    <div class="stat">{{ pestel_count }} عامل ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:cross_impact' %}">
-    <div class="icon"><i class="fa-solid fa-table-cells"></i></div>
-    <h3>ماتریس اثر متقابل</h3><p>جای‌گذاری عوامل کلیدی (MICMAC)</p>
-    <div class="stat">{{ cross_impact_count }} عامل جای‌گذاری‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:scenarios' %}">
-    <div class="icon"><i class="fa-solid fa-road"></i></div>
-    <h3>سناریوهای راهبردی</h3><p>۴ سناریو، بر پایه‌ی عدم‌قطعیت‌های کلیدی</p>
-    <div class="stat">مبنا: {{ scenario_selected.display_title|default:"تعیین‌نشده" }}</div></a>
-  <a class="module-card" href="{% url 'strategic:porter' %}">
-    <div class="icon"><i class="fa-solid fa-chess-knight"></i></div>
-    <h3>پنج نیروی رقابتی Porter</h3><p>ساختار رقابتی صنعت قطعات و خدمات</p>
-    <div class="stat">{{ porter_count }} از ۵ نیرو تحلیل‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:mckinsey7s' %}">
-    <div class="icon"><i class="fa-solid fa-diagram-project"></i></div>
-    <h3>تحلیل McKinsey 7S</h3><p>هماهنگی درونی سازمان از ۷ زاویه</p>
-    <div class="stat">{{ mckinsey7s_count }} از ۷ مؤلفه تحلیل‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:value_chain' %}">
-    <div class="icon"><i class="fa-solid fa-link"></i></div>
-    <h3>زنجیره ارزش پورتر</h3><p>فعالیت‌های اصلی و پشتیبان خلق ارزش</p>
-    <div class="stat">{{ value_chain_count }} از ۹ فعالیت تحلیل‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:company_goals' %}">
-    <div class="icon"><i class="fa-solid fa-bullseye"></i></div>
-    <h3>اهداف کلان و KPI شرکت</h3><p>اهداف سطح کل شرکت، مرتبط با گروه سایپا</p>
-    <div class="stat">{{ company_objective_count }} هدف، {{ company_kpi_count }} شاخص</div></a>
-  <a class="module-card" href="{% url 'strategic:stratmap' %}">
-    <div class="icon"><i class="fa-solid fa-map"></i></div>
-    <h3>نقشه استراتژیک</h3><p>اهداف در قالب کارت امتیازی متوازن</p>
-    <div class="stat">۴ منظر، {{ obj_total }} هدف</div></a>
-  {% if user.is_authenticated %}
-  <a class="module-card" href="{% url 'strategic:swot' %}">
-    <div class="icon"><i class="fa-solid fa-table-cells"></i></div>
-    <h3>تحلیل SWOT</h3><p>ماتریس عوامل به‌همراه استراتژی TOWS</p>
-    <div class="stat">{{ swot_count }} مورد ثبت‌شده</div></a>
-  <a class="module-card" href="{% url 'strategic:risk' %}">
-    <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-    <h3>نقشه ریسک استراتژیک</h3><p>ماتریس احتمال × شدت اثر ریسک‌ها</p>
-    <div class="stat">{{ risk_total }} ریسک ثبت‌شده</div></a>
-  {% else %}
-  <a class="module-card" href="{% url 'strategic:login' %}?next={% url 'strategic:swot' %}" style="opacity:.55;">
-    <div class="icon" style="background:var(--bg);color:var(--ink-faint);"><i class="fa-solid fa-lock"></i></div>
-    <h3>تحلیل SWOT</h3><p>برای مشاهده این بخش وارد شوید</p>
-    <div class="stat" style="color:var(--ink-faint);">نیاز به ورود</div></a>
-  <a class="module-card" href="{% url 'strategic:login' %}?next={% url 'strategic:risk' %}" style="opacity:.55;">
-    <div class="icon" style="background:var(--bg);color:var(--ink-faint);"><i class="fa-solid fa-lock"></i></div>
-    <h3>نقشه ریسک استراتژیک</h3><p>برای مشاهده این بخش وارد شوید</p>
-    <div class="stat" style="color:var(--ink-faint);">نیاز به ورود</div></a>
-  {% endif %}
-</div>
+  .hero-logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;}
+  .hero-logo img{height:40px;}
 
-<div class="section-title">آخرین فعالیت‌ها</div>
-<div class="panel"><ul class="brief-list">
-  {% for a in activity %}
-  <li><span class="sev-dot med"></span><span class="txt">{{ a.text }}</span><span class="tag">{{ a.tag }} · {{ a.dt|timesince }} پیش</span></li>
-  {% empty %}
-  <li><span class="txt" style="opacity:.6;">هنوز فعالیتی ثبت نشده — از ماژول‌ها شروع کنید</span></li>
-  {% endfor %}
-</ul></div>
+  .page-title{text-align:center;margin-bottom:8px;}
+  .page-title h1{font-size:21px;margin:0 0 5px;font-weight:800;background:linear-gradient(90deg,#fff,#cfe0f2);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .page-title .sub{font-size:11.5px;color:#8fa3ba;}
+  .stat-strip{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .stat-pill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:6px 18px;text-align:center;min-width:82px;}
+  .stat-pill b{display:block;font-size:16px;}
+  .stat-pill span{font-size:8.5px;color:#8fa3ba;}
+
+  .pipeline{position:relative;display:flex;align-items:stretch;gap:0;padding:22px 4px 26px;justify-content:center;}
+  .station-wrap{display:flex;align-items:center;flex:none;}
+  .station{width:148px;flex:none;background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:11px 10px;position:relative;backdrop-filter:blur(6px);
+    overflow:hidden;}
+  .station:hover{border-color:var(--sc,#C97A2B);}
+  .station .ghost-num{position:absolute;left:-5px;top:-15px;font-size:58px;font-weight:900;color:rgba(255,255,255,.05);
+    line-height:1;pointer-events:none;}
+  .station-head{display:block;text-decoration:none;color:inherit;}
+  .station .num-badge{width:24px;height:24px;border-radius:7px;background:var(--sc,#C97A2B);color:#fff;font-weight:800;
+    font-size:11px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;box-shadow:0 5px 11px -3px var(--sc,#C97A2B);}
+  .station h3{margin:0 0 2px;font-size:10.8px;color:#fff;position:relative;z-index:1;}
+  .station .en{font-size:7.5px;color:#8fa3ba;letter-spacing:.02em;margin-bottom:8px;display:block;}
+  .stat-main{display:flex;align-items:baseline;gap:4px;margin:2px 0 8px;position:relative;z-index:1;}
+  .stat-main b{font-size:18px;color:var(--sc,#C97A2B);}
+  .stat-main span{font-size:8px;color:#c3d2e0;}
+  .mod-list{display:flex;flex-direction:column;gap:4px;position:relative;z-index:1;}
+  .mod-chip{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:8.3px;color:#dbe6f0;
+    background:rgba(255,255,255,.06);border-radius:6px;padding:5px 7px;transition:background .15s,transform .15s;
+    text-decoration:none;cursor:pointer;}
+  .mod-chip .l{display:flex;align-items:center;gap:5px;overflow:hidden;}
+  .mod-chip:hover{background:rgba(255,255,255,.16);transform:translateX(-2px);}
+  .mod-chip i{font-size:8.3px;color:var(--sc,#C97A2B);flex:none;width:10px;text-align:center;}
+  .mod-chip b{font-size:9.5px;color:#fff;flex:none;margin-inline-start:4px;}
+  .sub-label{font-size:7px;font-weight:700;color:#8fa3ba;margin:5px 0 2px;display:flex;align-items:center;gap:4px;}
+
+  .connector{width:22px;flex:none;display:flex;align-items:center;justify-content:center;position:relative;}
+  .connector svg{width:100%;height:22px;overflow:visible;}
+  .connector .flow-label{position:absolute;bottom:-14px;font-size:7px;color:#5f7488;white-space:nowrap;}
+
+  .legend{display:flex;justify-content:center;gap:16px;margin-top:2px;flex-wrap:wrap;font-size:9.5px;color:#8fa3ba;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .legend i{width:8px;height:8px;border-radius:3px;display:inline-block;}
+</style>
 {% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'js/raphael.min.js' %}"></script>
-<script src="{% static 'js/justgage.min.js' %}"></script>
-<script>
-  function mkGauge(id, value, color){
-    const g = new JustGage({
-      id: id, value: value, min: 0, max: 100,
-      symbol: '%', reverseTextDirection: true,
-      relativeGaugeSize: true, gaugeWidthScale: 0.4,
-      levelColors: [color], counter: true,
-      valueFontColor: '#1B2430', labelFontColor: '#8B93A1',
-      pointer: false
-    });
-    // فقط متن مقدار مرکزی (شامل ٪) را بزرگ می‌کنیم، برچسب‌های کمینه/بیشینه کنار میله دست‌نخورده می‌مانند
-    setTimeout(function(){
-      document.querySelectorAll('#' + id + ' svg text').forEach(function(t){
-        if (t.textContent.indexOf('%') !== -1){
-          t.style.fontSize = '22px';
-          t.style.fontWeight = '800';
-        }
-      });
-    }, 0);
-    return g;
-  }
-  document.addEventListener('DOMContentLoaded', function(){
-    mkGauge('gauge-goals', {{ obj_score }}, '#2E5C8A');
-    mkGauge('gauge-initiatives', {{ init_avg_progress }}, '#C97A2B');
-    mkGauge('gauge-research', {{ study_pct }}, '#3E7A52');
-    mkGauge('gauge-risk', {{ risk_pct }}, '#B0413E');
-  });
-</script>
+{% block content %}
+<div class="info-page">
+  <div class="page-title">
+    <div class="hero-logo"><img src="{% static 'images/logo.png' %}" alt="سایپا یدک"></div>
+    <h1>سامانه هوشمند مدیریت عملکرد</h1>
+    <div class="sub">سایپا یدک — از ارکان جهت‌ساز تا اهداف و شاخص‌های عملکرد، یک نگاه، کل مسیر</div>
+    <div class="stat-strip">
+      <div class="stat-pill"><b>۱۷</b><span>ماژول فعال</span></div>
+      <div class="stat-pill"><b>{{ total_records }}</b><span>رکورد ثبت‌شده</span></div>
+      <div class="stat-pill"><b>{{ obj_score }}٪</b><span>پیشرفت اهداف استراتژیک</span></div>
+    </div>
+  </div>
+
+  <div class="pipeline">
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#C97A2B;">
+        <div class="ghost-num">۱</div>
+        <a class="station-head" href="{% url 'strategic:org_identity' %}">
+          <div class="num-badge">۱</div>
+          <h3>ارکان جهت‌ساز</h3><span class="en">Foundation</span>
+        </a>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:org_identity' %}"><span class="l"><i class="fa-solid fa-flag"></i>چشم‌انداز و مأموریت</span><b>✓</b></a>
+          <a class="mod-chip" href="{% url 'strategic:org_identity' %}"><span class="l"><i class="fa-solid fa-heart"></i>ارزش سازمانی</span><b>{{ org_value_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:org_identity' %}"><span class="l"><i class="fa-solid fa-list-check"></i>بند خط‌مشی</span><b>{{ quality_policy_count }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><svg viewBox="0 0 44 26"><defs><marker id="a1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#4a6580"/></marker></defs><line x1="40" y1="13" x2="4" y2="13" stroke="#4a6580" stroke-width="2" marker-end="url(#a1)"/></svg></div>
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#2E5C8A;width:172px;">
+        <div class="ghost-num">۲</div>
+        <div class="station-head"><div class="num-badge">۲</div><h3>تحلیل محیط</h3><span class="en">Environmental Analysis</span></div>
+        <div class="sub-label"><i class="fa-solid fa-earth-americas"></i> بیرونی</div>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:legal_requirements' %}"><span class="l"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</span><b>{{ legal_requirement_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:stakeholders' %}"><span class="l"><i class="fa-solid fa-user"></i>تحلیل ذینفعان</span><b>{{ stakeholder_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:environmental_factors' %}"><span class="l"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</span><b>{{ environmental_factor_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:pestel' %}"><span class="l"><i class="fa-solid fa-earth-americas"></i>PESTEL</span><b>{{ pestel_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:porter' %}"><span class="l"><i class="fa-solid fa-chess-knight"></i>Porter</span><b>{{ porter_count }}</b></a>
+        </div>
+        <div class="sub-label" style="margin-top:9px;"><i class="fa-solid fa-building"></i> داخلی</div>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:mckinsey7s' %}"><span class="l"><i class="fa-solid fa-diagram-project"></i>McKinsey 7S</span><b>{{ mckinsey7s_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:value_chain' %}"><span class="l"><i class="fa-solid fa-link"></i>زنجیره ارزش پورتر</span><b>{{ value_chain_count }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><svg viewBox="0 0 44 26"><line x1="40" y1="13" x2="4" y2="13" stroke="#4a6580" stroke-width="2" marker-end="url(#a1)"/></svg></div>
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#6C56A3;">
+        <div class="ghost-num">۳</div>
+        <div class="station-head"><div class="num-badge">۳</div><h3>آینده‌پژوهی</h3><span class="en">Futures Research</span></div>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:cross_impact' %}"><span class="l"><i class="fa-solid fa-table-cells"></i>عامل جای‌گذاری‌شده</span><b>{{ cross_impact_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:scenarios' %}"><span class="l"><i class="fa-solid fa-road"></i>سناریوی راهبردی</span><b>{{ scenario_total }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><svg viewBox="0 0 44 26"><line x1="40" y1="13" x2="4" y2="13" stroke="#4a6580" stroke-width="2" marker-end="url(#a1)"/></svg></div>
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#B5583F;">
+        <div class="ghost-num">۴</div>
+        <a class="station-head" href="{% url 'strategic:swot' %}">
+          <div class="num-badge">۴</div>
+          <h3>تدوین راهبرد</h3><span class="en">SWOT / TOWS</span>
+        </a>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:swot' %}"><span class="l"><i class="fa-solid fa-table-cells"></i>مورد SWOT ثبت‌شده</span><b>{{ swot_count }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><svg viewBox="0 0 44 26"><line x1="40" y1="13" x2="4" y2="13" stroke="#4a6580" stroke-width="2" marker-end="url(#a1)"/></svg><span class="flow-label">۳ خروجی</span></div>
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#3E7A52;width:150px;">
+        <div class="ghost-num">۵</div>
+        <div class="station-head"><div class="num-badge">۵</div><h3>خروجی‌های اجرایی</h3><span class="en">Execution Outputs</span></div>
+        <div class="stat-main"><b>{{ obj_score }}٪</b><span>پیشرفت نقشه استراتژیک</span></div>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:stratmap' %}"><span class="l"><i class="fa-solid fa-map"></i>هدف در نقشه استراتژیک</span><b>{{ obj_total }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:roadmap' %}"><span class="l"><i class="fa-solid fa-route"></i>پروژه‌های تحول</span><b>{{ init_total }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:risk' %}" style="background:rgba(176,65,62,.18);"><span class="l"><i class="fa-solid fa-triangle-exclamation" style="color:#e07875;"></i>ریسک با شدت بالا</span><b style="color:#e07875;">{{ risk_high }}</b></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"><svg viewBox="0 0 44 26"><line x1="40" y1="13" x2="4" y2="13" stroke="#4a6580" stroke-width="2" marker-end="url(#a1)"/></svg></div>
+
+    <div class="station-wrap">
+      <div class="station" style="--sc:#1E3F60;">
+        <div class="ghost-num">۶</div>
+        <a class="station-head" href="{% url 'strategic:company_goals' %}">
+          <div class="num-badge">۶</div>
+          <h3>اهداف کلان و KPI</h3><span class="en">Monitoring</span>
+        </a>
+        <div class="mod-list">
+          <a class="mod-chip" href="{% url 'strategic:company_goals' %}"><span class="l"><i class="fa-solid fa-bullseye"></i>هدف سازمانی</span><b>{{ company_objective_count }}</b></a>
+          <a class="mod-chip" href="{% url 'strategic:company_goals' %}"><span class="l"><i class="fa-solid fa-chart-line"></i>شاخص کلیدی</span><b>{{ company_kpi_count }}</b></a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#C97A2B;"></i>ارکان جهت‌ساز</span>
+    <span><i style="background:#2E5C8A;"></i>تحلیل محیط</span>
+    <span><i style="background:#6C56A3;"></i>آینده‌پژوهی</span>
+    <span><i style="background:#B5583F;"></i>تدوین راهبرد</span>
+    <span><i style="background:#3E7A52;"></i>اجرا و پایش</span>
+  </div>
+</div>
 {% endblock %}

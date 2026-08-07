@@ -61,7 +61,7 @@ def home(request):
 
     risks = list(Risk.objects.all())
     risk_total = len(risks)
-    risk_high = sum(1 for r in risks if r.zone == "red")
+    risk_high = sum(1 for r in risks if r.zone in ("high", "crit"))
     risk_pct = round(risk_high / risk_total * 100) if risk_total else 0
 
     # فید فعالیت‌های اخیر — از هر ۷ مدل، آخرین رکوردها را ترکیب می‌کند
@@ -87,6 +87,28 @@ def home(request):
     activity.sort(key=lambda a: a["dt"], reverse=True)
     activity = activity[:6]
 
+    swot_count = SWOTItem.objects.count()
+    org_value_count = OrgValue.objects.count()
+    quality_policy_count = QualityPolicyPoint.objects.count()
+    scenario_total = Scenario.objects.count()
+    pestel_count = PestelFactor.objects.count()
+    cross_impact_count = CrossImpactFactor.objects.count()
+    company_objective_count = CompanyObjective.objects.count()
+    company_kpi_count = CompanyKPI.objects.count()
+    legal_requirement_count = LegalRequirement.objects.count()
+    environmental_factor_count = EnvironmentalFactor.objects.count()
+    stakeholder_count = Stakeholder.objects.count()
+    porter_count = PorterForce.objects.count()
+    mckinsey7s_count = McKinsey7S.objects.count()
+    value_chain_count = ValueChainActivity.objects.count()
+
+    total_records = (
+        legal_requirement_count + stakeholder_count + environmental_factor_count + pestel_count + porter_count
+        + mckinsey7s_count + value_chain_count + cross_impact_count + scenario_total + swot_count
+        + org_value_count + quality_policy_count + obj_total + init_total + risk_total
+        + company_objective_count + company_kpi_count
+    )
+
     return render(request, "strategic/home.html", {
         "active_page": "home",
         "obj_score": obj_score, "obj_total": obj_total,
@@ -94,19 +116,23 @@ def home(request):
         "study_total": study_total, "study_done": study_done, "study_pct": study_pct,
         "risk_total": risk_total, "risk_high": risk_high, "risk_pct": risk_pct,
         "competitor_count": Competitor.objects.count(),
-        "pestel_count": PestelFactor.objects.count(),
-        "cross_impact_count": CrossImpactFactor.objects.count(),
+        "pestel_count": pestel_count,
+        "cross_impact_count": cross_impact_count,
         "scenario_selected": Scenario.objects.filter(is_selected=True).first(),
-        "company_objective_count": CompanyObjective.objects.count(),
-        "company_kpi_count": CompanyKPI.objects.count(),
+        "company_objective_count": company_objective_count,
+        "company_kpi_count": company_kpi_count,
         "document_count": Document.objects.count(),
-        "legal_requirement_count": LegalRequirement.objects.count(),
-        "environmental_factor_count": EnvironmentalFactor.objects.count(),
-        "stakeholder_count": Stakeholder.objects.count(),
-        "porter_count": PorterForce.objects.count(),
-        "mckinsey7s_count": McKinsey7S.objects.count(),
-        "value_chain_count": ValueChainActivity.objects.count(),
-        "swot_count": SWOTItem.objects.count(),
+        "legal_requirement_count": legal_requirement_count,
+        "environmental_factor_count": environmental_factor_count,
+        "stakeholder_count": stakeholder_count,
+        "porter_count": porter_count,
+        "mckinsey7s_count": mckinsey7s_count,
+        "value_chain_count": value_chain_count,
+        "swot_count": swot_count,
+        "org_value_count": org_value_count,
+        "quality_policy_count": quality_policy_count,
+        "scenario_total": scenario_total,
+        "total_records": total_records,
         "activity": activity,
     })
 
@@ -1278,9 +1304,12 @@ def scenarios(request):
                     return redirect("strategic:scenarios")
 
     scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks")}
+    business_units = list(BusinessUnit.objects.all())
+    foggy_tooltip = "\n".join(f"{bu.name} (فرصت و تهدید)" for bu in business_units)
     return render(request, "strategic/scenarios.html", {
         "active_page": "scenarios", "scenario_map": scenario_map, "axes": axes,
         "scenario_form": ScenarioForm(), "axes_form": ScenarioAxesForm(instance=axes),
+        "foggy_tooltip": foggy_tooltip,
     })
 
 
