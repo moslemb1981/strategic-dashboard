@@ -24,6 +24,8 @@
   .ef-effect-tag{display:inline-block;font-size:9.5px;font-weight:700;border-radius:5px;padding:1px 7px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--border);}
   .ci-tag{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;background:var(--primary-soft);
     color:var(--primary-dark);border-radius:5px;padding:1px 6px;margin-inline-start:5px;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
+    padding:1px 6px;margin-inline-start:5px;cursor:help;}
   .ef-detail-row{display:none;background:var(--bg);}
   .ef-detail-row.open{display:table-row;}
   .ef-detail-row td{padding:10px 16px;font-size:11px;color:var(--ink-soft);line-height:1.8;}
@@ -72,7 +74,9 @@
     <th><input type="text" id="liveCategory" class="ef-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveFactor" class="ef-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveEffect" class="ef-live-input" placeholder="جستجو..."></th>
-    <th></th><th></th><th></th>
+    <th><input type="text" id="liveAvg" class="ef-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveFreq" class="ef-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveRelation" class="ef-live-input" placeholder="جستجو..."></th>
     <th style="font-size:10.5px;color:var(--ink-faint);font-weight:400;">
       <span id="liveCount"></span>
       <button type="button" id="liveClear" style="display:none;border:none;background:none;color:var(--primary);cursor:pointer;font-size:10.5px;">پاک</button>
@@ -89,6 +93,8 @@
       <td>{% if i.freq_total %}{{ i.freq_very_high|default:0 }}+{{ i.freq_high|default:0 }} = {{ i.freq_total }}{% else %}—{% endif %}</td>
       <td>
         {% for cf in i.linked_cross_impact_factors %}<span class="ci-tag" title="{{ cf.get_quadrant_display }}"><i class="fa-solid fa-table-cells"></i> در ماتریس اثر متقابل</span>{% endfor %}
+        {% if i.related_stakeholders_display %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ذینفعان مرتبط:&#10;{% for sh in i.related_stakeholders_display %}● {{ sh.name }} — واحد: {{ sh.department|default:'—' }} — نیاز/انتظار: {{ sh.need|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-user"></i> ذینفع ({{ i.related_stakeholders_display|length }})</span>{% endif %}
+        {% if i.related_legal_requirements_display %}<span class="used-badge" style="background:var(--success-soft);color:var(--success-dark, #1c6b3e);" title="الزامات قانونی مرتبط:&#10;{% for lr in i.related_legal_requirements_display %}● {{ lr.title }} — مأخذ: {{ lr.source|default:'—' }} — محل کاربرد: {{ lr.scope|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> الزام قانونی ({{ i.related_legal_requirements_display|length }})</span>{% endif %}
       </td>
       <td style="white-space:nowrap;" onclick="event.stopPropagation();">
         {% if perms.strategic.change_environmentalfactor %}
@@ -186,6 +192,9 @@
     const catInput = document.getElementById('liveCategory');
     const factorInput = document.getElementById('liveFactor');
     const effectInput = document.getElementById('liveEffect');
+    const avgInput = document.getElementById('liveAvg');
+    const freqInput = document.getElementById('liveFreq');
+    const relationInput = document.getElementById('liveRelation');
     const clearBtn = document.getElementById('liveClear');
     const countEl = document.getElementById('liveCount');
     const rows = Array.from(document.querySelectorAll('#efBody tr.ef-row'));
@@ -195,15 +204,22 @@
       const c = catInput.value.trim().toLowerCase();
       const f = factorInput.value.trim().toLowerCase();
       const e = effectInput.value.trim().toLowerCase();
-      const anyActive = c || f || e;
+      const a = avgInput.value.trim().toLowerCase();
+      const q = freqInput.value.trim().toLowerCase();
+      const r = relationInput.value.trim().toLowerCase();
+      const anyActive = c || f || e || a || q || r;
       let visible = 0;
       rows.forEach(function(row){
         const cells = row.querySelectorAll('td');
-        if (cells.length < 3){ return; }
+        if (cells.length < 6){ return; }
         const catTxt = cells[0].textContent.toLowerCase();
         const factorTxt = cells[1].textContent.toLowerCase();
         const effectTxt = cells[2].textContent.toLowerCase();
-        const match = (!c || catTxt.includes(c)) && (!f || factorTxt.includes(f)) && (!e || effectTxt.includes(e));
+        const avgTxt = cells[3].textContent.toLowerCase();
+        const freqTxt = cells[4].textContent.toLowerCase();
+        const relationTxt = cells[5].textContent.toLowerCase();
+        const match = (!c || catTxt.includes(c)) && (!f || factorTxt.includes(f)) && (!e || effectTxt.includes(e))
+          && (!a || avgTxt.includes(a)) && (!q || freqTxt.includes(q)) && (!r || relationTxt.includes(r));
         row.classList.toggle('ef-hidden', !match);
         const detailRow = row.nextElementSibling;
         if (detailRow && detailRow.classList.contains('ef-detail-row')) {
@@ -216,11 +232,12 @@
       countEl.textContent = anyActive ? (visible + ' مورد') : '';
     }
 
-    [catInput, factorInput, effectInput].forEach(function(inp){
+    [catInput, factorInput, effectInput, avgInput, freqInput, relationInput].forEach(function(inp){
       inp.addEventListener('input', applyLiveFilter);
     });
     clearBtn.addEventListener('click', function(){
       catInput.value = ''; factorInput.value = ''; effectInput.value = '';
+      avgInput.value = ''; freqInput.value = ''; relationInput.value = '';
       applyLiveFilter();
     });
   })();

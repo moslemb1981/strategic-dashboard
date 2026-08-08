@@ -2,7 +2,7 @@
 <div class="s7-card" id="s7-card-{{ c.component }}" style="--pc:{{ c.color }};--pcs:{{ c.soft }};">
   <div class="p-head">
     <div class="icon"><i class="fa-solid {{ c.icon }}"></i></div>
-    <div class="ttl"><b>{{ c.get_component_display }}{% if c.swot_items.all %}<span class="used-badge" title="{% for si in c.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ c.swot_items.all|length }}</span>{% endif %}</b><small>{{ c.english }}</small></div>
+    <div class="ttl"><b>{{ c.get_component_display }}{% if c.swot_items.all %}<span class="used-badge" title="{% for si in c.swot_items.all %}● SWOT {{ si.business_unit.name }} ({{ si.get_category_display }}){% if si.swot_code %}&#10;   {{ si.swot_code }}: {{ si.text }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ c.swot_items.all|length }}</span>{% endif %}</b><small>{{ c.english }}</small></div>
     {% if perms.strategic.change_mckinsey7s %}
     <button type="button" class="s7-edit" onclick="editComponent(this)"
       data-id="{{ c.pk }}" data-status="{{ c.status }}" data-strengths="{{ c.strengths }}" data-weaknesses="{{ c.weaknesses }}">

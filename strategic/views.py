@@ -589,6 +589,20 @@ def mckinsey7s(request):
     hard_items = [c for c in components if c.group == "hard"]
     soft_items = [c for c in components if c.group == "soft"]
 
+    # کد S1/W1/O1/T1 هیچ‌جا توی دیتابیس ذخیره نمی‌شه — دقیقاً همون‌طور که توی خود صفحه‌ی
+    # SWOT لحظه‌ای ساخته می‌شه (ترتیب هر دسته داخل هر کسب‌وکار، بر اساس -weight, created_at)،
+    # اینجا هم عیناً همون منطق رو تکرار می‌کنیم تا کدها با صفحه‌ی SWOT یکی باشن.
+    swot_code_map = {}
+    counters = {}
+    all_swot_items = SWOTItem.objects.all().order_by("business_unit_id", "category", "-weight", "created_at")
+    for si in all_swot_items:
+        key = (si.business_unit_id, si.category)
+        counters[key] = counters.get(key, 0) + 1
+        swot_code_map[si.pk] = f"{si.category.upper()}{counters[key]}"
+    for c in components:
+        for si in c.swot_items.all():
+            si.swot_code = swot_code_map.get(si.pk, "")
+
     return render(request, "strategic/mckinsey7s.html", {
         "active_page": "mckinsey7s", "components": components, "form": McKinsey7SForm(),
         "center": center, "hard_items": hard_items, "soft_items": soft_items,

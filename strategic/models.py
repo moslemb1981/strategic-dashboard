@@ -1167,3 +1167,38 @@ class EnvironmentalFactor(models.Model):
             if hay in needle or needle in hay:
                 matches.append(f)
         return matches
+
+    def _matched_pestel_porter(self):
+        """تطابق متنی این عامل با عامل معادلش در PESTEL یا Porter (فقط برای نمایش، نه رابطه‌ی دیتابیسی)."""
+        if not self.factor_text:
+            return None
+        needle = self.factor_text.split("(")[0].strip()
+        if not needle:
+            return None
+        for f in PestelFactor.objects.all():
+            hay = f.text.strip()
+            if hay and (hay in needle or needle in hay):
+                return f
+        for f in PorterForce.objects.all():
+            hay = f.text.strip()
+            if hay and (hay in needle or needle in hay):
+                return f
+        return None
+
+    @property
+    def related_stakeholders_display(self):
+        """ذینفعانی که (از طریق عامل معادل در PESTEL یا Porter) به این عامل مرتبط‌اند — فقط نمایشی."""
+        match = self._matched_pestel_porter()
+        if match is None:
+            return []
+        if isinstance(match, PestelFactor):
+            return list(match.related_stakeholders.all())
+        return list(match.linked_stakeholders.all())
+
+    @property
+    def related_legal_requirements_display(self):
+        """الزامات قانونی‌ای که (از طریق عامل معادل در PESTEL) به این عامل مرتبط‌اند — فقط نمایشی."""
+        match = self._matched_pestel_porter()
+        if isinstance(match, PestelFactor):
+            return list(match.linked_legal_requirements.all())
+        return []
