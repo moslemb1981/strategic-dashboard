@@ -90,6 +90,8 @@
   .picker-box label:hover{background:var(--bg);}
   .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
   .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
+    padding:1px 6px;margin-inline-start:5px;cursor:help;}
 </style>
 {% endblock %}
 
@@ -195,7 +197,11 @@
           {% for r in risks %}
           <tr>
             <td><span class="td-id" style="background:{{ r.category_color }}">{{ forloop.counter|fanum }}</span></td>
-            <td style="white-space:normal;word-break:break-word;" title="{% if r.cause %}علت: {{ r.cause }}{% endif %}{% if r.consequence %}&#10;پیامد: {{ r.consequence }}{% endif %}">{{ r.title }}{% for s in r.related_scenario.all %}<span class="scenario-badge" title="سناریوی مرتبط: {{ s.display_title }}"><i class="fa-solid fa-road"></i> {{ s.display_title }}</span>{% endfor %}</td>
+            <td style="white-space:normal;word-break:break-word;" title="{% if r.cause %}علت: {{ r.cause }}{% endif %}{% if r.consequence %}&#10;پیامد: {{ r.consequence }}{% endif %}">{{ r.title }}
+              {% for s in r.related_scenario.all %}<span class="scenario-badge" title="سناریوی مرتبط: {{ s.display_title }}"><i class="fa-solid fa-road"></i> {{ s.display_title }}</span>{% endfor %}
+              {% if r.related_swot_items.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="منشأ (تهدید/ضعف SWOT):&#10;{% for si in r.related_swot_items.all %}● {{ si.business_unit.name }} — {{ si.get_category_display }}: {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> SWOT ({{ r.related_swot_items.all|length }})</span>{% endif %}
+              {% if r.traced_swot_origins %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" title="ردیابی خودکار منشأ (تا عامل اصلی):&#10;{% for o in r.traced_swot_origins %}● {{ o.swot_item.get_category_display }} ({{ o.swot_item.business_unit.name }}): {{ o.swot_item.text }}&#10;   ← منبع ({{ o.source_type }}): {{ o.source_detail }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> ریشه ({{ r.traced_swot_origins|length }})</span>{% endif %}
+            </td>
             <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ r.category_color }};" title="{{ r.get_category_display }}"></span></td>
             <td style="white-space:normal;word-break:break-word;">
               {% if r.mitigation_list %}
@@ -220,7 +226,9 @@
                 data-l="{{ r.likelihood }}" data-i="{{ r.impact }}"
                 data-tl="{{ r.target_likelihood }}" data-ti="{{ r.target_impact }}"
                 data-response="{{ r.response_strategy }}" data-trend="{{ r.trend }}" data-kri="{{ r.kri }}"
-                data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}" data-scenario="{% for s in r.related_scenario.all %}{{ s.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}"
+                data-swot="{% for si in r.related_swot_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                data-scenario="{% for s in r.related_scenario.all %}{{ s.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
                 <i class="fa-solid fa-pen"></i>
               </button>
               {% endif %}
@@ -270,6 +278,7 @@
       <div class="field-group"><label>روند نسبت به دوره قبل</label>{{ form.trend }}</div>
       <div class="field-group"><label>شاخص کلیدی ریسک (KRI)</label>{{ form.kri }}</div>
       <div class="field-group"><label>هدف استراتژیک تهدیدشده</label>{{ form.linked_objective }}</div>
+      <div class="field-group"><label>منشأ (تهدید/ضعف SWOT، اختیاری)</label><div class="picker-box">{{ form.related_swot_items }}</div></div>
       <div class="field-group"><label>سناریوهای مرتبط</label><div class="picker-box">{{ form.related_scenario }}</div></div>
       <div class="field-group"><label>اقدامات کنترلی (هر خط یک مورد)</label>{{ form.mitigation }}</div>
       <div class="modal-actions">
@@ -335,8 +344,12 @@
     document.getElementById('id_kri').value = d.kri;
     document.getElementById('id_mitigation').value = d.mitigation;
     document.getElementById('id_linked_objective').value = d.linked || '';
+    const swotIds = (d.swot || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="related_swot_items"]').forEach(function(cb){
+      cb.checked = swotIds.includes(cb.value);
+    });
     const scenarioIds = (d.scenario || '').split(',').filter(Boolean);
-    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+    document.querySelectorAll('input[name="related_scenario"]').forEach(function(cb){
       cb.checked = scenarioIds.includes(cb.value);
     });
     syncScenarioPicked();

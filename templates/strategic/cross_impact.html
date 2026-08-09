@@ -15,6 +15,8 @@
   .ci-card{background:rgba(255,255,255,.92);border-radius:8px;padding:8px 10px;font-size:11.5px;font-weight:600;
     color:var(--ink);display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
   .ci-badge{display:inline-flex;align-items:center;font-size:9.5px;color:var(--primary);margin-inline-start:5px;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
+    padding:1px 6px;margin-inline-start:5px;cursor:help;}
   .ci-card .acts{display:flex;gap:4px;flex:none;}
   .ci-card .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;}
   .ci-empty{font-size:11px;color:rgba(255,255,255,.75);}
@@ -46,7 +48,9 @@
       <div class="q-head"><div><div class="q-title">دوجانبه (سیاست‌گذاری)</div><div class="q-sub">اثرگذاری زیاد · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.relay %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}
+          {% if f.linked_pestel %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="{{ f.linked_pestel.letter }} ({{ f.linked_pestel.get_category_display }}) — {{ f.linked_pestel.text }}{% if f.linked_pestel.effect_type %} — نوع اثر: {{ f.linked_pestel.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-earth-americas"></i> PESTEL</span>{% endif %}
+          {% if f.linked_porter %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{{ f.linked_porter.get_force_display }} — {{ f.linked_porter.text }}{% if f.linked_porter.effect_type %} — نوع اثر: {{ f.linked_porter.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-chess-knight"></i> Porter</span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -61,7 +65,9 @@
       <div class="q-head"><div><div class="q-title">پیشران‌ها (متغیرهای مستقل)</div><div class="q-sub">اثرگذاری زیاد · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.driver %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}
+          {% if f.linked_pestel %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="{{ f.linked_pestel.letter }} ({{ f.linked_pestel.get_category_display }}) — {{ f.linked_pestel.text }}{% if f.linked_pestel.effect_type %} — نوع اثر: {{ f.linked_pestel.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-earth-americas"></i> PESTEL</span>{% endif %}
+          {% if f.linked_porter %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{{ f.linked_porter.get_force_display }} — {{ f.linked_porter.text }}{% if f.linked_porter.effect_type %} — نوع اثر: {{ f.linked_porter.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-chess-knight"></i> Porter</span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -76,7 +82,9 @@
       <div class="q-head"><div><div class="q-title">رصد و دیده‌بانی (وابسته)</div><div class="q-sub">اثرگذاری کم · وابستگی زیاد</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.resultant %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}
+          {% if f.linked_pestel %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="{{ f.linked_pestel.letter }} ({{ f.linked_pestel.get_category_display }}) — {{ f.linked_pestel.text }}{% if f.linked_pestel.effect_type %} — نوع اثر: {{ f.linked_pestel.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-earth-americas"></i> PESTEL</span>{% endif %}
+          {% if f.linked_porter %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{{ f.linked_porter.get_force_display }} — {{ f.linked_porter.text }}{% if f.linked_porter.effect_type %} — نوع اثر: {{ f.linked_porter.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-chess-knight"></i> Porter</span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -91,7 +99,9 @@
       <div class="q-head"><div><div class="q-title">خنثی (خودمتصل)</div><div class="q-sub">اثرگذاری کم · وابستگی کم</div></div></div>
       <div class="ci-cards">
         {% for f in quadrants.watch %}
-        <div class="ci-card"><span>{{ f.text }}{% if f.linked_pestel %}<span class="ci-badge" title="عامل PESTEL: {{ f.linked_pestel.text }}"><i class="fa-solid fa-link"></i></span>{% endif %}{% if f.linked_porter %}<span class="ci-badge" title="نیروی پورتر: {{ f.linked_porter.get_force_display }}"><i class="fa-solid fa-chess-knight"></i></span>{% endif %}</span>
+        <div class="ci-card"><span>{{ f.text }}
+          {% if f.linked_pestel %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="{{ f.linked_pestel.letter }} ({{ f.linked_pestel.get_category_display }}) — {{ f.linked_pestel.text }}{% if f.linked_pestel.effect_type %} — نوع اثر: {{ f.linked_pestel.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-earth-americas"></i> PESTEL</span>{% endif %}
+          {% if f.linked_porter %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{{ f.linked_porter.get_force_display }} — {{ f.linked_porter.text }}{% if f.linked_porter.effect_type %} — نوع اثر: {{ f.linked_porter.get_effect_type_display }}{% endif %}"><i class="fa-solid fa-chess-knight"></i> Porter</span>{% endif %}</span>
           <span class="acts">
             {% if perms.strategic.change_crossimpactfactor %}<button type="button" onclick="editFactor(this)" data-id="{{ f.pk }}" data-text="{{ f.text }}" data-quadrant="{{ f.quadrant }}" data-pestel="{{ f.linked_pestel_id|default:'' }}" data-porter="{{ f.linked_porter_id|default:'' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_crossimpactfactor %}<form method="post" action="{% url 'strategic:cross_impact_delete' f.pk %}" style="margin:0;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}

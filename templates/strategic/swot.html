@@ -202,7 +202,7 @@
         </div>
         {% for it in s_items %}
         <div class="factor"><span class="f-code">S{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label_full }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -233,7 +233,7 @@
         </div>
         {% for it in w_items %}
         <div class="factor"><span class="f-code">W{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label_full }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -264,7 +264,7 @@
         </div>
         {% for it in o_items %}
         <div class="factor"><span class="f-code">O{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label_full }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"
@@ -295,7 +295,7 @@
         </div>
         {% for it in t_items %}
         <div class="factor"><span class="f-code">T{{ forloop.counter }}</span>
-          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
+          <span style="flex:1">{{ it.text }}{% if it.source %}<span class="src-badge" title="{{ it.source_label_full }}"><i class="fa-solid fa-link"></i> {{ it.source_label }}</span>{% endif %}</span>
           <span class="fdots">{% for n in "12345" %}<i class="{% if forloop.counter <= it.weight %}on{% endif %}"></i>{% endfor %}</span>
           {% if perms.strategic.change_swotitem %}
           <button type="button" class="fedit" onclick="editSwotItem(this)"

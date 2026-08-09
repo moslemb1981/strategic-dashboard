@@ -36,6 +36,8 @@
     border-radius:10px;margin-inline-start:auto;}
   .sc-narr .body{padding:0 18px 16px;font-size:12.5px;line-height:2.1;color:var(--ink-soft);white-space:pre-line;
     border-top:1px solid var(--border);padding-top:14px;}
+  .ai-highlight{background:var(--accent-soft);color:#7A4711;font-weight:700;border-radius:4px;
+    padding:0 3px;cursor:help;border-bottom:1px dashed #C97A2B;}
 
   .sc-axes-edit{text-align:left;margin-bottom:10px;}
   .sc-axes-edit button{font-size:11px;border:1px solid var(--border);background:var(--surface);border-radius:8px;
@@ -57,7 +59,7 @@
 <div class="sc-note"><i class="fa-solid fa-circle-info"></i> سناریوی «{{ scenario_map.foggy.display_title }}» به‌عنوان سناریوی مبنا/منتخب برای برنامه‌ریزی احتیاطی انتخاب شده است.</div>
 
 <div class="sc-diagram">
-  <div class="sc-axis-top">{{ axes.axis1_name }} — ({{ axes.axis1_negative }} ↓ &nbsp;·&nbsp; ↑ {{ axes.axis1_positive }})</div>
+  <div class="sc-axis-top">{{ axes.axis1_name }}{% if axes.axis1_source %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پیشران ماتریس اثر متقابل: {{ axes.axis1_source.text }}{% if axes.axis1_source.linked_pestel %}&#10;← منبع: {{ axes.axis1_source.linked_pestel.letter }} ({{ axes.axis1_source.linked_pestel.get_category_display }}) — {{ axes.axis1_source.linked_pestel.text }}{% endif %}{% if axes.axis1_source.linked_porter %}&#10;← منبع: {{ axes.axis1_source.linked_porter.get_force_display }} — {{ axes.axis1_source.linked_porter.text }}{% endif %}"><i class="fa-solid fa-table-cells"></i></span>{% endif %} — ({{ axes.axis1_negative }} ↓ &nbsp;·&nbsp; ↑ {{ axes.axis1_positive }})</div>
   <div class="sc-board">
     <div class="sc-card {% if scenario_map.prosperity.is_selected %}active{% endif %}" style="background:{{ scenario_map.prosperity.quadrant_color }};" onclick="toggleNarrative('prosperity')">
       {% if scenario_map.prosperity.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
@@ -87,25 +89,25 @@
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_negative }}</div>
     </div>
   </div>
-  <div class="sc-axis-left">{{ axes.axis2_name }}<br><small>({{ axes.axis2_negative }} ← / → {{ axes.axis2_positive }})</small></div>
+  <div class="sc-axis-left">{{ axes.axis2_name }}{% if axes.axis2_source %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پیشران ماتریس اثر متقابل: {{ axes.axis2_source.text }}{% if axes.axis2_source.linked_pestel %}&#10;← منبع: {{ axes.axis2_source.linked_pestel.letter }} ({{ axes.axis2_source.linked_pestel.get_category_display }}) — {{ axes.axis2_source.linked_pestel.text }}{% endif %}{% if axes.axis2_source.linked_porter %}&#10;← منبع: {{ axes.axis2_source.linked_porter.get_force_display }} — {{ axes.axis2_source.linked_porter.text }}{% endif %}"><i class="fa-solid fa-table-cells"></i></span>{% endif %}<br><small>({{ axes.axis2_negative }} ← / → {{ axes.axis2_positive }})</small></div>
 </div>
 
 <div class="sc-narratives" id="narrativesList">
   <details class="sc-narr" id="narr-exploration" {% if scenario_map.exploration.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.exploration.quadrant_color }};"></span>{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.exploration.narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.exploration.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-prosperity" {% if scenario_map.prosperity.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.prosperity.quadrant_color }};"></span>{{ scenario_map.prosperity.display_title }}{% if scenario_map.prosperity.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.prosperity.narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.prosperity.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-foggy" {% if scenario_map.foggy.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.foggy.quadrant_color }};"></span>{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.foggy.narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.foggy.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-rocky" {% if scenario_map.rocky.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.rocky.quadrant_color }};"></span>{{ scenario_map.rocky.display_title }}{% if scenario_map.rocky.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.rocky.narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.rocky.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
 </div>
 
@@ -134,9 +136,11 @@
       {% csrf_token %}
       <input type="hidden" name="form_kind" value="axes">
       <div class="field-group"><label>عنوان محور عمودی</label>{{ axes_form.axis1_name }}</div>
+      <div class="field-group"><label>پیشران مبنا (ماتریس اثر متقابل، اختیاری)</label>{{ axes_form.axis1_source }}</div>
       <div class="field-group"><label>قطب مثبت (بالا)</label>{{ axes_form.axis1_positive }}</div>
       <div class="field-group"><label>قطب منفی (پایین)</label>{{ axes_form.axis1_negative }}</div>
       <div class="field-group"><label>عنوان محور افقی</label>{{ axes_form.axis2_name }}</div>
+      <div class="field-group"><label>پیشران مبنا (ماتریس اثر متقابل، اختیاری)</label>{{ axes_form.axis2_source }}</div>
       <div class="field-group"><label>قطب مثبت (راست)</label>{{ axes_form.axis2_positive }}</div>
       <div class="field-group"><label>قطب منفی (چپ)</label>{{ axes_form.axis2_negative }}</div>
       <div class="modal-actions">

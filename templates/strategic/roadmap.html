@@ -47,18 +47,13 @@
       <div class="share-track" style="margin-top:6px;height:6px;">
         <div class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></div>
       </div>
-      {% if i.objectives.all %}
-      <div class="meta" style="margin-top:6px;">
-        <i class="fa-solid fa-bullseye"></i>
-        {% for o in i.objectives.all %}<span class="status-pill" style="background:var(--primary-soft);color:var(--primary-dark);margin-inline-end:4px;" title="{{ o.title }}&#10;منظر: {{ o.get_perspective_display }}&#10;وضعیت: {{ o.get_status_display }}{% if o.kpi %}&#10;KPI توضیحی: {{ o.kpi }}{% endif %}{% if o.source_tows %}&#10;برخاسته از راهبرد {{ o.source_tows.get_category_display }}: {{ o.source_tows.text|truncatechars:80 }}{% endif %}">{{ o.code }}</span>{% endfor %}
-      </div>
-      {% endif %}
-      {% if i.source_kpi.all or i.source_tows.all or i.source_risk.all %}
-      <div class="meta" style="margin-top:6px;">
-        <i class="fa-solid fa-seedling"></i> منشأ:
-        {% for k in i.source_kpi.all %}<span class="status-pill" style="background:var(--accent-soft);color:#7A4711;margin-inline-end:4px;" title="شاخص {{ k.code }} — {{ k.name }}&#10;حوزه: {{ k.get_domain_display }}&#10;هدف سال جاری: {{ k.target_1405|default:'—' }} / عملکرد: {{ k.actual_1405|default:'—' }}">شاخص {{ k.code }}</span>{% endfor %}
-        {% for t in i.source_tows.all %}<span class="status-pill" style="background:#EAF1F7;color:#2E5C8A;margin-inline-end:4px;" title="راهبرد {{ t.get_category_display }}&#10;{{ t.text }}">راهبرد {{ t.get_category_display }}</span>{% endfor %}
-        {% for rk in i.source_risk.all %}<span class="status-pill" style="background:#FBEAEA;color:#B0413E;margin-inline-end:4px;" title="{{ rk.title }}&#10;دسته: {{ rk.get_category_display }}&#10;احتمال/اثر فعلی: {{ rk.likelihood }}/{{ rk.impact }}&#10;مسئول: {{ rk.owner|default:'—' }}">ریسک: {{ rk.title|truncatechars:20 }}</span>{% endfor %}
+      {% if i.objectives.all or i.source_kpi.all or i.source_tows.all or i.source_risk.all or i.traced_origins %}
+      <div class="meta" style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">
+        {% if i.objectives.all %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="اهداف استراتژیک مرتبط:&#10;{% for o in i.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> اهداف ({{ i.objectives.all|length }})</span>{% endif %}
+        {% if i.source_kpi.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="شاخص‌های مبنا:&#10;{% for k in i.source_kpi.all %}● شاخص {{ k.code }} — {{ k.name }} — حوزه: {{ k.get_domain_display }} — هدف/عملکرد: {{ k.target_1405|default:'—' }}/{{ k.actual_1405|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chart-line"></i> شاخص ({{ i.source_kpi.all|length }})</span>{% endif %}
+        {% if i.source_tows.all %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" title="راهبردهای TOWS مبنا:&#10;{% for t in i.source_tows.all %}● راهبرد {{ t.get_category_display }}: {{ t.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-board"></i> TOWS ({{ i.source_tows.all|length }})</span>{% endif %}
+        {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" title="ریسک‌های مبنا:&#10;{% for rk in i.source_risk.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }} — احتمال/اثر: {{ rk.likelihood }}/{{ rk.impact }} — مسئول: {{ rk.owner|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> ریسک ({{ i.source_risk.all|length }})</span>{% endif %}
+        {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ردیابی خودکار منشأ (از TOWS تا عامل اصلی):&#10;{% for o in i.traced_origins %}● راهبرد {{ o.tows.get_category_display }}: {{ o.tows.text }}&#10;   ← {{ o.swot_item.get_category_display }}: {{ o.swot_item.text }}&#10;   ← منبع ({{ o.source_type }}): {{ o.source_detail }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> ریشه‌ی راهبردی ({{ i.traced_origins|length }})</span>{% endif %}
       </div>
       {% endif %}
     </div>
@@ -129,6 +124,8 @@
   .picker-box label:hover{background:var(--bg);}
   .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
   .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+  .used-badge{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;border-radius:6px;
+    padding:3px 8px;cursor:help;}
 </style>
 {% endblock %}
 

@@ -98,7 +98,8 @@ class RiskForm(forms.ModelForm):
             "inherent_likelihood", "inherent_impact",
             "likelihood", "impact",
             "target_likelihood", "target_impact",
-            "response_strategy", "trend", "kri", "mitigation", "linked_objective", "related_scenario",
+            "response_strategy", "trend", "kri", "mitigation", "linked_objective",
+            "related_swot_items", "related_scenario",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: افزایش شدید نرخ ارز"}),
@@ -107,6 +108,7 @@ class RiskForm(forms.ModelForm):
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت مالی"}),
             "kri": forms.TextInput(attrs={"placeholder": "مثلاً: نرخ تسعیر ماهانه ارز"}),
             "mitigation": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک اقدام کنترلی"}),
+            "related_swot_items": forms.CheckboxSelectMultiple(),
             "related_scenario": forms.CheckboxSelectMultiple(),
         }
 
@@ -114,6 +116,8 @@ class RiskForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["linked_objective"].required = False
         self.fields["linked_objective"].empty_label = "— بدون ارتباط —"
+        self.fields["related_swot_items"].required = False
+        self.fields["related_swot_items"].queryset = SWOTItem.objects.filter(category__in=["t", "w"])
         self.fields["related_scenario"].required = False
 
 
@@ -332,7 +336,17 @@ class ScenarioForm(forms.ModelForm):
 class ScenarioAxesForm(forms.ModelForm):
     class Meta:
         model = ScenarioAxes
-        fields = ["axis1_name", "axis1_positive", "axis1_negative", "axis2_name", "axis2_positive", "axis2_negative"]
+        fields = [
+            "axis1_name", "axis1_positive", "axis1_negative", "axis1_source",
+            "axis2_name", "axis2_positive", "axis2_negative", "axis2_source",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["axis1_source"].required = False
+        self.fields["axis1_source"].empty_label = "— بدون ارتباط —"
+        self.fields["axis2_source"].required = False
+        self.fields["axis2_source"].empty_label = "— بدون ارتباط —"
 
 
 class CompanyObjectiveForm(forms.ModelForm):

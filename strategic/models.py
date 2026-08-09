@@ -1,5 +1,8 @@
+import re
 from django.db import models
 from django.utils import timezone
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
 
 
 class Study(models.Model):
@@ -88,6 +91,28 @@ class Initiative(models.Model):
     def status_hex(self):
         return self.STATUS_HEX.get(self.status, "#2E5C8A")
 
+    @property
+    def traced_origins(self):
+        """ردیابی خودکار (فقط نمایشی، بدون رابطه‌ی دیتابیسی جدید): از راهبرد TOWS مبنا،
+        به موارد SWOT مبنای همون راهبرد، تا منبع اصلی هرکدوم (PESTEL/Porter/ذینفع/
+        McKinsey 7S/زنجیره ارزش/سناریو) — همه از قبل توی سامانه وصل بودن."""
+        seen = set()
+        origins = []
+        for tows in self.source_tows.all():
+            for si in tows.source_items.all():
+                source_type, source_detail = si.source_full_detail
+                if not source_type:
+                    continue
+                key = (tows.pk, si.pk)
+                if key in seen:
+                    continue
+                seen.add(key)
+                origins.append({
+                    "tows": tows, "swot_item": si,
+                    "source_type": source_type, "source_detail": source_detail,
+                })
+        return origins
+
 
 class Risk(models.Model):
     LEVEL_CHOICES = [(1, "۱ - بسیار کم"), (2, "۲ - کم"), (3, "۳ - متوسط"), (4, "۴ - زیاد"), (5, "۵ - بسیار زیاد")]
@@ -128,6 +153,10 @@ class Risk(models.Model):
     linked_objective = models.ForeignKey(
         "StrategicObjective", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="risks", verbose_name="هدف استراتژیک تهدیدشده",
+    )
+    related_swot_items = models.ManyToManyField(
+        "SWOTItem", blank=True, related_name="risks", verbose_name="منشأ (تهدید/ضعف SWOT)",
+        limit_choices_to={"category__in": ["t", "w"]},
     )
     related_scenario = models.ManyToManyField(
         "Scenario", blank=True, related_name="risks", verbose_name="سناریوهای مرتبط",
@@ -184,6 +213,19 @@ class Risk(models.Model):
     @property
     def category_color(self):
         return self.CATEGORY_COLOR.get(self.category, "#5a6474")
+
+    @property
+    def traced_swot_origins(self):
+        """ردیابی خودکار منشأ (فقط نمایشی، بدون رابطه‌ی دیتابیسی جدید): از موارد SWOT
+        (تهدید/ضعف) که دستی به این ریسک وصل کردید، تا منبع اصلی هرکدوم (PESTEL/Porter/
+        ذینفع/McKinsey 7S/زنجیره ارزش/سناریو)."""
+        origins = []
+        for si in self.related_swot_items.all():
+            source_type, source_detail = si.source_full_detail
+            if not source_type:
+                continue
+            origins.append({"swot_item": si, "source_type": source_type, "source_detail": source_detail})
+        return origins
 
     @property
     def effectiveness_pct(self):
@@ -282,6 +324,44 @@ class SWOTItem(models.Model):
         if self.source_value_chain:
             return f"زنجیره ارزش: {self.source_value_chain.get_activity_display()}"
         return ""
+
+    @property
+    def source_label_full(self):
+        """متن کامل و آماده برای هاور — دقیقاً فرمت «نوع: جزئیات کامل» طبق الگوی استاندارد سامانه."""
+        source_type, source_detail = self.source_full_detail
+        if not source_type:
+            return ""
+        return f"{source_type}: {source_detail}"
+
+    @property
+    def source_full_detail(self):
+        """جزئیات کامل منبع (نه فقط عنوان کوتاه) برای ردیابی خودکار — (نوع، متن تفصیلی)."""
+        f = self.source_pestel
+        if f:
+            extra = []
+            if f.effect_type:
+                extra.append(f"نوع اثر: {f.get_effect_type_display()}")
+            if f.related_standard:
+                extra.append(f"استاندارد: {f.related_standard}")
+            extra_txt = (" — " + " — ".join(extra)) if extra else ""
+            return ("PESTEL", f"{f.letter} ({f.get_category_display()}) — {f.text}{extra_txt}")
+        f = self.source_porter
+        if f:
+            extra = f" — نوع اثر: {f.get_effect_type_display()}" if f.effect_type else ""
+            return ("Porter", f"{f.get_force_display()} — {f.text}{extra}")
+        f = self.source_stakeholder
+        if f:
+            return ("ذی‌نفع", f"{f.name} — واحد: {f.department or '—'} — نیاز/انتظار: {f.need or '—'}")
+        f = self.source_scenario
+        if f:
+            return ("سناریو", f.display_title)
+        f = self.source_7s
+        if f:
+            return ("McKinsey 7S", f.get_component_display())
+        f = self.source_value_chain
+        if f:
+            return ("زنجیره ارزش", f.get_activity_display())
+        return ("", "")
 
 
 class TOWSStrategy(models.Model):
@@ -833,14 +913,97 @@ class CrossImpactLink(models.Model):
         return f"{self.from_factor} ← {self.to_factor}: {self.score}"
 
 
+# ---------------- برجسته‌سازی هوشمند متن روایت سناریو ----------------
+# تشخیص تقریبی (نه دقیق صددرصد) کلمات/عبارات متن که با عوامل PESTEL/Porter هم‌خوانی
+# دارن و رنگی‌کردن خودکارشون — این یک قابلیت کمکی و بهترین‌تلاش هوش مصنوعیه، نه
+# بخشی از متدولوژی کلاسیک سناریوپردازی.
+_PERSIAN_STOPWORDS = {
+    "و", "یا", "به", "از", "با", "در", "برای", "که", "این", "آن", "را", "تا", "بر", "هم", "نیز",
+    "نه", "اما", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "ده", "های", "ها", "است",
+    "بود", "شده", "می", "نمی", "خواهد", "باشد", "کرده", "کند", "شود", "دیگر", "هر", "چه", "اگر",
+    "روی", "بین", "طی", "پس", "چون", "زیرا", "اینکه", "خود", "ما", "شما", "آنها", "او", "وی",
+    "یعنی", "مانند", "نظیر", "جهت", "همه", "برخی", "بسیار", "بسیاری", "خواهیم", "کرد", "شدن",
+}
+
+
+def _sig_words(text):
+    words = re.findall(r"[\u0600-\u06FF]{3,}", text or "")
+    return [w for w in words if w not in _PERSIAN_STOPWORDS]
+
+
+def _highlight_candidates():
+    candidates = []
+    for f in PestelFactor.objects.all():
+        core = f.text.split("(")[0].strip()
+        sig = set(_sig_words(core))
+        if len(sig) >= 2:
+            title = f"PESTEL: {f.letter} ({f.get_category_display()}) — {f.text}"
+            candidates.append({"sig": sig, "count": len(sig), "title": title})
+    for f in PorterForce.objects.all():
+        core = f.text.split("(")[0].strip()
+        sig = set(_sig_words(core))
+        if len(sig) >= 2:
+            title = f"Porter: {f.get_force_display()} — {f.text}"
+            candidates.append({"sig": sig, "count": len(sig), "title": title})
+    return candidates
+
+
+def _highlight_narrative_text(text):
+    if not text:
+        return ""
+    candidates = _highlight_candidates()
+    tokens = list(re.finditer(r"[\u0600-\u06FF]+", text))
+    n = len(tokens)
+    raw_matches = []
+    for cand in candidates:
+        sig, need = cand["sig"], cand["count"]
+        window = min(need + 3, 8)
+        best = None
+        for i in range(n):
+            j = min(i + window, n)
+            hit_idx = [k for k in range(i, j) if tokens[k].group() in sig]
+            overlap = len(hit_idx)
+            if overlap >= max(2, need - 1) and overlap >= need * 0.6:
+                score = overlap
+                if best is None or score > best[2]:
+                    # فقط از اولین تا آخرین کلمه‌ی واقعاً منطبق برجسته می‌شه، نه کل پنجره
+                    best = (tokens[hit_idx[0]].start(), tokens[hit_idx[-1]].end(), score)
+        if best:
+            raw_matches.append((best[0], best[1], best[2], cand["title"]))
+
+    raw_matches.sort(key=lambda m: (-m[2], -(m[1] - m[0])))
+    selected = []
+    for s, e, score, title in raw_matches:
+        if any(not (e <= ss or s >= ee) for ss, ee, *_ in selected):
+            continue
+        selected.append((s, e, score, title))
+    selected.sort(key=lambda m: m[0])
+
+    out, pos = [], 0
+    for s, e, score, title in selected:
+        out.append(escape(text[pos:s]))
+        out.append(f'<span class="ai-highlight" title="{escape(title)}">{escape(text[s:e])}</span>')
+        pos = e
+    out.append(escape(text[pos:]))
+    return mark_safe("".join(out))
+
+
 class ScenarioAxes(models.Model):
     """رکورد تکی (singleton) برای نام دو محور عدم‌قطعیت سناریوها."""
     axis1_name = models.CharField(max_length=200, default="امکان تأمین منابع مالی", verbose_name="عنوان محور عمودی")
     axis1_positive = models.CharField(max_length=150, default="دستیابی به منابع مالی", verbose_name="قطب مثبت محور عمودی")
     axis1_negative = models.CharField(max_length=150, default="عدم دستیابی به منابع مالی", verbose_name="قطب منفی محور عمودی")
+    axis1_source = models.ForeignKey(
+        "CrossImpactFactor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+", verbose_name="پیشران مبنای محور عمودی (ماتریس اثر متقابل)",
+    )
     axis2_name = models.CharField(max_length=200, default="وضعیت بین‌المللی", verbose_name="عنوان محور افقی")
     axis2_positive = models.CharField(max_length=150, default="تعاملات هدفمند بین‌المللی", verbose_name="قطب مثبت محور افقی")
     axis2_negative = models.CharField(max_length=150, default="تشدید محدودیت‌های بین‌المللی", verbose_name="قطب منفی محور افقی")
+    axis2_source = models.ForeignKey(
+        "CrossImpactFactor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="+", verbose_name="پیشران مبنای محور افقی (ماتریس اثر متقابل)",
+    )
 
     class Meta:
         verbose_name = "محورهای سناریو"
@@ -875,6 +1038,12 @@ class Scenario(models.Model):
 
     def __str__(self):
         return self.title or self.get_quadrant_display()
+
+    @property
+    def highlighted_narrative(self):
+        """نسخه‌ی برجسته‌شده‌ی روایت — کلماتی که با عوامل PESTEL/Porter هم‌خوانی دارن،
+        رنگی و با هاور منبع نشون داده می‌شن (بهترین‌تلاش، نه دقیق صددرصد)."""
+        return _highlight_narrative_text(self.narrative)
 
     @property
     def display_title(self):
