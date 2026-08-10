@@ -926,9 +926,20 @@ _PERSIAN_STOPWORDS = {
 }
 
 
+def _normalize_word(w):
+    """یکسان‌سازی حروف هم‌معنی که املای متفاوتی توی فارسی رایج دارن — مثل «تامین» و «تأمین»،
+    یا کاف/یای عربی و فارسی — و حذف علائم نگارشی که ممکنه به کلمه چسبیده باشن (مثل «قوانین،»)."""
+    w = w.strip("،؛؟!.٬»«")
+    return (
+        w.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+         .replace("ك", "ک").replace("ي", "ی").replace("ة", "ه")
+    )
+
+
 def _sig_words(text):
     words = re.findall(r"[\u0600-\u06FF]{3,}", text or "")
-    return [w for w in words if w not in _PERSIAN_STOPWORDS]
+    normalized = [_normalize_word(w) for w in words]
+    return [w for w in normalized if w not in _PERSIAN_STOPWORDS]
 
 
 def _highlight_candidates():
@@ -961,9 +972,9 @@ def _highlight_narrative_text(text):
         best = None
         for i in range(n):
             j = min(i + window, n)
-            hit_idx = [k for k in range(i, j) if tokens[k].group() in sig]
+            hit_idx = [k for k in range(i, j) if _normalize_word(tokens[k].group()) in sig]
             overlap = len(hit_idx)
-            if overlap >= max(2, need - 1) and overlap >= need * 0.6:
+            if overlap >= max(2, need - 2) and overlap >= need * 0.5:
                 score = overlap
                 if best is None or score > best[2]:
                     # فقط از اولین تا آخرین کلمه‌ی واقعاً منطبق برجسته می‌شه، نه کل پنجره
@@ -974,6 +985,8 @@ def _highlight_narrative_text(text):
     raw_matches.sort(key=lambda m: (-m[2], -(m[1] - m[0])))
     selected = []
     for s, e, score, title in raw_matches:
+        while e > s and text[e - 1] in "،؛؟!.٬ ":
+            e -= 1
         if any(not (e <= ss or s >= ee) for ss, ee, *_ in selected):
             continue
         selected.append((s, e, score, title))

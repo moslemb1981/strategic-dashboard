@@ -21,14 +21,14 @@
   .pestel-item:first-child{border-top:none;padding-top:0;}
   .pestel-item .txt{flex:1;cursor:help;min-width:0;}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;
-    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;margin-inline-start:4px;}
+    background:var(--primary-soft);color:var(--primary-dark);border-radius:5px;padding:1px 5px;}
   .effect-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
-    padding:1px 6px;margin-inline-start:4px;}
+    padding:1px 6px;}
   .effect-badge.opportunity{background:var(--success-soft);color:var(--success-dark, #1c6b3e);}
   .effect-badge.threat{background:#FCE7E7;color:#B0413E;}
   .effect-badge.both{background:var(--accent-soft);color:#7A4711;}
   .standard-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;border-radius:5px;
-    padding:1px 6px;margin-inline-start:4px;background:var(--bg);color:var(--ink-faint);border:1px solid var(--border);cursor:help;}
+    padding:1px 6px;background:var(--bg);color:var(--ink-faint);border:1px solid var(--border);cursor:help;}
   .pestel-item .acts{display:flex;gap:5px;flex:none;margin-top:2px;}
   .pestel-item .acts button{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:0;}
   .pestel-empty{font-size:11.5px;color:var(--ink-faint);}
@@ -144,11 +144,10 @@
   <div class="pestel-col">
     {% for item in group.items %}
     <div class="pestel-item">
-      <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>{{ item.text }}
+      <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>
+        <span class="txt-main">{{ item.text }}</span>
         {% if item.effect_type %}<span class="effect-badge {{ item.effect_type }}">{{ item.get_effect_type_display }}</span>{% endif %}
         {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">{{ item.related_standard }}</span>{% endif %}
-        {% if item.linked_legal_requirements.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="استفاده در الزامات قانونی:&#10;{% for lr in item.linked_legal_requirements.all %}● {{ lr.title }} — مأخذ: {{ lr.source|default:'—' }} — محل کاربرد: {{ lr.scope|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> {{ item.linked_legal_requirements.all|length }}</span>{% endif %}
-        {% if item.related_stakeholders.all %}<span class="used-badge" style="background:var(--success-soft);color:var(--success-dark, #1c6b3e);" title="ذینفعان مرتبط:&#10;{% for sh in item.related_stakeholders.all %}● {{ sh.name }} — واحد: {{ sh.department|default:'—' }} — نیاز/انتظار: {{ sh.need|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-user"></i> {{ item.related_stakeholders.all|length }}</span>{% endif %}
       </span>
       <span class="acts">
         {% if perms.strategic.change_pestelfactor %}
@@ -164,8 +163,6 @@
       </span>
     </div>
     <div class="pfx-tags">
-      {% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}
-      {% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}
       <span class="pfx-tag pri" style="background:{% if item.priority_score >= 15 %}#B0413E{% elif item.priority_score >= 8 %}var(--accent){% else %}var(--success){% endif %};" title="امتیاز اولویت (اثر × احتمال): {{ item.priority_score }}">اولویت {{ item.priority_score }}</span>
       <span class="pfx-tag" title="میزان اثر: {{ item.impact_level }} از ۵">اثر {{ item.impact_level }}</span>
       <span class="pfx-tag" title="احتمال وقوع: {{ item.probability }} از ۵">احتمال {{ item.probability }}</span>
@@ -173,6 +170,10 @@
       <span class="pfx-tag" title="افق زمانی">{{ item.get_horizon_display }}</span>
       <span class="pfx-tag" title="روند تغییر: {{ item.get_trend_display }}">{% if item.trend == "up" %}▲{% elif item.trend == "down" %}▼{% else %}◂▸{% endif %}</span>
       {% if item.scoring_guide %}<span class="pfx-tag" title="راهنمای امتیازدهی: {{ item.scoring_guide }}"><i class="fa-solid fa-circle-info"></i> راهنما</span>{% endif %}
+      {% if item.swot_items.all %}<span class="used-badge" title="{% for si in item.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ item.swot_items.all|length }}</span>{% endif %}
+      {% if item.cross_impact_factors.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="استفاده در اثرات متقابل: {% for cf in item.cross_impact_factors.all %}{{ cf.text }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> {{ item.cross_impact_factors.all|length }}</span>{% endif %}
+      {% if item.linked_legal_requirements.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="استفاده در الزامات قانونی:&#10;{% for lr in item.linked_legal_requirements.all %}● {{ lr.title }} — مأخذ: {{ lr.source|default:'—' }} — محل کاربرد: {{ lr.scope|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> {{ item.linked_legal_requirements.all|length }}</span>{% endif %}
+      {% if item.related_stakeholders.all %}<span class="used-badge" style="background:var(--success-soft);color:var(--success-dark, #1c6b3e);" title="ذینفعان مرتبط:&#10;{% for sh in item.related_stakeholders.all %}● {{ sh.name }} — واحد: {{ sh.department|default:'—' }} — نیاز/انتظار: {{ sh.need|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-user"></i> {{ item.related_stakeholders.all|length }}</span>{% endif %}
     </div>
     {% empty %}<div class="pestel-empty">موردی ثبت نشده</div>{% endfor %}
   </div>

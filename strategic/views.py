@@ -40,6 +40,19 @@ def _log_action(request, action, label):
     logger.info("%s: user=%s item=%r", action, request.user, label)
 
 
+def _swot_code_map():
+    """کد S1/W1/O1/T1 هیچ‌جا توی دیتابیس ذخیره نمی‌شه — دقیقاً همون‌طور که توی خود صفحه‌ی
+    SWOT لحظه‌ای ساخته می‌شه (ترتیب هر دسته داخل هر کسب‌وکار، بر اساس -weight, created_at)،
+    این تابع عیناً همون منطق رو تکرار می‌کنه تا کدها همه‌جای سامانه با صفحه‌ی SWOT یکی باشن."""
+    code_map, counters = {}, {}
+    items = SWOTItem.objects.all().order_by("business_unit_id", "category", "-weight", "created_at")
+    for si in items:
+        key = (si.business_unit_id, si.category)
+        counters[key] = counters.get(key, 0) + 1
+        code_map[si.pk] = f"{si.category.upper()}{counters[key]}"
+    return code_map
+
+
 def home(request):
     objectives = list(StrategicObjective.objects.all())
     obj_total = len(objectives)
@@ -270,7 +283,9 @@ def roadmap(request):
         form = InitiativeForm(business_unit=current_bu)
 
     initiatives = (
-        Initiative.objects.filter(business_unit=current_bu).prefetch_related("objectives")
+        Initiative.objects.filter(business_unit=current_bu)
+        .prefetch_related("objectives", "source_kpi", "source_tows", "source_risk",
+                           "source_tows__source_items")
         if current_bu else Initiative.objects.none()
     )
     return render(request, "strategic/roadmap.html", {
@@ -348,6 +363,10 @@ def pestel(request):
                "technological": "T", "environmental": "E", "legal": "L"}
 
     factors = PestelFactor.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors", "linked_legal_requirements", "related_stakeholders")
+    swot_code_map = _swot_code_map()
+    for f in factors:
+        for si in f.swot_items.all():
+            si.swot_code = swot_code_map.get(si.pk, "")
     grouped = []
     for key, label in PestelFactor.CATEGORY_CHOICES:
         color, soft, icon = PestelFactor.CATEGORY_STYLE[key]
@@ -532,6 +551,10 @@ def porter(request):
         form = PorterForceForm()
 
     forces = PorterForce.objects.all().prefetch_related("swot_items__business_unit", "cross_impact_factors", "linked_stakeholders")
+    swot_code_map = _swot_code_map()
+    for f in forces:
+        for si in f.swot_items.all():
+            si.swot_code = swot_code_map.get(si.pk, "")
     grouped = []
     for key, label in PorterForce.FORCE_CHOICES:
         color, soft, icon = PorterForce.FORCE_STYLE[key]
@@ -589,16 +612,9 @@ def mckinsey7s(request):
     hard_items = [c for c in components if c.group == "hard"]
     soft_items = [c for c in components if c.group == "soft"]
 
-    # کد S1/W1/O1/T1 هیچ‌جا توی دیتابیس ذخیره نمی‌شه — دقیقاً همون‌طور که توی خود صفحه‌ی
-    # SWOT لحظه‌ای ساخته می‌شه (ترتیب هر دسته داخل هر کسب‌وکار، بر اساس -weight, created_at)،
-    # اینجا هم عیناً همون منطق رو تکرار می‌کنیم تا کدها با صفحه‌ی SWOT یکی باشن.
-    swot_code_map = {}
-    counters = {}
-    all_swot_items = SWOTItem.objects.all().order_by("business_unit_id", "category", "-weight", "created_at")
-    for si in all_swot_items:
-        key = (si.business_unit_id, si.category)
-        counters[key] = counters.get(key, 0) + 1
-        swot_code_map[si.pk] = f"{si.category.upper()}{counters[key]}"
+    # کد S1/W1/O1/T1 هیچ‌جا توی دیتابیس ذخیره نمی‌شه — از تابع مشترک می‌گیریمش تا با
+    # صفحه‌ی SWOT و بقیه‌ی جاهایی که ازش استفاده می‌کنن یکی باشه.
+    swot_code_map = _swot_code_map()
     for c in components:
         for si in c.swot_items.all():
             si.swot_code = swot_code_map.get(si.pk, "")
