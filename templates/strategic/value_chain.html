@@ -48,7 +48,7 @@
   {% for a in support %}
   <div class="vc-band">
     <div class="b-head">
-      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
+      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
       {% if perms.strategic.change_valuechainactivity %}
       <button type="button" class="vc-edit" onclick="editActivity(this)" data-id="{{ a.pk }}" data-content="{{ a.content }}"><i class="fa-solid fa-pen"></i></button>
       {% endif %}
@@ -62,7 +62,7 @@
   {% for a in primary %}
   <div class="vc-p-card">
     <div class="b-head" style="justify-content:center;position:relative;">
-      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
+      <span class="b-title">{{ a.get_activity_display }}{% if a.swot_items.all %}<span class="used-badge" title="{% for si in a.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ a.swot_items.all|length }}</span>{% endif %}</span>
       {% if perms.strategic.change_valuechainactivity %}
       <button type="button" class="vc-edit" onclick="editActivity(this)" data-id="{{ a.pk }}" data-content="{{ a.content }}" style="position:absolute;left:0;top:0;"><i class="fa-solid fa-pen"></i></button>
       {% endif %}

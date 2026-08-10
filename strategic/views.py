@@ -642,6 +642,10 @@ def value_chain(request):
                 return redirect("strategic:value_chain")
 
     activities = list(ValueChainActivity.objects.all().prefetch_related("swot_items__business_unit"))
+    swot_code_map = _swot_code_map()
+    for a in activities:
+        for si in a.swot_items.all():
+            si.swot_code = swot_code_map.get(si.pk, "")
     order = list(dict(ValueChainActivity.ACTIVITY_CHOICES).keys())
     activities.sort(key=lambda a: order.index(a.activity))
     primary = [a for a in activities if a.activity_type == "primary"]
