@@ -2,6 +2,7 @@ import logging
 import re
 import io
 import math
+import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,7 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
+    ScenarioHighlight,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -1328,6 +1330,24 @@ def scenarios(request):
                     if form.cleaned_data.get("is_selected"):
                         Scenario.objects.exclude(pk=instance.pk).update(is_selected=False)
                     form.save()
+                    # برچسب‌های دستی متن (تکه‌متن ← عامل ماتریس) — از سمت فرانت به‌شکل JSON میان
+                    try:
+                        raw = json.loads(request.POST.get("highlights_json", "[]"))
+                    except (ValueError, TypeError):
+                        raw = []
+                    instance.highlights.all().delete()
+                    valid_factor_ids = set(CrossImpactFactor.objects.values_list("pk", flat=True))
+                    new_highlights = []
+                    for i, item in enumerate(raw):
+                        phrase = str(item.get("phrase", "")).strip()
+                        factor_id = item.get("factor_id")
+                        if not phrase or factor_id not in valid_factor_ids:
+                            continue
+                        new_highlights.append(ScenarioHighlight(
+                            scenario=instance, cross_impact_factor_id=factor_id, phrase=phrase, order=i,
+                        ))
+                    if new_highlights:
+                        ScenarioHighlight.objects.bulk_create(new_highlights)
                     _log_action(request, "UPDATE Scenario", str(instance))
                     return redirect("strategic:scenarios")
         elif form_kind == "axes":
@@ -1338,13 +1358,20 @@ def scenarios(request):
                     _log_action(request, "UPDATE ScenarioAxes", "محورهای سناریو")
                     return redirect("strategic:scenarios")
 
-    scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks")}
+    scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks", "highlights__cross_impact_factor")}
     business_units = list(BusinessUnit.objects.all())
     foggy_tooltip = "\n".join(f"{bu.name} (فرصت و تهدید)" for bu in business_units)
+
+    cross_impact_factors = list(CrossImpactFactor.objects.all().order_by("quadrant", "order"))
+    for s in scenario_map.values():
+        s.highlights_json = json.dumps([
+            {"phrase": h.phrase, "factor_id": h.cross_impact_factor_id} for h in s.highlights.all()
+        ], ensure_ascii=False)
+
     return render(request, "strategic/scenarios.html", {
         "active_page": "scenarios", "scenario_map": scenario_map, "axes": axes,
         "scenario_form": ScenarioForm(), "axes_form": ScenarioAxesForm(instance=axes),
-        "foggy_tooltip": foggy_tooltip,
+        "foggy_tooltip": foggy_tooltip, "cross_impact_factors": cross_impact_factors,
     })
 
 

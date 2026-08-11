@@ -913,92 +913,24 @@ class CrossImpactLink(models.Model):
         return f"{self.from_factor} ← {self.to_factor}: {self.score}"
 
 
-# ---------------- برجسته‌سازی هوشمند متن روایت سناریو ----------------
-# تشخیص تقریبی (نه دقیق صددرصد) کلمات/عبارات متن که با عوامل PESTEL/Porter هم‌خوانی
-# دارن و رنگی‌کردن خودکارشون — این یک قابلیت کمکی و بهترین‌تلاش هوش مصنوعیه، نه
-# بخشی از متدولوژی کلاسیک سناریوپردازی.
-_PERSIAN_STOPWORDS = {
-    "و", "یا", "به", "از", "با", "در", "برای", "که", "این", "آن", "را", "تا", "بر", "هم", "نیز",
-    "نه", "اما", "یک", "دو", "سه", "چهار", "پنج", "شش", "هفت", "هشت", "ده", "های", "ها", "است",
-    "بود", "شده", "می", "نمی", "خواهد", "باشد", "کرده", "کند", "شود", "دیگر", "هر", "چه", "اگر",
-    "روی", "بین", "طی", "پس", "چون", "زیرا", "اینکه", "خود", "ما", "شما", "آنها", "او", "وی",
-    "یعنی", "مانند", "نظیر", "جهت", "همه", "برخی", "بسیار", "بسیاری", "خواهیم", "کرد", "شدن",
-}
-
-
-def _normalize_word(w):
-    """یکسان‌سازی حروف هم‌معنی که املای متفاوتی توی فارسی رایج دارن — مثل «تامین» و «تأمین»،
-    یا کاف/یای عربی و فارسی — و حذف علائم نگارشی که ممکنه به کلمه چسبیده باشن (مثل «قوانین،»)."""
-    w = w.strip("،؛؟!.٬»«")
-    return (
-        w.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
-         .replace("ك", "ک").replace("ي", "ی").replace("ة", "ه")
+class ScenarioHighlight(models.Model):
+    """تکه‌متن‌هایی از روایت سناریو که دستی (توسط کاربر) به یه عامل ماتریس اثر متقابل
+    برچسب‌گذاری شدن — جایگزین تشخیص خودکار قبلی، چون دقت صددرصد و کنترل کامل می‌ده."""
+    scenario = models.ForeignKey("Scenario", on_delete=models.CASCADE, related_name="highlights")
+    cross_impact_factor = models.ForeignKey(
+        "CrossImpactFactor", on_delete=models.CASCADE, related_name="scenario_highlights",
+        verbose_name="عامل ماتریس اثر متقابل",
     )
+    phrase = models.CharField(max_length=300, verbose_name="تکه‌متن انتخاب‌شده")
+    order = models.PositiveSmallIntegerField(default=0)
 
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "برچسب متن سناریو"
+        verbose_name_plural = "برچسب‌های متن سناریو"
 
-def _sig_words(text):
-    words = re.findall(r"[\u0600-\u06FF]{3,}", text or "")
-    normalized = [_normalize_word(w) for w in words]
-    return [w for w in normalized if w not in _PERSIAN_STOPWORDS]
-
-
-def _highlight_candidates():
-    candidates = []
-    for f in PestelFactor.objects.all():
-        core = f.text.split("(")[0].strip()
-        sig = set(_sig_words(core))
-        if len(sig) >= 2:
-            title = f"PESTEL: {f.letter} ({f.get_category_display()}) — {f.text}"
-            candidates.append({"sig": sig, "count": len(sig), "title": title})
-    for f in PorterForce.objects.all():
-        core = f.text.split("(")[0].strip()
-        sig = set(_sig_words(core))
-        if len(sig) >= 2:
-            title = f"Porter: {f.get_force_display()} — {f.text}"
-            candidates.append({"sig": sig, "count": len(sig), "title": title})
-    return candidates
-
-
-def _highlight_narrative_text(text):
-    if not text:
-        return ""
-    candidates = _highlight_candidates()
-    tokens = list(re.finditer(r"[\u0600-\u06FF]+", text))
-    n = len(tokens)
-    raw_matches = []
-    for cand in candidates:
-        sig, need = cand["sig"], cand["count"]
-        window = min(need + 3, 8)
-        best = None
-        for i in range(n):
-            j = min(i + window, n)
-            hit_idx = [k for k in range(i, j) if _normalize_word(tokens[k].group()) in sig]
-            overlap = len(hit_idx)
-            if overlap >= max(2, need - 2) and overlap >= need * 0.5:
-                score = overlap
-                if best is None or score > best[2]:
-                    # فقط از اولین تا آخرین کلمه‌ی واقعاً منطبق برجسته می‌شه، نه کل پنجره
-                    best = (tokens[hit_idx[0]].start(), tokens[hit_idx[-1]].end(), score)
-        if best:
-            raw_matches.append((best[0], best[1], best[2], cand["title"]))
-
-    raw_matches.sort(key=lambda m: (-m[2], -(m[1] - m[0])))
-    selected = []
-    for s, e, score, title in raw_matches:
-        while e > s and text[e - 1] in "،؛؟!.٬ ":
-            e -= 1
-        if any(not (e <= ss or s >= ee) for ss, ee, *_ in selected):
-            continue
-        selected.append((s, e, score, title))
-    selected.sort(key=lambda m: m[0])
-
-    out, pos = [], 0
-    for s, e, score, title in selected:
-        out.append(escape(text[pos:s]))
-        out.append(f'<span class="ai-highlight" title="{escape(title)}">{escape(text[s:e])}</span>')
-        pos = e
-    out.append(escape(text[pos:]))
-    return mark_safe("".join(out))
+    def __str__(self):
+        return f"{self.scenario} — «{self.phrase[:30]}» → {self.cross_impact_factor.text}"
 
 
 class ScenarioAxes(models.Model):
@@ -1053,10 +985,43 @@ class Scenario(models.Model):
         return self.title or self.get_quadrant_display()
 
     @property
-    def highlighted_narrative(self):
-        """نسخه‌ی برجسته‌شده‌ی روایت — کلماتی که با عوامل PESTEL/Porter هم‌خوانی دارن،
-        رنگی و با هاور منبع نشون داده می‌شن (بهترین‌تلاش، نه دقیق صددرصد)."""
-        return _highlight_narrative_text(self.narrative)
+    def manual_highlighted_narrative(self):
+        """نسخه‌ی برجسته‌شده‌ی روایت، بر پایه‌ی برچسب‌های دستی کاربر (نه تشخیص خودکار) —
+        هر تکه‌متن که کاربر انتخاب و به یه عامل ماتریس وصل کرده، رنگی نشون داده می‌شه؛
+        قرمز برای پیشران‌ها، رنگ خودِ ناحیه برای بقیه."""
+        text = self.narrative or ""
+        if not text:
+            return ""
+        spans = []
+        for h in self.highlights.select_related("cross_impact_factor__linked_pestel", "cross_impact_factor__linked_porter"):
+            if not h.phrase:
+                continue
+            idx = text.find(h.phrase)
+            if idx == -1:
+                continue
+            spans.append((idx, idx + len(h.phrase), h))
+        spans.sort(key=lambda s: s[0])
+        selected = []
+        for s, e, h in spans:
+            if any(not (e <= ss or s >= ee) for ss, ee, _ in selected):
+                continue
+            selected.append((s, e, h))
+
+        out, pos = [], 0
+        for s, e, h in selected:
+            out.append(escape(text[pos:s]))
+            f = h.cross_impact_factor
+            color = f.QUADRANT_COLOR.get(f.quadrant, "#5a6474")
+            detail_parts = [f"ماتریس اثر متقابل ({f.get_quadrant_display()}): {f.text}"]
+            if f.linked_pestel:
+                detail_parts.append(f"← منبع (PESTEL): {f.linked_pestel.letter} ({f.linked_pestel.get_category_display()}) — {f.linked_pestel.text}")
+            if f.linked_porter:
+                detail_parts.append(f"← منبع (Porter): {f.linked_porter.get_force_display()} — {f.linked_porter.text}")
+            detail = "&#10;".join(escape(p) for p in detail_parts)
+            out.append(f'<span class="manual-highlight" style="color:{color};border-bottom-color:{color};" title="{detail}">{escape(text[s:e])}</span>')
+            pos = e
+        out.append(escape(text[pos:]))
+        return mark_safe("".join(out))
 
     @property
     def display_title(self):

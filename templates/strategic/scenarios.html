@@ -35,9 +35,20 @@
   .sc-narr summary .sel-tag{font-size:10px;font-weight:800;background:var(--accent-soft);color:#7A4711;padding:2px 8px;
     border-radius:10px;margin-inline-start:auto;}
   .sc-narr .body{padding:0 18px 16px;font-size:12.5px;line-height:2.1;color:var(--ink-soft);white-space:pre-line;
-    border-top:1px solid var(--border);padding-top:14px;}
-  .ai-highlight{background:var(--accent-soft);color:#7A4711;font-weight:700;border-radius:4px;
-    padding:0 3px;cursor:help;border-bottom:1px dashed #C97A2B;}
+    border-top:1px solid var(--border);padding-top:14px;user-select:text;}
+  .manual-highlight{font-weight:800;padding:0 2px;cursor:help;border-bottom:2px solid;}
+
+  .hl-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .hl-hint{font-size:10.5px;color:var(--ink-faint);margin:2px 0 8px;display:flex;align-items:center;gap:5px;}
+  .hl-picker{display:flex;gap:6px;}
+  .hl-picker select{flex:1;font-size:11.5px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:#fff;}
+  .hl-picker button{white-space:nowrap;font-size:11px;}
+  .hl-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px;}
+  .hl-list li{display:flex;align-items:center;gap:6px;font-size:11px;background:#fff;border:1px solid var(--border);
+    border-radius:6px;padding:5px 8px;}
+  .hl-list li b{color:var(--ink);}
+  .hl-list li .hl-arrow{color:var(--ink-faint);}
+  .hl-list li .hl-remove{margin-inline-start:auto;border:none;background:none;color:var(--danger,#B0413E);cursor:pointer;font-size:12px;}
 
   .sc-axes-edit{text-align:left;margin-bottom:10px;}
   .sc-axes-edit button{font-size:11px;border:1px solid var(--border);background:var(--surface);border-radius:8px;
@@ -63,28 +74,28 @@
   <div class="sc-board">
     <div class="sc-card {% if scenario_map.prosperity.is_selected %}active{% endif %}" style="background:{{ scenario_map.prosperity.quadrant_color }};" onclick="toggleNarrative('prosperity')">
       {% if scenario_map.prosperity.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.prosperity.pk }}" data-title="{{ scenario_map.prosperity.title }}" data-narrative="{{ scenario_map.prosperity.narrative }}" data-selected="{{ scenario_map.prosperity.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.prosperity.pk }}" data-title="{{ scenario_map.prosperity.title }}" data-narrative="{{ scenario_map.prosperity.narrative }}" data-selected="{{ scenario_map.prosperity.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.prosperity.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.prosperity.display_title }}{% if scenario_map.prosperity.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.prosperity.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.prosperity.swot_items.all|length }}</span>{% endif %}{% if scenario_map.prosperity.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.prosperity.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.prosperity.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_positive }}</div>
     </div>
 
     <div class="sc-card {% if scenario_map.exploration.is_selected %}active{% endif %}" style="background:{{ scenario_map.exploration.quadrant_color }};" onclick="toggleNarrative('exploration')">
       {% if scenario_map.exploration.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.exploration.pk }}" data-title="{{ scenario_map.exploration.title }}" data-narrative="{{ scenario_map.exploration.narrative }}" data-selected="{{ scenario_map.exploration.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.exploration.pk }}" data-title="{{ scenario_map.exploration.title }}" data-narrative="{{ scenario_map.exploration.narrative }}" data-selected="{{ scenario_map.exploration.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.exploration.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.exploration.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.exploration.swot_items.all|length }}</span>{% endif %}{% if scenario_map.exploration.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.exploration.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.exploration.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_negative }}</div>
     </div>
 
     <div class="sc-card {% if scenario_map.rocky.is_selected %}active{% endif %}" style="background:{{ scenario_map.rocky.quadrant_color }};" onclick="toggleNarrative('rocky')">
       {% if scenario_map.rocky.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.rocky.pk }}" data-title="{{ scenario_map.rocky.title }}" data-narrative="{{ scenario_map.rocky.narrative }}" data-selected="{{ scenario_map.rocky.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.rocky.pk }}" data-title="{{ scenario_map.rocky.title }}" data-narrative="{{ scenario_map.rocky.narrative }}" data-selected="{{ scenario_map.rocky.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.rocky.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.rocky.display_title }}{% if scenario_map.rocky.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.rocky.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.rocky.swot_items.all|length }}</span>{% endif %}{% if scenario_map.rocky.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.rocky.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.rocky.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_positive }}</div>
     </div>
 
     <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')" title="{{ foggy_tooltip }}">
       {% if scenario_map.foggy.is_selected %}<span class="badge-sel">مبنا</span>{% endif %}
-      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
+      {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.foggy.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.foggy.swot_items.all %}{{ si.business_unit.name }} ({{ si.get_category_display }}){% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.foggy.swot_items.all|length }}</span>{% endif %}{% if scenario_map.foggy.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.foggy.risks.all %}{{ rk.title }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.foggy.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_negative }}</div>
     </div>
@@ -95,19 +106,19 @@
 <div class="sc-narratives" id="narrativesList">
   <details class="sc-narr" id="narr-exploration" {% if scenario_map.exploration.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.exploration.quadrant_color }};"></span>{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.exploration.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.exploration.manual_highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-prosperity" {% if scenario_map.prosperity.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.prosperity.quadrant_color }};"></span>{{ scenario_map.prosperity.display_title }}{% if scenario_map.prosperity.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.prosperity.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.prosperity.manual_highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-foggy" {% if scenario_map.foggy.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.foggy.quadrant_color }};"></span>{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.foggy.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.foggy.manual_highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
   <details class="sc-narr" id="narr-rocky" {% if scenario_map.rocky.is_selected %}open{% endif %}>
     <summary><span class="dot" style="background:{{ scenario_map.rocky.quadrant_color }};"></span>{{ scenario_map.rocky.display_title }}{% if scenario_map.rocky.is_selected %}<span class="sel-tag">مبنا</span>{% endif %}</summary>
-    <div class="body">{{ scenario_map.rocky.highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
+    <div class="body">{{ scenario_map.rocky.manual_highlighted_narrative|default:"روایتی ثبت نشده" }}</div>
   </details>
 </div>
 
@@ -120,6 +131,26 @@
       <input type="hidden" name="obj_id" id="sc_obj_id" value="">
       <div class="field-group"><label>عنوان سناریو</label><input type="text" name="title" id="sc_title"></div>
       <div class="field-group"><label>روایت کامل</label><textarea name="narrative" id="sc_narrative" rows="10"></textarea></div>
+
+      <div class="field-group hl-box">
+        <label>برچسب‌گذاری دستی متن با عوامل ماتریس اثر متقابل</label>
+        <div class="hl-hint"><i class="fa-solid fa-circle-info"></i> بخشی از متن بالا رو با ماوس انتخاب کنید، عامل مربوطه رو از لیست زیر انتخاب و «افزودن» رو بزنید.</div>
+        <div class="hl-picker">
+          <select id="hl_factor_select">
+            <option value="">— عامل ماتریس را انتخاب کنید —</option>
+            {% regroup cross_impact_factors by get_quadrant_display as quadrant_groups %}
+            {% for grp in quadrant_groups %}
+            <optgroup label="{{ grp.grouper }}">
+              {% for f in grp.list %}<option value="{{ f.pk }}">{{ f.text }}</option>{% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn ghost" onclick="addHighlight()">+ افزودن</button>
+        </div>
+        <ul class="hl-list" id="hl_list"></ul>
+      </div>
+      <input type="hidden" name="highlights_json" id="hl_json" value="[]">
+
       <div class="field-group"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" name="is_selected" id="sc_selected" style="width:auto;"> این سناریو، سناریوی منتخب/مبنا باشد</label></div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('scenarioOverlay').classList.remove('open')">انصراف</button>
@@ -158,12 +189,48 @@
     const el = document.getElementById('narr-' + key);
     if (el) { el.open = true; el.scrollIntoView({behavior:'smooth', block:'center'}); }
   }
+  let hlItems = [];
+
+  function renderHlList(){
+    const ul = document.getElementById('hl_list');
+    const select = document.getElementById('hl_factor_select');
+    ul.innerHTML = '';
+    hlItems.forEach(function(item, idx){
+      const opt = select.querySelector('option[value="' + item.factor_id + '"]');
+      const label = opt ? opt.textContent : ('#' + item.factor_id);
+      const li = document.createElement('li');
+      li.innerHTML = '<b>«' + item.phrase + '»</b><span class="hl-arrow">←</span><span>' + label + '</span>' +
+        '<button type="button" class="hl-remove" data-idx="' + idx + '"><i class="fa-solid fa-xmark"></i></button>';
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.hl-remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        hlItems.splice(parseInt(btn.dataset.idx, 10), 1);
+        renderHlList();
+      });
+    });
+    document.getElementById('hl_json').value = JSON.stringify(hlItems);
+  }
+
+  function addHighlight(){
+    const textarea = document.getElementById('sc_narrative');
+    const s = textarea.selectionStart, e = textarea.selectionEnd;
+    const phrase = textarea.value.substring(s, e).trim();
+    const factorId = document.getElementById('hl_factor_select').value;
+    if (!phrase){ alert('اول یه تکه از متن روایت رو با ماوس انتخاب کنید.'); return; }
+    if (!factorId){ alert('یه عامل ماتریس از لیست انتخاب کنید.'); return; }
+    hlItems.push({phrase: phrase, factor_id: parseInt(factorId, 10)});
+    renderHlList();
+  }
+
   function editScenario(btn){
     const d = btn.dataset;
     document.getElementById('sc_obj_id').value = d.id;
     document.getElementById('sc_title').value = d.title;
     document.getElementById('sc_narrative').value = d.narrative;
     document.getElementById('sc_selected').checked = (d.selected === '1');
+    try { hlItems = JSON.parse(d.highlights || '[]'); } catch(e) { hlItems = []; }
+    renderHlList();
     document.getElementById('scenarioOverlay').classList.add('open');
   }
   function openAxesModal(){ document.getElementById('axesOverlay').classList.add('open'); }
