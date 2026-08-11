@@ -1359,6 +1359,10 @@ def scenarios(request):
                     return redirect("strategic:scenarios")
 
     scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks", "highlights__cross_impact_factor")}
+    swot_code_map = _swot_code_map()
+    for s in scenario_map.values():
+        for si in s.swot_items.all():
+            si.swot_code = swot_code_map.get(si.pk, "")
     business_units = list(BusinessUnit.objects.all())
     foggy_tooltip = "\n".join(f"{bu.name} (فرصت و تهدید)" for bu in business_units)
 
