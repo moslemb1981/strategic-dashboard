@@ -42,7 +42,7 @@
   .stw .fedit:hover,.stw .fdel:hover{color:#fff;}
   .stw .src-badge{display:inline-flex;align-items:center;gap:3px;font-size:.56rem;font-weight:700;
     background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px;margin-inline-start:5px;
-    max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
+    max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;cursor:help;}
   .stw .fdel:hover{color:#fff;}
   .stw .addrow{display:flex;gap:5px;margin-top:.5rem;}
   .stw .addrow input,.stw .addrow select{font-size:.68rem;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:6px;padding:4px 7px;}
@@ -349,7 +349,7 @@
         <span class="badge" style="background:var(--s)">SO · راهبرد تهاجمی</span>
         <ul>
           {% for st in tows.so %}
-          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="so" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -366,7 +366,7 @@
         <span class="badge" style="background:var(--o)">WO · راهبرد بازنگری</span>
         <ul>
           {% for st in tows.wo %}
-          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wo" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -385,7 +385,7 @@
         <span class="badge" style="background:var(--w)">ST · راهبرد تنوع</span>
         <ul>
           {% for st in tows.st %}
-          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="st" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -402,7 +402,7 @@
         <span class="badge" style="background:var(--t)">WT · راهبرد تدافعی</span>
         <ul>
           {% for st in tows.wt %}
-          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}{{ o.code }} — {{ o.title|truncatechars:30 }}{% if not forloop.last %} · {% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wt" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -655,12 +655,18 @@
     document.getElementById('towsEditOverlay').classList.add('open');
   }
 
+  const SWOT_CATEGORY_NAME = {s: 'نقطه قوت', w: 'نقطه ضعف', o: 'فرصت', t: 'تهدید'};
+
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.tows-src-badge').forEach(function(badge){
       const ids = (badge.dataset.sources || '').split(',').filter(Boolean).map(Number);
       if (!ids.length) return;
-      const codes = SWOT_ITEMS.filter(it => ids.includes(it.id)).map(it => it.code);
-      if (codes.length){ badge.textContent = codes.join('، '); badge.style.display = ''; }
+      const matched = SWOT_ITEMS.filter(it => ids.includes(it.id));
+      if (matched.length){
+        badge.textContent = matched.map(it => it.code).join('، ');
+        badge.title = matched.map(it => '● ' + it.code + ' (' + (SWOT_CATEGORY_NAME[it.cat] || it.cat) + '): ' + it.text).join('\n');
+        badge.style.display = '';
+      }
     });
   });
 

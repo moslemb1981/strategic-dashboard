@@ -3,6 +3,7 @@ from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
+    OperationalKPI,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -55,7 +56,7 @@ class InitiativeForm(forms.ModelForm):
         model = Initiative
         fields = [
             "title", "owner", "start_date", "end_date", "progress", "status", "objectives",
-            "source_kpi", "source_tows", "source_risk",
+            "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دیجیتالی‌سازی گزارش‌های ماهانه"}),
@@ -63,6 +64,7 @@ class InitiativeForm(forms.ModelForm):
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
             "objectives": forms.SelectMultiple(attrs={"size": 8}),
             "source_kpi": forms.CheckboxSelectMultiple(),
+            "source_operational_kpi": forms.CheckboxSelectMultiple(),
             "source_tows": forms.CheckboxSelectMultiple(),
             "source_risk": forms.CheckboxSelectMultiple(),
         }
@@ -78,6 +80,10 @@ class InitiativeForm(forms.ModelForm):
         self.fields["source_kpi"].required = False
         self.fields["source_kpi"].queryset = CompanyKPI.objects.all()
         self.fields["source_kpi"].label_from_instance = lambda o: f"{o.code} — {o.name}"
+
+        self.fields["source_operational_kpi"].required = False
+        self.fields["source_operational_kpi"].queryset = OperationalKPI.objects.all()
+        self.fields["source_operational_kpi"].label_from_instance = lambda o: f"{o.code} — {o.title}"
 
         self.fields["source_tows"].required = False
         self.fields["source_tows"].queryset = (
@@ -95,9 +101,7 @@ class RiskForm(forms.ModelForm):
         model = Risk
         fields = [
             "title", "cause", "consequence", "owner", "category",
-            "inherent_likelihood", "inherent_impact",
             "likelihood", "impact",
-            "target_likelihood", "target_impact",
             "response_strategy", "trend", "kri", "mitigation", "linked_objective",
             "related_swot_items", "related_scenario",
         ]
@@ -106,6 +110,8 @@ class RiskForm(forms.ModelForm):
             "cause": forms.Textarea(attrs={"rows": 2, "placeholder": "منشأ/علت بروز ریسک"}),
             "consequence": forms.Textarea(attrs={"rows": 2, "placeholder": "هر خط یک پیامد"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت مالی"}),
+            "likelihood": forms.NumberInput(attrs={"step": "0.25", "min": "1", "max": "5"}),
+            "impact": forms.NumberInput(attrs={"step": "0.25", "min": "1", "max": "5"}),
             "kri": forms.TextInput(attrs={"placeholder": "مثلاً: نرخ تسعیر ماهانه ارز"}),
             "mitigation": forms.Textarea(attrs={"rows": 3, "placeholder": "هر خط یک اقدام کنترلی"}),
             "related_swot_items": forms.CheckboxSelectMultiple(),
@@ -173,13 +179,14 @@ class TOWSStrategyForm(forms.ModelForm):
 class StrategicObjectiveForm(forms.ModelForm):
     class Meta:
         model = StrategicObjective
-        fields = ["code", "perspective", "theme", "title", "kpi", "status", "order", "feeds_into", "source_tows", "linked_kpis"]
+        fields = ["code", "perspective", "theme", "title", "kpi", "status", "order", "feeds_into", "source_tows", "linked_kpis", "linked_operational_kpis"]
         widgets = {
             "code": forms.TextInput(attrs={"placeholder": "مثلاً: F1"}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان هدف استراتژیک"}),
             "kpi": forms.TextInput(attrs={"placeholder": "مثلاً: رشد ۱۲٪ حاشیه سود ناخالص"}),
             "feeds_into": forms.CheckboxSelectMultiple(),
             "linked_kpis": forms.CheckboxSelectMultiple(),
+            "linked_operational_kpis": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, business_unit=None, **kwargs):
@@ -206,6 +213,10 @@ class StrategicObjectiveForm(forms.ModelForm):
         self.fields["linked_kpis"].queryset = CompanyKPI.objects.all()
         self.fields["linked_kpis"].required = False
         self.fields["linked_kpis"].label_from_instance = lambda obj: f"{obj.code} — {obj.name}"
+
+        self.fields["linked_operational_kpis"].queryset = OperationalKPI.objects.all()
+        self.fields["linked_operational_kpis"].required = False
+        self.fields["linked_operational_kpis"].label_from_instance = lambda obj: f"{obj.code} — {obj.title}"
 
 
 class StrategyThemeForm(forms.ModelForm):
@@ -374,6 +385,19 @@ class CompanyKPIForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["objectives"].required = False
         self.fields["objectives"].queryset = CompanyObjective.objects.all()
+
+
+class OperationalKPIForm(forms.ModelForm):
+    class Meta:
+        model = OperationalKPI
+        fields = [
+            "code", "title", "unit", "department",
+            "target_1404", "actual_1404", "target_1405", "actual_1405", "progress_1405", "order",
+        ]
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "عنوان کامل شاخص"}),
+            "department": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت‌های بازرگانی قطعات"}),
+        }
 
 
 class DocumentForm(forms.ModelForm):

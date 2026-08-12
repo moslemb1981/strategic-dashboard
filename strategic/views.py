@@ -16,13 +16,13 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    ScenarioHighlight,
+    ScenarioHighlight, OperationalKPI,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
-    StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm,
+    StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -699,7 +699,7 @@ def stratmap(request):
         form = StrategicObjectiveForm(business_unit=current_bu)
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme", "source_tows").prefetch_related("feeds_into", "linked_kpis", "source_tows__source_items")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme", "source_tows").prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis", "source_tows__source_items")
         if current_bu else StrategicObjective.objects.none()
     )
     for o in objectives:
@@ -751,6 +751,16 @@ def stratmap(request):
             })
             circles_by_objective.setdefault(o.pk, []).append({
                 "name": f"{k.code} — {k.name}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
+            })
+        for k in o.linked_operational_kpis.all():
+            kpis_by_objective.setdefault(o.pk, []).append({
+                "type": "operational", "id": k.pk, "name": f"{k.code} — {k.title}", "unit": k.unit,
+                "target": k.target_1405, "actual": k.actual_1405,
+                "trend": "flat", "status": "on_track", "owner": k.department, "period": "",
+            })
+            circles_by_objective.setdefault(o.pk, []).append({
+                "name": f"{k.code} — {k.title}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
                 "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
             })
 
@@ -1096,14 +1106,19 @@ def risk(request):
 
     ZONE_COLOR = {"low": "#2fa96b", "med": "#e3b23c", "high": "#e2792e", "crit": "#d6402f"}
 
-    # ماتریس ۵×۵ (احتمال × شدت اثر) بر اساس امتیاز باقیمانده
+    # ماتریس ۵×۵ (احتمال × شدت اثر) — چون احتمال/اثر می‌توانند اعشاری باشند (طبق فایل رسمی)،
+    # هر ریسک برای «جایگذاری روی خانه‌ی ماتریس» به نزدیک‌ترین عدد صحیح ۱ تا ۵ گرد می‌شود؛
+    # امتیاز واقعی (RPN) و مقدار دقیق اعشاری در همه‌جای دیگر (جدول، هاور) دست‌نخورده می‌مانند.
+    def _bucket(value):
+        return min(5, max(1, round(float(value))))
+
     matrix = []
     for impact in range(5, 0, -1):
         row = []
         for likelihood in range(1, 6):
             s = likelihood * impact
             zone = Risk._zone_of(s)
-            cell_risks = [r for r in risks_sorted if r.likelihood == likelihood and r.impact == impact]
+            cell_risks = [r for r in risks_sorted if _bucket(r.likelihood) == likelihood and _bucket(r.impact) == impact]
             row.append({"zone": zone, "color": ZONE_COLOR[zone], "score": s,
                         "likelihood": likelihood, "impact": impact, "risks": cell_risks})
         matrix.append(row)
@@ -1122,19 +1137,12 @@ def risk(request):
     high_or_crit = sum(1 for r in risks if r.residual_score >= 10)
     above_appetite = sum(1 for r in risks if r.residual_score > 9)
     avg_score = round(sum(r.residual_score for r in risks) / total, 1) if total else 0
-    avg_effectiveness = round(sum(r.effectiveness_pct for r in risks) / total) if total else 0
-
-    risks_json = [
-        {"pk": r.pk, "likelihood": r.likelihood, "impact": r.impact,
-         "inherent_likelihood": r.inherent_likelihood, "inherent_impact": r.inherent_impact}
-        for r in risks_sorted
-    ]
 
     return render(request, "strategic/risk.html", {
         "active_page": "risk", "matrix": matrix, "risks": risks_sorted, "top_risks": top_risks,
         "form": form, "categories": categories, "max_cat": max_cat,
         "total": total, "high_or_crit": high_or_crit, "above_appetite": above_appetite,
-        "avg_score": avg_score, "avg_effectiveness": avg_effectiveness, "risks_json": risks_json,
+        "avg_score": avg_score,
     })
 
 
@@ -1622,6 +1630,152 @@ def company_kpi_import(request):
     _log_action(request, "IMPORT CompanyKPI Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
     messages.success(request, f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
     return redirect("strategic:company_goals")
+
+
+# ---------------- بانک شاخص‌های عملیاتی (سطح دپارتمانی، جدا از شاخص‌های کلان شرکت) ----------------
+
+_OPKPI_EXCEL_HEADERS = [
+    "کد", "عنوان شاخص", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
+    "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "ترتیب نمایش",
+]
+
+
+def operational_kpis(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_operationalkpi" if obj_id else "strategic.add_operationalkpi"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(OperationalKPI, pk=obj_id) if obj_id else None
+            form = OperationalKPIForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE OperationalKPI" if obj_id else "CREATE OperationalKPI", str(form.instance))
+                return redirect("strategic:operational_kpis")
+    else:
+        form = OperationalKPIForm()
+
+    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit"))
+
+    return render(request, "strategic/operational_kpis.html", {
+        "active_page": "operational_kpis", "items": items, "total": len(items),
+        "form": OperationalKPIForm() if request.method == "POST" else form,
+    })
+
+
+@login_required
+def operational_kpi_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_operationalkpi"):
+        obj = get_object_or_404(OperationalKPI, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE OperationalKPI", label)
+    return redirect("strategic:operational_kpis")
+
+
+@login_required
+def operational_kpi_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:operational_kpis")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "شاخص‌های عملیاتی"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_OPKPI_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for row_i, k in enumerate(OperationalKPI.objects.all(), start=2):
+        values = [
+            k.code, k.title, k.unit, k.department,
+            k.target_1404, k.actual_1404, k.target_1405, k.actual_1405, k.progress_1405, k.order,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [12, 42, 12, 28, 12, 12, 12, 12, 12, 10]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT OperationalKPI Excel", f"{OperationalKPI.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="shakhes-haye-amaliati.xlsx"'
+    return response
+
+
+@login_required
+def operational_kpi_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:operational_kpis")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:operational_kpis")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:operational_kpis")
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not row[0]:
+            continue
+        code = _s(row[0])
+        if not code:
+            skipped += 1
+            continue
+        title = _s(row[1]) if len(row) > 1 else ""
+        unit = _s(row[2]) if len(row) > 2 else ""
+        department = _s(row[3]) if len(row) > 3 else ""
+        target_1404 = _s(row[4]) if len(row) > 4 else ""
+        actual_1404 = _s(row[5]) if len(row) > 5 else ""
+        target_1405 = _s(row[6]) if len(row) > 6 else ""
+        actual_1405 = _s(row[7]) if len(row) > 7 else ""
+        progress_1405 = _s(row[8]) if len(row) > 8 else ""
+        try:
+            order = int(row[9]) if len(row) > 9 and row[9] not in (None, "") else 0
+        except (TypeError, ValueError):
+            order = 0
+
+        _, was_created = OperationalKPI.objects.update_or_create(
+            code=code,
+            defaults=dict(
+                title=title, unit=unit, department=department,
+                target_1404=target_1404, actual_1404=actual_1404,
+                target_1405=target_1405, actual_1405=actual_1405,
+                progress_1405=progress_1405, order=order,
+            ),
+        )
+        created += 1 if was_created else 0
+        updated += 0 if was_created else 1
+
+    _log_action(request, "IMPORT OperationalKPI Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:operational_kpis")
 
 
 # ---------------- ورود/خروجی اکسل ماتریس اثر متقابل (فقط مدیر سیستم) ----------------

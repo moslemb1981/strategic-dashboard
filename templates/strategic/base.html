@@ -83,6 +83,7 @@
         <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
         <div class="nav-label">اجرا و پایش</div>
         <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت</a>
+        <a class="nav-item {% if active_page == 'operational_kpis' %}active{% endif %}" href="{% url 'strategic:operational_kpis' %}"><i class="fa-solid fa-chart-line"></i>بانک شاخص‌های عملیاتی</a>
         <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>پروژه‌های تحول</a>
       </nav>
       <div class="sidebar-footer">نسخه داخلی — تیر ۱۴۰۵</div>

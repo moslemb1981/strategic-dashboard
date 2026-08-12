@@ -98,7 +98,7 @@
 {% block content %}
 <div class="rd" id="rdRoot">
   <div class="topbar">
-    <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">ماتریس ذاتی/باقیمانده/هدف · احتمال × شدت اثر (۵×۵) · چارچوب ISO 31000</div></div>
+    <div><h1>نقشه ریسک استراتژیک</h1><div class="sub">احتمال × شدت اثر (۵×۵) · چارچوب ISO 31000</div></div>
     {% if perms.strategic.add_risk %}
     <button class="btn accent" onclick="newRisk()"><i class="fa-solid fa-plus"></i>افزودن ریسک</button>
     {% endif %}
@@ -108,14 +108,12 @@
     <div class="kpi" style="--kc:var(--ink)"><div class="k-lbl">کل ریسک‌های شناسایی‌شده</div><div class="k-val">{{ total|fanum }}</div><div class="k-sub">در ۶ دسته سازمانی</div></div>
     <div class="kpi" style="--kc:var(--z-high)"><div class="k-lbl">ریسک‌های زیاد و بحرانی</div><div class="k-val" style="color:var(--z-high)">{{ high_or_crit|fanum }}</div><div class="k-sub">امتیاز ۱۰ و بالاتر</div></div>
     <div class="kpi" style="--kc:var(--z-crit)"><div class="k-lbl">بالاتر از اشتهای ریسک</div><div class="k-val" style="color:var(--z-crit)">{{ above_appetite|fanum }}</div><div class="k-sub">نیازمند اقدام فوری</div></div>
-    <div class="kpi" style="--kc:var(--z-med)"><div class="k-lbl">میانگین امتیاز باقیمانده</div><div class="k-val">{{ avg_score|fanum }}</div><div class="k-sub">از حداکثر ۲۵</div></div>
-    <div class="kpi" style="--kc:var(--z-low)"><div class="k-lbl">اثربخشی کنترل‌ها</div><div class="k-val" style="color:var(--z-low)">{{ avg_effectiveness|fanum }}<small>٪</small></div><div class="k-sub">کاهش از ذاتی به باقیمانده</div></div>
+    <div class="kpi" style="--kc:var(--z-med)"><div class="k-lbl">میانگین امتیاز ریسک (RPN)</div><div class="k-val">{{ avg_score|fanum }}</div><div class="k-sub">از حداکثر ۲۵</div></div>
   </div>
 
   <div class="grid">
     <div class="panel">
-      <div class="p-title"><span>ماتریس حرارتی ریسک — احتمال × شدت اثر</span>
-        <button class="tog" id="ghostBtn">نمایش ریسک ذاتی</button></div>
+      <div class="p-title"><span>ماتریس حرارتی ریسک — احتمال × شدت اثر</span></div>
       <div class="grid-area">
         <div class="yaxis">شدت اثر ‹ کم — زیاد ›</div>
         <div>
@@ -158,7 +156,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="c-head">۵ ریسک برتر <small>بر اساس امتیاز باقیمانده</small></div>
+        <div class="c-head">۵ ریسک برتر <small>بر اساس امتیاز ریسک (RPN)</small></div>
         <div class="c-body">
           {% for r in top_risks %}
           <div class="toprisk">
@@ -191,7 +189,7 @@
         </colgroup>
         <thead><tr>
           <th>#</th><th>عنوان ریسک</th><th title="دسته"></th><th>اقدامات کلیدی / پروژه‌ها</th><th>راهبرد پاسخ</th>
-          <th>امتیاز (ذاتی/باقیمانده/هدف)</th><th>روند</th><th></th>
+          <th>امتیاز ریسک (RPN)</th><th>روند</th><th></th>
         </tr></thead>
         <tbody>
           {% for r in risks %}
@@ -212,9 +210,7 @@
             </td>
             <td style="white-space:nowrap;font-size:11px;">{{ r.get_response_strategy_display }}</td>
             <td style="white-space:nowrap;text-align:center;">
-              <span class="sbadge" style="background:var(--z-{% if r.inherent_zone == 'crit' %}crit{% elif r.inherent_zone == 'high' %}high{% elif r.inherent_zone == 'med' %}med{% else %}low{% endif %})">{{ r.inherent_score|fanum }}</span>
               <span class="sbadge" style="background:var(--z-{% if r.zone == 'crit' %}crit{% elif r.zone == 'high' %}high{% elif r.zone == 'med' %}med{% else %}low{% endif %})">{{ r.residual_score|fanum }}</span>
-              <span class="sbadge dim" style="background:var(--z-{% if r.target_zone == 'crit' %}crit{% elif r.target_zone == 'high' %}high{% elif r.target_zone == 'med' %}med{% else %}low{% endif %})">{{ r.target_score|fanum }}</span>
             </td>
             <td style="text-align:center;"><span class="trend {{ r.trend }}">{% if r.trend == "up" %}▲{% elif r.trend == "down" %}▼{% else %}◂▸{% endif %}</span></td>
             <td style="white-space:nowrap">
@@ -222,9 +218,7 @@
               <button type="button" class="rowbtn" onclick="editRisk(this)"
                 data-id="{{ r.pk }}" data-title="{{ r.title }}" data-cause="{{ r.cause }}" data-consequence="{{ r.consequence }}"
                 data-owner="{{ r.owner }}" data-category="{{ r.category }}"
-                data-il="{{ r.inherent_likelihood }}" data-ii="{{ r.inherent_impact }}"
                 data-l="{{ r.likelihood }}" data-i="{{ r.impact }}"
-                data-tl="{{ r.target_likelihood }}" data-ti="{{ r.target_impact }}"
                 data-response="{{ r.response_strategy }}" data-trend="{{ r.trend }}" data-kri="{{ r.kri }}"
                 data-mitigation="{{ r.mitigation }}" data-linked="{{ r.linked_objective_id|default:'' }}"
                 data-swot="{% for si in r.related_swot_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
@@ -246,7 +240,7 @@
       </table>
     </div>
   </div>
-  <p style="font-size:.7rem;color:var(--ink-faint);margin-top:.8rem;">اندازه حباب و رنگ امتیاز = سطح ریسک باقیمانده · «نمایش ریسک ذاتی» موقعیت پیش از کنترل‌ها را با خط‌چین نشان می‌دهد</p>
+  <p style="font-size:.7rem;color:var(--ink-faint);margin-top:.8rem;">اندازه حباب و رنگ امتیاز = سطح ریسک (RPN)</p>
 </div>
 
 <div class="overlay" id="overlay">
@@ -262,16 +256,8 @@
       <div class="field-group"><label>دسته‌بندی</label>{{ form.category }}</div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>احتمال (ذاتی)</label>{{ form.inherent_likelihood }}</div>
-        <div class="field-group"><label>شدت اثر (ذاتی)</label>{{ form.inherent_impact }}</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>احتمال (باقیمانده - فعلی)</label>{{ form.likelihood }}</div>
-        <div class="field-group"><label>شدت اثر (باقیمانده - فعلی)</label>{{ form.impact }}</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>احتمال (هدف)</label>{{ form.target_likelihood }}</div>
-        <div class="field-group"><label>شدت اثر (هدف)</label>{{ form.target_impact }}</div>
+        <div class="field-group"><label>احتمال رخداد (P)</label>{{ form.likelihood }}</div>
+        <div class="field-group"><label>شدت اثر (R)</label>{{ form.impact }}</div>
       </div>
 
       <div class="field-group"><label>راهبرد پاسخ</label>{{ form.response_strategy }}</div>
@@ -291,7 +277,6 @@
 {% endblock %}
 
 {% block extra_js %}
-{{ risks_json|json_script:"risks-data" }}
 <script>
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
@@ -333,12 +318,8 @@
     document.getElementById('id_consequence').value = d.consequence;
     document.getElementById('id_owner').value = d.owner;
     document.getElementById('id_category').value = d.category;
-    document.getElementById('id_inherent_likelihood').value = d.il;
-    document.getElementById('id_inherent_impact').value = d.ii;
     document.getElementById('id_likelihood').value = d.l;
     document.getElementById('id_impact').value = d.i;
-    document.getElementById('id_target_likelihood').value = d.tl;
-    document.getElementById('id_target_impact').value = d.ti;
     document.getElementById('id_response_strategy').value = d.response;
     document.getElementById('id_trend').value = d.trend;
     document.getElementById('id_kri').value = d.kri;
@@ -357,52 +338,5 @@
     document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
     openModal();
   }
-
-  // ---------------- Ghost (inherent risk) toggle ----------------
-  (function(){
-    const heat = document.getElementById('heat');
-    const arrows = document.getElementById('arrows');
-    const btn = document.getElementById('ghostBtn');
-    const risksData = JSON.parse(document.getElementById('risks-data').textContent);
-    let showGhost = false;
-
-    function cellEl(l, i){ return document.getElementById('cell-' + l + '-' + i); }
-
-    function clearGhosts(){
-      document.querySelectorAll('.rd .bubble.ghost').forEach(el => el.remove());
-      arrows.innerHTML = '';
-    }
-
-    function drawGhosts(){
-      clearGhosts();
-      if (!showGhost) return;
-      const hr = heat.getBoundingClientRect();
-      risksData.forEach(r => {
-        if (r.inherent_likelihood === r.likelihood && r.inherent_impact === r.impact) return;
-        const cell = cellEl(r.inherent_likelihood, r.inherent_impact);
-        const real = document.getElementById('b-' + r.pk);
-        if (!cell || !real) return;
-        const g = document.createElement('div');
-        g.className = 'bubble ghost';
-        g.textContent = real.textContent;
-        cell.querySelector('.bubbles').appendChild(g);
-
-        const ga = g.getBoundingClientRect(), rb = real.getBoundingClientRect();
-        const x1 = ga.left - hr.left + ga.width/2, y1 = ga.top - hr.top + ga.height/2;
-        const x2 = rb.left - hr.left + rb.width/2, y2 = rb.top - hr.top + rb.height/2;
-        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        p.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
-        arrows.appendChild(p);
-      });
-    }
-
-    btn.addEventListener('click', () => {
-      showGhost = !showGhost;
-      btn.classList.toggle('on', showGhost);
-      btn.textContent = showGhost ? 'مخفی‌کردن ریسک ذاتی' : 'نمایش ریسک ذاتی';
-      drawGhosts();
-    });
-    window.addEventListener('resize', () => { if (showGhost) drawGhosts(); });
-  })();
 </script>
 {% endblock %}

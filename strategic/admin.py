@@ -37,7 +37,7 @@ class InitiativeAdmin(admin.ModelAdmin):
 
 @admin.register(Risk)
 class RiskAdmin(admin.ModelAdmin):
-    list_display = ("title", "owner", "category", "inherent_score", "residual_score", "target_score", "zone", "trend", "response_strategy")
+    list_display = ("title", "owner", "category", "likelihood", "impact", "residual_score", "zone", "trend", "response_strategy")
     list_filter = ("category", "trend", "response_strategy")
     search_fields = ("title", "owner", "kri")
 

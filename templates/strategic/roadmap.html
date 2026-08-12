@@ -47,10 +47,12 @@
       <div class="share-track" style="margin-top:6px;height:6px;">
         <div class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></div>
       </div>
-      {% if i.objectives.all or i.source_kpi.all or i.source_tows.all or i.source_risk.all or i.traced_origins %}
+      {% if i.objectives.all or i.source_kpi.all or i.source_operational_kpi.all or i.source_tows.all or i.source_risk.all or i.traced_origins %}
       <div class="meta" style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">
         {% if i.objectives.all %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="اهداف استراتژیک مرتبط:&#10;{% for o in i.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> اهداف ({{ i.objectives.all|length }})</span>{% endif %}
-        {% if i.source_kpi.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="شاخص‌های مبنا:&#10;{% for k in i.source_kpi.all %}● شاخص {{ k.code }} — {{ k.name }} — حوزه: {{ k.get_domain_display }} — هدف/عملکرد: {{ k.target_1405|default:'—' }}/{{ k.actual_1405|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chart-line"></i> شاخص ({{ i.source_kpi.all|length }})</span>{% endif %}
+        {% with kc=i.source_kpi.count opkc=i.source_operational_kpi.count %}
+        {% if kc or opkc %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{% if kc %}شاخص‌های مبنا:&#10;{% for k in i.source_kpi.all %}● شاخص {{ k.code }} — {{ k.name }} — حوزه: {{ k.get_domain_display }} — هدف/عملکرد: {{ k.target_1405|default:'—' }}/{{ k.actual_1405|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% endif %}{% if kc and opkc %}&#10;{% endif %}{% if opkc %}شاخص‌های عملیاتی مبنا:&#10;{% for k in i.source_operational_kpi.all %}● شاخص عملیاتی {{ k.code }} — {{ k.title }} — دپارتمان: {{ k.department|default:'—' }} — هدف/عملکرد: {{ k.target_1405|default:'—' }}/{{ k.actual_1405|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% endif %}"><i class="fa-solid fa-chart-line"></i> شاخص ({{ kc|add:opkc }})</span>{% endif %}
+        {% endwith %}
         {% if i.source_tows.all %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" title="راهبردهای TOWS مبنا:&#10;{% for t in i.source_tows.all %}● راهبرد {{ t.get_category_display }}: {{ t.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-board"></i> TOWS ({{ i.source_tows.all|length }})</span>{% endif %}
         {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" title="ریسک‌های مبنا:&#10;{% for rk in i.source_risk.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }} — احتمال/اثر: {{ rk.likelihood }}/{{ rk.impact }} — مسئول: {{ rk.owner|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> ریسک ({{ i.source_risk.all|length }})</span>{% endif %}
         {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ردیابی خودکار منشأ (از TOWS تا عامل اصلی):&#10;{% for o in i.traced_origins %}● راهبرد {{ o.tows.get_category_display }}: {{ o.tows.text }}&#10;   ← {{ o.swot_item.get_category_display }}: {{ o.swot_item.text }}&#10;   ← منبع ({{ o.source_type }}): {{ o.source_detail }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> ریشه‌ی راهبردی ({{ i.traced_origins|length }})</span>{% endif %}
@@ -65,6 +67,7 @@
       data-progress="{{ i.progress }}" data-status="{{ i.status }}"
       data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       data-source-kpi="{% for k in i.source_kpi.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+      data-source-operational-kpi="{% for k in i.source_operational_kpi.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       data-source-tows="{% for t in i.source_tows.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       data-source-risk="{% for rk in i.source_risk.all %}{{ rk.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
       style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:0 4px;">
@@ -95,6 +98,11 @@
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="field-group"><label>اهداف استراتژیک مرتبط</label>{{ form.objectives }}</div>
       <div class="field-group"><label>شاخص‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_kpi }}</div></div>
+      <div class="field-group"><label>شاخص‌های عملیاتی مبنا (اختیاری)</label>
+        <input type="text" id="opkPickerSearchInit" placeholder="جستجو با کد یا عنوان شاخص..."
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="initOpkBox">{{ form.source_operational_kpi }}</div>
+      </div>
       <div class="field-group"><label>راهبردهای TOWS مبنا (اختیاری)</label><div class="picker-box">{{ form.source_tows }}</div></div>
       <div class="field-group"><label>ریسک‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_risk }}</div></div>
       <div class="modal-actions">
@@ -142,6 +150,15 @@
     });
   }
   document.addEventListener('DOMContentLoaded', function(){
+    const opkSearch = document.getElementById('opkPickerSearchInit');
+    if (opkSearch) {
+      opkSearch.addEventListener('input', function(){
+        const q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#initOpkBox label').forEach(function(lbl){
+          lbl.style.display = (!q || lbl.textContent.toLowerCase().includes(q)) ? '' : 'none';
+        });
+      });
+    }
     document.querySelectorAll('.picker-box label').forEach(function(lbl){
       const cb = lbl.querySelector('input[type="checkbox"]');
       if (!cb) return;
@@ -177,9 +194,11 @@
     const sel = document.getElementById('id_objectives');
     if (sel) { Array.from(sel.options).forEach(o => { o.selected = objIds.includes(o.value); }); }
     const kpiIds = (d.sourceKpi || '').split(',').filter(Boolean);
+    const opkpiIds = (d.sourceOperationalKpi || '').split(',').filter(Boolean);
     const towsIds = (d.sourceTows || '').split(',').filter(Boolean);
     const riskIds = (d.sourceRisk || '').split(',').filter(Boolean);
     document.querySelectorAll('input[name="source_kpi"]').forEach(cb => { cb.checked = kpiIds.includes(cb.value); });
+    document.querySelectorAll('input[name="source_operational_kpi"]').forEach(cb => { cb.checked = opkpiIds.includes(cb.value); });
     document.querySelectorAll('input[name="source_tows"]').forEach(cb => { cb.checked = towsIds.includes(cb.value); });
     document.querySelectorAll('input[name="source_risk"]').forEach(cb => { cb.checked = riskIds.includes(cb.value); });
     syncPickerBoxes();

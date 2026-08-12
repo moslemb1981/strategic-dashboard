@@ -1,0 +1,227 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}بانک شاخص‌های عملیاتی{% endblock %}
+{% block crumb %}بانک شاخص‌های عملیاتی{% endblock %}
+
+{% block extra_css %}
+<style>
+  .opk-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.8;}
+  .opk-title{font-size:18px;font-weight:900;margin-bottom:2px;}
+  .opk-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:16px;}
+  .opk-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .opk-count{font-size:11.5px;color:var(--ink-faint);margin-inline-start:auto;}
+
+  .opk-table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+  table.opk-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
+  .opk-table th{background:var(--bg);text-align:right;padding:8px 9px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .opk-livesearch-row th{padding:5px 7px 8px;border-bottom:2px solid var(--primary);}
+  .opk-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:10.5px;font-family:inherit;background:#fff;box-sizing:border-box;}
+  .opk-live-input:focus{outline:none;border-color:var(--primary);}
+  .opk-table td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;}
+  .opk-table tr.opk-hidden{display:none;}
+  .opk-code{font-family:monospace;font-size:10px;color:var(--ink-faint);}
+  .opk-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
+  .opk-bar-fill{height:100%;border-radius:4px;}
+  .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
+    padding:1px 6px;cursor:help;background:var(--purple-soft,#ECE8F5);color:#6C56A3;}
+  .opk-empty{padding:14px;text-align:center;color:var(--ink-faint);}
+  .opk-actbtn{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:2px 4px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="opk-title">بانک شاخص‌های عملیاتی</div>
+<div class="opk-sub">شاخص‌های دپارتمانی کل سازمان — مرجع، جدا از شاخص‌های کلان شرکت</div>
+
+<div class="opk-note"><i class="fa-solid fa-circle-info"></i>
+  این بانک، سطح <b>دپارتمانی/عملیاتی</b> است (طبق استاندارد BSC Cascading)، جدا از «اهداف کلان و KPI شرکت» که سطح مدیریت ارشد است.
+  از این بانک می‌توانید روی هر کارت نقشه استراتژیک، شاخص عملیاتی مرتبط را انتخاب کنید.
+</div>
+
+<div class="opk-toolbar">
+  {% if perms.strategic.add_operationalkpi %}<button class="btn accent" onclick="newOpk()"><i class="fa-solid fa-plus"></i> افزودن شاخص</button>{% endif %}
+  {% if user.is_superuser %}
+  <a href="{% url 'strategic:operational_kpi_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+  <button type="button" class="btn ghost" onclick="document.getElementById('opkImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  {% endif %}
+  <span class="opk-count" id="opkCount">{{ total|fanum }} شاخص</span>
+</div>
+
+<div class="opk-table-wrap">
+<table class="opk-table">
+  <colgroup>
+    <col style="width:10%;"><col style="width:26%;"><col style="width:8%;"><col style="width:16%;">
+    <col style="width:9%;"><col style="width:9%;"><col style="width:12%;"><col style="width:50px;">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>کد</th><th>عنوان شاخص</th><th>واحد</th><th>دپارتمان مالک</th>
+      <th>هدف ۱۴۰۵</th><th>عملکرد ۱۴۰۵</th><th>تحقق</th><th></th>
+    </tr>
+    <tr class="opk-livesearch-row">
+      <th><input type="text" id="liveCode" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveTitle" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveUnit" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveDept" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveTarget" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveActual" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveProgress" class="opk-live-input" placeholder="جستجو..."></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="opkBody">
+    {% for k in items %}
+    <tr class="opk-row">
+      <td class="opk-code">{{ k.code }}</td>
+      <td>{{ k.title }}
+        {% if k.strategic_objectives.all %}<span class="used-badge" title="کارت‌های نقشه استراتژیک مرتبط:&#10;{% for o in k.strategic_objectives.all %}● {{ o.code }}: {{ o.title }} — کسب‌وکار: {{ o.business_unit.name|default:'—' }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-map"></i> {{ k.strategic_objectives.all|length }}</span>{% endif %}
+      </td>
+      <td>{{ k.unit|default:"—" }}</td>
+      <td>{{ k.department|default:"—" }}</td>
+      <td>{{ k.target_1405|default:"—" }}</td>
+      <td>{{ k.actual_1405|default:"—" }}</td>
+      <td>{{ k.progress_1405|default:"—" }}
+        <div class="opk-bar-track"><div class="opk-bar-fill" style="width:{{ k.manual_progress_value|default:0 }}%;background:{{ k.progress_color }};"></div></div>
+      </td>
+      <td style="white-space:nowrap;">
+        {% if perms.strategic.change_operationalkpi %}
+        <button type="button" class="opk-actbtn" onclick="editOpk(this)"
+          data-id="{{ k.pk }}" data-code="{{ k.code }}" data-title="{{ k.title }}" data-unit="{{ k.unit }}"
+          data-department="{{ k.department }}" data-t4="{{ k.target_1404 }}" data-a4="{{ k.actual_1404 }}"
+          data-t5="{{ k.target_1405 }}" data-a5="{{ k.actual_1405 }}" data-progress="{{ k.progress_1405 }}" data-order="{{ k.order }}">
+          <i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_operationalkpi %}
+        <form method="post" action="{% url 'strategic:operational_kpi_delete' k.pk %}" style="display:inline;" onsubmit="return confirm('حذف این شاخص؟');">
+          {% csrf_token %}<button type="submit" class="opk-actbtn"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="opk-empty">هنوز شاخص عملیاتی‌ای ثبت نشده.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="overlay" id="opkOverlay">
+  <div class="modal-card">
+    <h3 id="opkModalTitle">افزودن شاخص عملیاتی</h3>
+    <form method="post" id="opkForm" action="{% url 'strategic:operational_kpis' %}">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="opk_obj_id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>کد شاخص</label>{{ form.code }}</div>
+        <div class="field-group"><label>واحد سنجش</label>{{ form.unit }}</div>
+      </div>
+      <div class="field-group"><label>عنوان شاخص</label>{{ form.title }}</div>
+      <div class="field-group"><label>دپارتمان مالک</label>{{ form.department }}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>هدف ۱۴۰۴</label>{{ form.target_1404 }}</div>
+        <div class="field-group"><label>عملکرد ۱۴۰۴</label>{{ form.actual_1404 }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>هدف ۱۴۰۵</label>{{ form.target_1405 }}</div>
+        <div class="field-group"><label>عملکرد ۱۴۰۵</label>{{ form.actual_1405 }}</div>
+      </div>
+      <div class="field-group"><label>درصد تحقق (دستی)</label>{{ form.progress_1405 }}</div>
+      <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('opkOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent" id="opkSubmitBtn">ثبت شاخص</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if user.is_superuser %}
+<div class="overlay" id="opkImportOverlay">
+  <div class="modal-card">
+    <h3>ورود شاخص‌ها از اکسل</h3>
+    <form method="post" action="{% url 'strategic:operational_kpi_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (ستون‌ها باید دقیقاً مطابق خروجی اکسل همین صفحه باشند)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
+        هر ردیف بر اساس ستون «کد» با شاخص موجود تطبیق داده می‌شود؛ اگر کدی وجود نداشته باشد، شاخص جدید ساخته می‌شود.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('opkImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const inputs = {
+      code: document.getElementById('liveCode'),
+      title: document.getElementById('liveTitle'),
+      unit: document.getElementById('liveUnit'),
+      dept: document.getElementById('liveDept'),
+      target: document.getElementById('liveTarget'),
+      actual: document.getElementById('liveActual'),
+      progress: document.getElementById('liveProgress'),
+    };
+    const rows = Array.from(document.querySelectorAll('#opkBody tr.opk-row'));
+
+    function applyFilter(){
+      const vals = {};
+      Object.keys(inputs).forEach(k => vals[k] = inputs[k].value.trim().toLowerCase());
+      let visible = 0;
+      rows.forEach(function(row){
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 7) return;
+        const match = (!vals.code || cells[0].textContent.toLowerCase().includes(vals.code))
+          && (!vals.title || cells[1].textContent.toLowerCase().includes(vals.title))
+          && (!vals.unit || cells[2].textContent.toLowerCase().includes(vals.unit))
+          && (!vals.dept || cells[3].textContent.toLowerCase().includes(vals.dept))
+          && (!vals.target || cells[4].textContent.toLowerCase().includes(vals.target))
+          && (!vals.actual || cells[5].textContent.toLowerCase().includes(vals.actual))
+          && (!vals.progress || cells[6].textContent.toLowerCase().includes(vals.progress));
+        row.classList.toggle('opk-hidden', !match);
+        if (match) visible++;
+      });
+      document.getElementById('opkCount').textContent = visible + ' شاخص';
+    }
+
+    Object.values(inputs).forEach(inp => inp.addEventListener('input', applyFilter));
+  })();
+
+  function openOpkModal(){ document.getElementById('opkOverlay').classList.add('open'); }
+
+  function newOpk(){
+    document.getElementById('opkForm').reset();
+    document.getElementById('opk_obj_id').value = '';
+    document.getElementById('opkModalTitle').textContent = 'افزودن شاخص عملیاتی';
+    document.getElementById('opkSubmitBtn').textContent = 'ثبت شاخص';
+    openOpkModal();
+  }
+
+  function editOpk(btn){
+    const d = btn.dataset;
+    document.getElementById('opk_obj_id').value = d.id;
+    document.getElementById('id_code').value = d.code;
+    document.getElementById('id_title').value = d.title;
+    document.getElementById('id_unit').value = d.unit;
+    document.getElementById('id_department').value = d.department;
+    document.getElementById('id_target_1404').value = d.t4;
+    document.getElementById('id_actual_1404').value = d.a4;
+    document.getElementById('id_target_1405').value = d.t5;
+    document.getElementById('id_actual_1405').value = d.a5;
+    document.getElementById('id_progress_1405').value = d.progress;
+    document.getElementById('id_order').value = d.order;
+    document.getElementById('opkModalTitle').textContent = 'ویرایش شاخص عملیاتی';
+    document.getElementById('opkSubmitBtn').textContent = 'ذخیره تغییرات';
+    openOpkModal();
+  }
+</script>
+{% endblock %}

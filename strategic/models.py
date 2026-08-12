@@ -67,6 +67,9 @@ class Initiative(models.Model):
     source_kpi = models.ManyToManyField(
         "CompanyKPI", blank=True, related_name="initiatives", verbose_name="شاخص‌های مبنا (اختیاری)",
     )
+    source_operational_kpi = models.ManyToManyField(
+        "OperationalKPI", blank=True, related_name="initiatives", verbose_name="شاخص‌های عملیاتی مبنا (اختیاری)",
+    )
     source_tows = models.ManyToManyField(
         "TOWSStrategy", blank=True, related_name="initiatives", verbose_name="راهبردهای TOWS مبنا (اختیاری)",
     )
@@ -134,17 +137,9 @@ class Risk(models.Model):
     owner = models.CharField(max_length=150, verbose_name="مسئول ریسک/پروژه", blank=True)
     category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default="ops", verbose_name="دسته‌بندی")
 
-    # ریسک ذاتی: پیش از هرگونه کنترل
-    inherent_likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=4, verbose_name="احتمال (ذاتی)")
-    inherent_impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=4, verbose_name="شدت اثر (ذاتی)")
-
-    # ریسک باقیمانده: وضعیت فعلی، پس از کنترل‌های موجود
-    likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=3, verbose_name="احتمال (باقیمانده)")
-    impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=3, verbose_name="شدت اثر (باقیمانده)")
-
-    # ریسک هدف: سطح قابل‌قبول پس از تکمیل اقدامات برنامه‌ریزی‌شده
-    target_likelihood = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="احتمال (هدف)")
-    target_impact = models.PositiveSmallIntegerField(choices=LEVEL_CHOICES, default=2, verbose_name="شدت اثر (هدف)")
+    # ارزیابی ریسک — طبق فایل رسمی شرکت، فقط یک ارزیابی (نه سه‌لایه)
+    likelihood = models.DecimalField(max_digits=3, decimal_places=2, default=3, verbose_name="احتمال رخداد (P)")
+    impact = models.DecimalField(max_digits=3, decimal_places=2, default=3, verbose_name="شدت اثر (R)")
 
     response_strategy = models.CharField(max_length=10, choices=RESPONSE_CHOICES, default="mitigate", verbose_name="راهبرد پاسخ")
     trend = models.CharField(max_length=5, choices=TREND_CHOICES, default="flat", verbose_name="روند نسبت به دوره قبل")
@@ -182,16 +177,9 @@ class Risk(models.Model):
         return "low"
 
     @property
-    def inherent_score(self):
-        return self.inherent_likelihood * self.inherent_impact
-
-    @property
     def residual_score(self):
-        return self.likelihood * self.impact
-
-    @property
-    def target_score(self):
-        return self.target_likelihood * self.target_impact
+        """امتیاز ریسک (RPN) = احتمال × شدت اثر، طبق فایل رسمی."""
+        return round(float(self.likelihood) * float(self.impact), 2)
 
     # نگه‌داری برای سازگاری با کدهای قبلی که severity_sum را صدا می‌زنند
     @property
@@ -201,14 +189,6 @@ class Risk(models.Model):
     @property
     def zone(self):
         return self._zone_of(self.residual_score)
-
-    @property
-    def inherent_zone(self):
-        return self._zone_of(self.inherent_score)
-
-    @property
-    def target_zone(self):
-        return self._zone_of(self.target_score)
 
     @property
     def category_color(self):
@@ -226,13 +206,6 @@ class Risk(models.Model):
                 continue
             origins.append({"swot_item": si, "source_type": source_type, "source_detail": source_detail})
         return origins
-
-    @property
-    def effectiveness_pct(self):
-        """چند درصد از ریسک ذاتی، توسط کنترل‌های موجود کاهش یافته."""
-        if self.inherent_score <= 0:
-            return 0
-        return round((self.inherent_score - self.residual_score) / self.inherent_score * 100)
 
     @property
     def mitigation_list(self):
@@ -465,6 +438,9 @@ class StrategicObjective(models.Model):
     )
     linked_kpis = models.ManyToManyField(
         "CompanyKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
+    )
+    linked_operational_kpis = models.ManyToManyField(
+        "OperationalKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های عملیاتی مرتبط",
     )
     business_unit = models.ForeignKey(
         BusinessUnit, null=True, blank=True, on_delete=models.SET_NULL,
@@ -1136,6 +1112,79 @@ class CompanyKPI(models.Model):
     @property
     def progress_color(self):
         p = self.progress_pct
+        if p is None:
+            return "#9aa3ac"
+        if p >= 90:
+            return "#3E7A52"
+        if p >= 60:
+            return "#C97A2B"
+        return "#B0413E"
+
+
+class OperationalKPI(models.Model):
+    """بانک شاخص‌های عملیاتی/دپارتمانی کل سازمان — سطح جدا و پایین‌تر از «شاخص‌های کلان
+    شرکت» (CompanyKPI)، طبق استاندارد Cascading در BSC. مرجع، نه لزوماً همه‌شان پایش‌شونده."""
+    code = models.CharField(max_length=20, unique=True, verbose_name="کد شاخص")
+    title = models.CharField(max_length=300, verbose_name="عنوان شاخص")
+    unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
+    department = models.CharField(max_length=150, blank=True, verbose_name="دپارتمان مالک")
+    target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴")
+    actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴")
+    target_1405 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۵")
+    actual_1405 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۵")
+    progress_1405 = models.CharField(max_length=20, blank=True, verbose_name="درصد تحقق (دستی)")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["department", "order", "code"]
+        verbose_name = "شاخص عملیاتی"
+        verbose_name_plural = "شاخص‌های عملیاتی"
+
+    def __str__(self):
+        return f"{self.code} — {self.title}"
+
+    @property
+    def progress_pct(self):
+        try:
+            t = float(self.target_1404)
+            a = float(self.actual_1404)
+            if t == 0:
+                return None
+            return max(0, min(round(a / t * 100), 150))
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def progress_pct_1405(self):
+        try:
+            t = float(self.target_1405)
+            a = float(self.actual_1405)
+            if t == 0:
+                return None
+            return max(0, min(round(a / t * 100), 150))
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def manual_progress_value(self):
+        import re
+        if not self.progress_1405:
+            return None
+        text = self.progress_1405
+        persian_digits = "۰۱۲۳۴۵۶۷۸۹"
+        for i, d in enumerate(persian_digits):
+            text = text.replace(d, str(i))
+        m = re.search(r"\d+(\.\d+)?", text)
+        if not m:
+            return None
+        try:
+            return round(float(m.group()))
+        except ValueError:
+            return None
+
+    @property
+    def progress_color(self):
+        p = self.manual_progress_value
         if p is None:
             return "#9aa3ac"
         if p >= 90:

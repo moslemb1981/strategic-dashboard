@@ -200,7 +200,7 @@
 {% block content %}
 <div class="sm" id="smRoot">
   <div class="print-header">
-    <div class="ph-brand"><img src="{% static 'images/logo.png' %}" alt=""><span>سایپا یدک</span></div>
+    <div class="ph-brand"><img src="{% static 'images/logo.svg' %}" alt=""><span>سایپا یدک</span></div>
     <h2>نقشه استراتژیک</h2>
     <h3>کسب‌وکار: {{ current_bu.name|default:"—" }}</h3>
     <div class="ph-date">تاریخ گزارش: {% jalali_now %}</div>
@@ -294,7 +294,8 @@
                     data-title="{{ n.title }}" data-kpi="{{ n.kpi }}" data-status="{{ n.status }}" data-order="{{ n.order }}"
                     data-feeds="{% for t in n.feeds_into.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
                     data-tows="{{ n.source_tows_id|default:'' }}"
-                    data-kpis="{% for k in n.linked_kpis.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                    data-kpis="{% for k in n.linked_kpis.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                    data-opkpis="{% for k in n.linked_operational_kpis.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
                     <i class="fa-solid fa-pen"></i>
                   </button>
                   {% endif %}
@@ -317,7 +318,7 @@
                   {% endfor %}
                   <span class="kpi-circle-add" title="مدیریت شاخص‌ها"><i class="fa-solid fa-plus"></i></span>
                   </span>
-                  {% if n.source_tows %}<span class="tows-mini-badge" title="{{ n.source_tows.text }}{% if n.source_tows.source_items.all %}&#10;&#10;مبتنی بر:{% for si in n.source_tows.source_items.all %}&#10;- {{ si.get_category_display }}: {{ si.text }}{% endfor %}{% endif %}">TOWS</span>{% endif %}
+                  {% if n.source_tows %}<span class="tows-mini-badge" title="{{ n.source_tows.get_category_display }} · {{ n.source_tows.text }}{% if n.source_tows.source_items.all %}&#10;&#10;مبتنی بر:{% for si in n.source_tows.source_items.all %}&#10;- {{ si.get_category_display }}: {{ si.text }}{% endfor %}{% endif %}">TOWS</span>{% endif %}
                 </div>
               </div>
               {% empty %}
@@ -378,6 +379,12 @@
       <div class="field-group">
         <label>شاخص‌های استراتژیک مرتبط (I1-I26)</label>
         <div class="picker-box" id="linkedKpisBox">{{ form.linked_kpis }}</div>
+      </div>
+      <div class="field-group">
+        <label>شاخص‌های عملیاتی مرتبط</label>
+        <input type="text" id="opkPickerSearch" placeholder="جستجو با کد یا عنوان شاخص..."
+          style="width:100%;border:1px solid var(--sm-hair);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="linkedOperationalKpisBox">{{ form.linked_operational_kpis }}</div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
@@ -471,6 +478,15 @@
   }
 
   document.addEventListener('DOMContentLoaded', function(){
+    const opkSearch = document.getElementById('opkPickerSearch');
+    if (opkSearch) {
+      opkSearch.addEventListener('input', function(){
+        const q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#linkedOperationalKpisBox label').forEach(function(lbl){
+          lbl.style.display = (!q || lbl.textContent.toLowerCase().includes(q)) ? '' : 'none';
+        });
+      });
+    }
     document.querySelectorAll('.picker-box label').forEach(function(lbl){
       const input = lbl.querySelector('input[type="checkbox"], input[type="radio"]');
       if (!input) return;
@@ -577,6 +593,7 @@
     document.querySelectorAll('input[name="feeds_into"]').forEach(cb => cb.checked = false);
     document.querySelectorAll('input[name="source_tows"]').forEach(rb => rb.checked = false);
     document.querySelectorAll('input[name="linked_kpis"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('input[name="linked_operational_kpis"]').forEach(cb => cb.checked = false);
     syncPickedClasses();
     document.getElementById('modalTitle').textContent = 'افزودن هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ثبت هدف';
@@ -598,6 +615,8 @@
     document.querySelectorAll('input[name="feeds_into"]').forEach(cb => { cb.checked = feedsIds.includes(cb.value); });
     const kpiIds = (d.kpis || '').split(',').filter(Boolean);
     document.querySelectorAll('input[name="linked_kpis"]').forEach(cb => { cb.checked = kpiIds.includes(cb.value); });
+    const opkpiIds = (d.opkpis || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="linked_operational_kpis"]').forEach(cb => { cb.checked = opkpiIds.includes(cb.value); });
     syncPickedClasses();
     document.getElementById('modalTitle').textContent = 'ویرایش هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ذخیره تغییرات';
