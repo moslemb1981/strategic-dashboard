@@ -22,6 +22,11 @@
   .sc-card .badge-sel{position:absolute;top:8px;left:8px;background:#fff;color:var(--sm-brake,#d64528);
     font-size:9px;font-weight:800;padding:2px 8px;border-radius:12px;}
   .sc-card .hint{font-size:10px;opacity:.9;}
+  .sc-card .strat-btn{margin-top:10px;border:1.5px solid rgba(255,255,255,.55);background:rgba(255,255,255,.14);
+    color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:5px 14px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:background .15s,transform .15s;}
+  .sc-card .strat-btn:hover{background:rgba(255,255,255,.28);transform:translateY(-1px);}
+  .sc-card .strat-btn .cnt{background:#fff;color:var(--ink);border-radius:10px;padding:0 6px;font-size:9.5px;}
   .sc-card .edit-btn{position:absolute;top:8px;right:8px;border:none;background:rgba(255,255,255,.25);color:#fff;
     width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:10px;}
   .sc-pole-label{font-size:9px;color:var(--ink-faint);text-align:center;}
@@ -77,6 +82,7 @@
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.prosperity.pk }}" data-title="{{ scenario_map.prosperity.title }}" data-narrative="{{ scenario_map.prosperity.narrative }}" data-selected="{{ scenario_map.prosperity.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.prosperity.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.prosperity.display_title }}{% if scenario_map.prosperity.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.prosperity.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.prosperity.swot_items.all|length }}</span>{% endif %}{% if scenario_map.prosperity.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.prosperity.risks.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }}{% if rk.cause %} — علت: {{ rk.cause }}{% endif %} — پاسخ: {{ rk.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.prosperity.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_positive }}</div>
+      <button type="button" class="strat-btn" onclick="event.stopPropagation();openStrategiesModal('prosperity')" title="راهبردهای پاسخ به این سناریو"><i class="fa-solid fa-shield-halved"></i> راهبردهای پاسخ{% if scenario_map.prosperity.response_strategies.all %}<span class="cnt">{{ scenario_map.prosperity.response_strategies.all|length }}</span>{% endif %}</button>
     </div>
 
     <div class="sc-card {% if scenario_map.exploration.is_selected %}active{% endif %}" style="background:{{ scenario_map.exploration.quadrant_color }};" onclick="toggleNarrative('exploration')">
@@ -84,6 +90,7 @@
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.exploration.pk }}" data-title="{{ scenario_map.exploration.title }}" data-narrative="{{ scenario_map.exploration.narrative }}" data-selected="{{ scenario_map.exploration.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.exploration.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.exploration.display_title }}{% if scenario_map.exploration.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.exploration.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.exploration.swot_items.all|length }}</span>{% endif %}{% if scenario_map.exploration.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.exploration.risks.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }}{% if rk.cause %} — علت: {{ rk.cause }}{% endif %} — پاسخ: {{ rk.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.exploration.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_positive }} + {{ axes.axis2_negative }}</div>
+      <button type="button" class="strat-btn" onclick="event.stopPropagation();openStrategiesModal('exploration')" title="راهبردهای پاسخ به این سناریو"><i class="fa-solid fa-shield-halved"></i> راهبردهای پاسخ{% if scenario_map.exploration.response_strategies.all %}<span class="cnt">{{ scenario_map.exploration.response_strategies.all|length }}</span>{% endif %}</button>
     </div>
 
     <div class="sc-card {% if scenario_map.rocky.is_selected %}active{% endif %}" style="background:{{ scenario_map.rocky.quadrant_color }};" onclick="toggleNarrative('rocky')">
@@ -91,6 +98,7 @@
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.rocky.pk }}" data-title="{{ scenario_map.rocky.title }}" data-narrative="{{ scenario_map.rocky.narrative }}" data-selected="{{ scenario_map.rocky.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.rocky.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.rocky.display_title }}{% if scenario_map.rocky.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.rocky.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.rocky.swot_items.all|length }}</span>{% endif %}{% if scenario_map.rocky.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.rocky.risks.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }}{% if rk.cause %} — علت: {{ rk.cause }}{% endif %} — پاسخ: {{ rk.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.rocky.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_positive }}</div>
+      <button type="button" class="strat-btn" onclick="event.stopPropagation();openStrategiesModal('rocky')" title="راهبردهای پاسخ به این سناریو"><i class="fa-solid fa-shield-halved"></i> راهبردهای پاسخ{% if scenario_map.rocky.response_strategies.all %}<span class="cnt">{{ scenario_map.rocky.response_strategies.all|length }}</span>{% endif %}</button>
     </div>
 
     <div class="sc-card {% if scenario_map.foggy.is_selected %}active{% endif %}" style="background:{{ scenario_map.foggy.quadrant_color }};" onclick="toggleNarrative('foggy')" title="{{ foggy_tooltip }}">
@@ -98,6 +106,7 @@
       {% if perms.strategic.change_scenario %}<button class="edit-btn" onclick="event.stopPropagation();editScenario(this)" data-id="{{ scenario_map.foggy.pk }}" data-title="{{ scenario_map.foggy.title }}" data-narrative="{{ scenario_map.foggy.narrative }}" data-selected="{{ scenario_map.foggy.is_selected|yesno:'1,0' }}" data-highlights="{{ scenario_map.foggy.highlights_json }}"><i class="fa-solid fa-pen"></i></button>{% endif %}
       <div class="name">{{ scenario_map.foggy.display_title }}{% if scenario_map.foggy.swot_items.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for si in scenario_map.foggy.swot_items.all %}● {{ si.business_unit.name }} — {{ si.swot_code }} ({{ si.get_category_display }}): {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ scenario_map.foggy.swot_items.all|length }}</span>{% endif %}{% if scenario_map.foggy.risks.all %}<span class="used-badge" style="background:rgba(255,255,255,.25);color:#fff;" title="{% for rk in scenario_map.foggy.risks.all %}● {{ rk.title }} — دسته: {{ rk.get_category_display }}{% if rk.cause %} — علت: {{ rk.cause }}{% endif %} — پاسخ: {{ rk.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ scenario_map.foggy.risks.all|length }}</span>{% endif %}</div>
       <div class="hint">{{ axes.axis1_negative }} + {{ axes.axis2_negative }}</div>
+      <button type="button" class="strat-btn" onclick="event.stopPropagation();openStrategiesModal('foggy')" title="راهبردهای پاسخ به این سناریو"><i class="fa-solid fa-shield-halved"></i> راهبردهای پاسخ{% if scenario_map.foggy.response_strategies.all %}<span class="cnt">{{ scenario_map.foggy.response_strategies.all|length }}</span>{% endif %}</button>
     </div>
   </div>
   <div class="sc-axis-left">{{ axes.axis2_name }}{% if axes.axis2_source %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پیشران ماتریس اثر متقابل: {{ axes.axis2_source.text }}{% if axes.axis2_source.linked_pestel %}&#10;← منبع: {{ axes.axis2_source.linked_pestel.letter }} ({{ axes.axis2_source.linked_pestel.get_category_display }}) — {{ axes.axis2_source.linked_pestel.text }}{% endif %}{% if axes.axis2_source.linked_porter %}&#10;← منبع: {{ axes.axis2_source.linked_porter.get_force_display }} — {{ axes.axis2_source.linked_porter.text }}{% endif %}"><i class="fa-solid fa-table-cells"></i></span>{% endif %}<br><small>({{ axes.axis2_negative }} ← / → {{ axes.axis2_positive }})</small></div>
@@ -181,10 +190,104 @@
     </form>
   </div>
 </div>
+
+<div class="overlay" id="strategiesOverlay">
+  <div class="modal-card" style="max-width:620px;">
+    <h3 style="flex:none;">راهبردهای پاسخ به سناریو</h3>
+
+    <div style="flex:1;overflow-y:auto;min-height:0;margin:0 -4px;padding:0 4px;">
+      {% for key, scn in scenario_map.items %}
+      <div class="strategies-panel" id="strategiesPanel-{{ key }}" style="display:none;">
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-bottom:10px;">راهبردهای تقویت و بهبود عملکرد تاب‌آوری سازمانی در چارچوب سناریوی «{{ scn.display_title }}»</div>
+        <ol style="padding-inline-start:20px;margin:0;display:flex;flex-direction:column;gap:8px;">
+          {% for st in scn.response_strategies.all %}
+          <li style="font-size:12px;line-height:1.7;">
+            {{ st.text }}{% if st.related_standard %} <span style="color:var(--primary);font-size:10.5px;">— ({{ st.related_standard }})</span>{% endif %}
+            {% if perms.strategic.change_scenarioresponsestrategy %}
+            <button type="button" onclick="editStrategy('{{ key }}', {{ st.pk }}, '{{ st.text|escapejs }}', '{{ st.related_standard|escapejs }}')"
+              style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:10px;"><i class="fa-solid fa-pen"></i></button>
+            {% endif %}
+            {% if perms.strategic.delete_scenarioresponsestrategy %}
+            <form method="post" action="{% url 'strategic:scenario_response_strategy_delete' st.pk %}" style="display:inline;" onsubmit="return confirm('حذف این راهبرد؟');">
+              {% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--danger,#B0413E);cursor:pointer;font-size:10px;"><i class="fa-solid fa-xmark"></i></button>
+            </form>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li style="color:var(--ink-faint);">هنوز راهبردی ثبت نشده.</li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div style="flex:none;border-top:1px solid var(--border);padding-top:12px;margin-top:10px;">
+      {% if perms.strategic.add_scenarioresponsestrategy %}
+      {% for key, scn in scenario_map.items %}
+      <form method="post" id="stratForm-{{ key }}" class="strategies-form-panel" style="display:none;flex-direction:column;gap:6px;">
+        {% csrf_token %}
+        <input type="hidden" name="form_kind" value="response_strategy">
+        <input type="hidden" name="scenario_id" value="{{ scn.pk }}">
+        <input type="hidden" name="obj_id" id="stratObjId-{{ key }}" value="">
+        <div style="display:flex;gap:6px;align-items:flex-start;">
+          <textarea name="text" id="stratText-{{ key }}" rows="2" placeholder="متن راهبرد جدید..." style="flex:1;" required></textarea>
+          <input type="text" name="related_standard" id="stratStd-{{ key }}" placeholder="استاندارد (اختیاری)" style="width:130px;">
+        </div>
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          <button type="button" class="btn ghost" id="stratCancel-{{ key }}" style="display:none;" onclick="cancelEditStrategy('{{ key }}')">انصراف از ویرایش</button>
+          <button type="submit" class="btn accent" id="stratSubmit-{{ key }}" style="white-space:nowrap;">+ افزودن</button>
+        </div>
+      </form>
+      {% endfor %}
+      {% endif %}
+      <div class="modal-actions" style="margin-top:{% if perms.strategic.add_scenarioresponsestrategy %}10px{% else %}0{% endif %};">
+        <button type="button" class="btn ghost" onclick="document.getElementById('strategiesOverlay').classList.remove('open')">بستن</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  function openStrategiesModal(key){
+    document.querySelectorAll('.strategies-panel').forEach(function(p){ p.style.display = 'none'; });
+    document.querySelectorAll('.strategies-form-panel').forEach(function(f){ f.style.display = 'none'; });
+    const panel = document.getElementById('strategiesPanel-' + key);
+    if (panel) panel.style.display = 'block';
+    const form = document.getElementById('stratForm-' + key);
+    if (form) form.style.display = 'flex';
+    document.getElementById('strategiesOverlay').classList.add('open');
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const params = new URLSearchParams(window.location.search);
+    const openKey = params.get('open_strategies');
+    if (openKey) {
+      openStrategiesModal(openKey);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('open_strategies');
+      window.history.replaceState({}, '', url);
+    }
+  });
+
+  function editStrategy(key, pk, text, standard){
+    document.getElementById('stratObjId-' + key).value = pk;
+    document.getElementById('stratText-' + key).value = text;
+    document.getElementById('stratStd-' + key).value = standard;
+    document.getElementById('stratSubmit-' + key).textContent = 'ذخیره تغییرات';
+    document.getElementById('stratCancel-' + key).style.display = 'inline-block';
+    document.getElementById('stratText-' + key).focus();
+  }
+
+  function cancelEditStrategy(key){
+    document.getElementById('stratObjId-' + key).value = '';
+    document.getElementById('stratText-' + key).value = '';
+    document.getElementById('stratStd-' + key).value = '';
+    document.getElementById('stratSubmit-' + key).textContent = '+ افزودن';
+    document.getElementById('stratCancel-' + key).style.display = 'none';
+  }
+
   function toggleNarrative(key){
     const el = document.getElementById('narr-' + key);
     if (el) { el.open = true; el.scrollIntoView({behavior:'smooth', block:'center'}); }

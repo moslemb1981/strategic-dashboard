@@ -31,6 +31,7 @@ urlpatterns = [
     path("market/delete/<int:pk>/", views.competitor_delete, name="competitor_delete"),
 
     path("environmental-factors/", views.environmental_factors, name="environmental_factors"),
+    path("raw-factors-archive/", views.raw_factors_archive, name="raw_factors_archive"),
     path("environmental-factors/delete/<int:pk>/", views.environmental_factor_delete, name="environmental_factor_delete"),
     path("environmental-factors/export/", views.environmental_factor_export, name="environmental_factor_export"),
     path("environmental-factors/import/", views.environmental_factor_import, name="environmental_factor_import"),
@@ -42,6 +43,7 @@ urlpatterns = [
     path("cross-impact/matrix/export/", views.cross_impact_matrix_export, name="cross_impact_matrix_export"),
     path("cross-impact/matrix/import/", views.cross_impact_matrix_import, name="cross_impact_matrix_import"),
     path("scenarios/", views.scenarios, name="scenarios"),
+    path("scenarios/response-strategy/delete/<int:pk>/", views.scenario_response_strategy_delete, name="scenario_response_strategy_delete"),
     path("company-goals/", views.company_goals, name="company_goals"),
     path("company-goals/objective/delete/<int:pk>/", views.company_objective_delete, name="company_objective_delete"),
     path("company-goals/kpi/delete/<int:pk>/", views.company_kpi_delete, name="company_kpi_delete"),

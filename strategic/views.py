@@ -16,13 +16,13 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    ScenarioHighlight, OperationalKPI,
+    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
-    StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm,
+    StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm, ScenarioResponseStrategyForm,
 )
 
 logger = logging.getLogger("strategic")
@@ -105,6 +105,16 @@ def home(request):
     swot_count = SWOTItem.objects.count()
     org_value_count = OrgValue.objects.count()
     quality_policy_count = QualityPolicyPoint.objects.count()
+    org_identity = OrgIdentity.objects.first()
+    vision_count = 1 if (org_identity and org_identity.vision) else 0
+    mission_count = 1 if (org_identity and org_identity.mission) else 0
+
+    home_kpis_qs = [
+        k for k in CompanyKPI.objects.exclude(target_1405="").exclude(actual_1405="")
+        if k.progress_pct_1405 is not None
+    ]
+    home_kpis_total = len(home_kpis_qs)
+    home_kpis = home_kpis_qs[:8]
     scenario_total = Scenario.objects.count()
     pestel_count = PestelFactor.objects.count()
     cross_impact_count = CrossImpactFactor.objects.count()
@@ -116,6 +126,24 @@ def home(request):
     porter_count = PorterForce.objects.count()
     mckinsey7s_count = McKinsey7S.objects.count()
     value_chain_count = ValueChainActivity.objects.count()
+    tows_count = TOWSStrategy.objects.count()
+    operational_kpi_count = OperationalKPI.objects.count()
+
+    swot_breakdown = {c: SWOTItem.objects.filter(category=c).count() for c in ["s", "w", "o", "t"]}
+    persp_breakdown = {p: StrategicObjective.objects.filter(perspective=p).count() for p in ["financial", "customer", "process", "learning"]}
+
+    obj_status_breakdown = {s: sum(1 for o in objectives if o.status == s) for s in ["on", "watch", "risk"]}
+    obj_status_pct = {
+        k: (round(v / obj_total * 100) if obj_total else 0) for k, v in obj_status_breakdown.items()
+    }
+    init_status_breakdown = {
+        "running": sum(1 for i in initiatives if i.status in ("in_progress", "on_track", "digital")),
+        "planned": sum(1 for i in initiatives if i.status == "needs_attention"),
+        "done": sum(1 for i in initiatives if i.status == "done"),
+    }
+    init_status_pct = {
+        k: (round(v / init_total * 100) if init_total else 0) for k, v in init_status_breakdown.items()
+    }
 
     total_records = (
         legal_requirement_count + stakeholder_count + environmental_factor_count + pestel_count + porter_count
@@ -127,7 +155,9 @@ def home(request):
     return render(request, "strategic/home.html", {
         "active_page": "home",
         "obj_score": obj_score, "obj_total": obj_total,
+        "obj_status_breakdown": obj_status_breakdown, "obj_status_pct": obj_status_pct,
         "init_total": init_total, "init_on_track": init_on_track, "init_behind": init_behind, "init_avg_progress": init_avg_progress,
+        "init_status_breakdown": init_status_breakdown, "init_status_pct": init_status_pct,
         "study_total": study_total, "study_done": study_done, "study_pct": study_pct,
         "risk_total": risk_total, "risk_high": risk_high, "risk_pct": risk_pct,
         "competitor_count": Competitor.objects.count(),
@@ -136,6 +166,7 @@ def home(request):
         "scenario_selected": Scenario.objects.filter(is_selected=True).first(),
         "company_objective_count": company_objective_count,
         "company_kpi_count": company_kpi_count,
+        "operational_kpi_count": operational_kpi_count,
         "document_count": Document.objects.count(),
         "legal_requirement_count": legal_requirement_count,
         "environmental_factor_count": environmental_factor_count,
@@ -144,8 +175,15 @@ def home(request):
         "mckinsey7s_count": mckinsey7s_count,
         "value_chain_count": value_chain_count,
         "swot_count": swot_count,
+        "swot_breakdown": swot_breakdown,
+        "tows_count": tows_count,
+        "persp_breakdown": persp_breakdown,
         "org_value_count": org_value_count,
         "quality_policy_count": quality_policy_count,
+        "vision_count": vision_count,
+        "mission_count": mission_count,
+        "home_kpis": home_kpis,
+        "home_kpis_total": home_kpis_total,
         "scenario_total": scenario_total,
         "total_records": total_records,
         "activity": activity,
@@ -1365,6 +1403,24 @@ def scenarios(request):
                     form.save()
                     _log_action(request, "UPDATE ScenarioAxes", "محورهای سناریو")
                     return redirect("strategic:scenarios")
+        elif form_kind == "response_strategy":
+            scenario_id = request.POST.get("scenario_id")
+            obj_id = request.POST.get("obj_id")
+            perm = "strategic.change_scenarioresponsestrategy" if obj_id else "strategic.add_scenarioresponsestrategy"
+            if _has_perm(request, perm):
+                scenario_obj = get_object_or_404(Scenario, pk=scenario_id)
+                instance = get_object_or_404(ScenarioResponseStrategy, pk=obj_id) if obj_id else None
+                form = ScenarioResponseStrategyForm(request.POST, instance=instance)
+                if form.is_valid():
+                    strategy = form.save(commit=False)
+                    strategy.scenario = scenario_obj
+                    if not obj_id:
+                        strategy.order = scenario_obj.response_strategies.count() + 1
+                    strategy.save()
+                    _log_action(request, "UPDATE ScenarioResponseStrategy" if obj_id else "CREATE ScenarioResponseStrategy", str(strategy))
+                    return redirect(f"{reverse('strategic:scenarios')}?open_strategies={scenario_obj.quadrant}")
+                else:
+                    messages.error(request, f"ثبت راهبرد ناموفق بود: {form.errors.as_text()}")
 
     scenario_map = {s.quadrant: s for s in Scenario.objects.all().prefetch_related("swot_items__business_unit", "risks", "highlights__cross_impact_factor")}
     swot_code_map = _swot_code_map()
@@ -1384,7 +1440,18 @@ def scenarios(request):
         "active_page": "scenarios", "scenario_map": scenario_map, "axes": axes,
         "scenario_form": ScenarioForm(), "axes_form": ScenarioAxesForm(instance=axes),
         "foggy_tooltip": foggy_tooltip, "cross_impact_factors": cross_impact_factors,
+        "response_strategy_form": ScenarioResponseStrategyForm(),
     })
+
+
+@login_required
+def scenario_response_strategy_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_scenarioresponsestrategy"):
+        obj = get_object_or_404(ScenarioResponseStrategy, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE ScenarioResponseStrategy", label)
+    return redirect("strategic:scenarios")
 
 
 # ---------------- اهداف کلان و شاخص‌های سطح کل شرکت ----------------
@@ -1638,6 +1705,15 @@ _OPKPI_EXCEL_HEADERS = [
     "کد", "عنوان شاخص", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
     "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "ترتیب نمایش",
 ]
+
+
+def raw_factors_archive(request):
+    items = list(RawIdentifiedFactor.objects.all())
+    return render(request, "strategic/raw_factors_archive.html", {
+        "active_page": "raw_factors_archive", "items": items, "total": len(items),
+        "pestel_count": sum(1 for i in items if i.source_type == "pestel"),
+        "porter_count": sum(1 for i in items if i.source_type == "porter"),
+    })
 
 
 def operational_kpis(request):

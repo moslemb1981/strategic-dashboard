@@ -1,5 +1,6 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}بانک عوامل محیطی{% endblock %}
 {% block crumb %}بانک عوامل محیطی{% endblock %}
 
@@ -35,6 +36,11 @@
 {% endblock %}
 
 {% block content %}
+<div style="font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.8;">
+  <i class="fa-solid fa-circle-info"></i>
+  این {{ total_count|fanum }} عامل، نتیجه‌ی پالایش و امتیازدهی کارشناسی از <b>۵۲۵ عامل اولیه‌ی شناسایی‌شده</b> در کل سازمان است —
+  <a href="{% url 'strategic:raw_factors_archive' %}">مشاهده‌ی آرشیو کامل ←</a>
+</div>
 <div class="topbar">
   <div><h1>بانک عوامل محیطی</h1><div class="sub">شناسایی و امتیازدهی عوامل تأثیرگذار محیطی (PESTEL + پنج نیروی رقابتی) — مرتب‌شده بر اساس اولویت</div></div>
   <div style="display:flex;gap:8px;">

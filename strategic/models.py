@@ -889,6 +889,25 @@ class CrossImpactLink(models.Model):
         return f"{self.from_factor} ← {self.to_factor}: {self.score}"
 
 
+class ScenarioResponseStrategy(models.Model):
+    """راهبردهای پاسخ/تاب‌آوری سازمان در چارچوب یک سناریوی مشخص — هر راهبرد به یک سناریو
+    وصل است، پس هر سناریو مستقل از بقیه، راهبردهای خودش را (هروقت نوشته شدند) نشان می‌دهد."""
+    scenario = models.ForeignKey(
+        "Scenario", on_delete=models.CASCADE, related_name="response_strategies", verbose_name="سناریو",
+    )
+    text = models.TextField(verbose_name="متن راهبرد")
+    related_standard = models.CharField(max_length=100, blank=True, verbose_name="استاندارد مرتبط (اختیاری)")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "راهبرد پاسخ به سناریو"
+        verbose_name_plural = "راهبردهای پاسخ به سناریو"
+
+    def __str__(self):
+        return f"{self.scenario} — {self.text[:40]}"
+
+
 class ScenarioHighlight(models.Model):
     """تکه‌متن‌هایی از روایت سناریو که دستی (توسط کاربر) به یه عامل ماتریس اثر متقابل
     برچسب‌گذاری شدن — جایگزین تشخیص خودکار قبلی، چون دقت صددرصد و کنترل کامل می‌ده."""
@@ -1119,6 +1138,26 @@ class CompanyKPI(models.Model):
         if p >= 60:
             return "#C97A2B"
         return "#B0413E"
+
+
+class RawIdentifiedFactor(models.Model):
+    """آرشیو ۵۲۵ عاملی که در ابتدای کار توسط معاونت‌های مختلف سازمان شناسایی و جمع‌آوری
+    شدند — قبل از هرگونه پالایش/امتیازدهی. صرفاً مرجع تاریخی است، نه بخشی از فرآیند فعلی."""
+    SOURCE_CHOICES = [("pestel", "PESTEL"), ("porter", "Porter")]
+
+    source_type = models.CharField(max_length=10, choices=SOURCE_CHOICES, verbose_name="نوع")
+    department = models.CharField(max_length=150, blank=True, verbose_name="معاونت/واحد پیشنهاددهنده")
+    category = models.CharField(max_length=150, blank=True, verbose_name="دسته‌بندی")
+    text = models.TextField(verbose_name="شرح عامل")
+    row_number = models.PositiveIntegerField(default=0, verbose_name="ردیف اصلی در فایل مرجع")
+
+    class Meta:
+        ordering = ["source_type", "row_number"]
+        verbose_name = "عامل شناسایی‌شده اولیه (آرشیو)"
+        verbose_name_plural = "آرشیو عوامل شناسایی‌شده اولیه"
+
+    def __str__(self):
+        return f"{self.get_source_type_display()} — {self.text[:40]}"
 
 
 class OperationalKPI(models.Model):

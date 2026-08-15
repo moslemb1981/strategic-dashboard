@@ -1,0 +1,107 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}آرشیو عوامل شناسایی‌شده اولیه{% endblock %}
+{% block crumb %}آرشیو عوامل شناسایی‌شده اولیه{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rfa-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:16px;line-height:1.8;}
+  .rfa-title{font-size:18px;font-weight:900;margin-bottom:2px;}
+  .rfa-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:16px;}
+  .rfa-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .rfa-count{font-size:11.5px;color:var(--ink-faint);margin-inline-start:auto;}
+  .rfa-stat-pill{font-size:10.5px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 12px;}
+
+  .rfa-table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
+  table.rfa-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
+  .rfa-table th{background:var(--bg);text-align:right;padding:8px 9px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .rfa-livesearch-row th{padding:5px 7px 8px;border-bottom:2px solid var(--primary);}
+  .rfa-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:10.5px;font-family:inherit;background:#fff;box-sizing:border-box;}
+  .rfa-live-input:focus{outline:none;border-color:var(--primary);}
+  .rfa-table td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;}
+  .rfa-table tr.rfa-hidden{display:none;}
+  .rfa-type-badge{display:inline-flex;font-size:9px;font-weight:800;border-radius:5px;padding:2px 8px;}
+  .rfa-type-pestel{background:var(--success-soft);color:var(--success-dark,#1c6b3e);}
+  .rfa-type-porter{background:var(--purple-soft,#ECE8F5);color:#6C56A3;}
+  .rfa-empty{padding:14px;text-align:center;color:var(--ink-faint);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rfa-title">آرشیو عوامل شناسایی‌شده اولیه</div>
+<div class="rfa-sub">فهرست کامل عواملی که در ابتدای کار، توسط معاونت‌های مختلف سازمان شناسایی و جمع‌آوری شدند</div>
+
+<div class="rfa-note"><i class="fa-solid fa-circle-info"></i>
+  این صفحه یک <b>آرشیو تاریخی و صرفاً مرجع</b> است — نسخه‌ی خام و پیش از پالایش. عوامل نهاییِ پالایش‌شده و امتیازدهی‌شده
+  را در <a href="{% url 'strategic:environmental_factors' %}">بانک عوامل محیطی</a> ببینید.
+</div>
+
+<div class="rfa-toolbar">
+  <span class="rfa-stat-pill">PESTEL: {{ pestel_count|fanum }}</span>
+  <span class="rfa-stat-pill">Porter: {{ porter_count|fanum }}</span>
+  <span class="rfa-count" id="rfaCount">{{ total|fanum }} عامل</span>
+</div>
+
+<div class="rfa-table-wrap">
+<table class="rfa-table">
+  <colgroup><col style="width:8%;"><col style="width:16%;"><col style="width:22%;"><col style="width:54%;"></colgroup>
+  <thead>
+    <tr>
+      <th>نوع</th><th>معاونت/واحد</th><th>دسته‌بندی</th><th>شرح عامل</th>
+    </tr>
+    <tr class="rfa-livesearch-row">
+      <th><input type="text" id="liveType" class="rfa-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveDept" class="rfa-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveCat" class="rfa-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveText" class="rfa-live-input" placeholder="جستجو..."></th>
+    </tr>
+  </thead>
+  <tbody id="rfaBody">
+    {% for it in items %}
+    <tr class="rfa-row">
+      <td><span class="rfa-type-badge {% if it.source_type == 'pestel' %}rfa-type-pestel{% else %}rfa-type-porter{% endif %}">{{ it.get_source_type_display }}</span></td>
+      <td>{{ it.department|default:"—" }}</td>
+      <td>{{ it.category|default:"—" }}</td>
+      <td>{{ it.text }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="rfa-empty">هنوز عاملی بارگذاری نشده.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const inputs = {
+      type: document.getElementById('liveType'),
+      dept: document.getElementById('liveDept'),
+      cat: document.getElementById('liveCat'),
+      text: document.getElementById('liveText'),
+    };
+    const rows = Array.from(document.querySelectorAll('#rfaBody tr.rfa-row'));
+
+    function applyFilter(){
+      const vals = {};
+      Object.keys(inputs).forEach(k => vals[k] = inputs[k].value.trim().toLowerCase());
+      let visible = 0;
+      rows.forEach(function(row){
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) return;
+        const match = (!vals.type || cells[0].textContent.toLowerCase().includes(vals.type))
+          && (!vals.dept || cells[1].textContent.toLowerCase().includes(vals.dept))
+          && (!vals.cat || cells[2].textContent.toLowerCase().includes(vals.cat))
+          && (!vals.text || cells[3].textContent.toLowerCase().includes(vals.text));
+        row.classList.toggle('rfa-hidden', !match);
+        if (match) visible++;
+      });
+      document.getElementById('rfaCount').textContent = visible + ' عامل';
+    }
+
+    Object.values(inputs).forEach(inp => inp.addEventListener('input', applyFilter));
+  })();
+</script>
+{% endblock %}

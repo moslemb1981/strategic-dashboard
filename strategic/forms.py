@@ -3,7 +3,7 @@ from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    OperationalKPI,
+    OperationalKPI, ScenarioResponseStrategy,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -341,6 +341,16 @@ class ScenarioForm(forms.ModelForm):
         fields = ["title", "narrative", "is_selected"]
         widgets = {
             "narrative": forms.Textarea(attrs={"rows": 10, "placeholder": "روایت کامل سناریو"}),
+        }
+
+
+class ScenarioResponseStrategyForm(forms.ModelForm):
+    class Meta:
+        model = ScenarioResponseStrategy
+        fields = ["text", "related_standard"]
+        widgets = {
+            "text": forms.Textarea(attrs={"rows": 2, "placeholder": "متن راهبرد"}),
+            "related_standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 50001 (اختیاری)"}),
         }
 
 

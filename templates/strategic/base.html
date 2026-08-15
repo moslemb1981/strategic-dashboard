@@ -51,14 +51,15 @@
         <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها{% if not user.is_authenticated %}<i class="fa-solid fa-lock" style="margin-inline-start:auto;font-size:10px;"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان</a>
 
-        <button type="button" class="nav-parent {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
+        <button type="button" class="nav-parent {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
           <i class="fa-solid fa-earth-americas nav-ico"></i>تحلیل محیط بیرونی
           <i class="fa-solid fa-chevron-down nav-chevron"></i>
         </button>
-        <div class="nav-children {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open{% endif %}"
-             style="display:{% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
+        <div class="nav-children {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open{% endif %}"
+             style="display:{% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
           <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</a>
           <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-user"></i>تحلیل ذینفعان</a>
+          <a class="nav-item {% if active_page == 'raw_factors_archive' %}active{% endif %}" href="{% url 'strategic:raw_factors_archive' %}"><i class="fa-solid fa-box-archive"></i>آرشیو عوامل اولیه</a>
           <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</a>
           <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل Pestel (محیط بیرون دور)</a>
           <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>تحلیل Porter (محیط بیرون نزدیک)</a>
