@@ -102,9 +102,6 @@
       {% empty %}
       <div class="pestel-hero-empty">موردی ثبت نشده</div>
       {% endfor %}
-      {% if user.is_superuser %}
-      <button type="button" class="sticky-add-btn" onclick="newFactorFor('{{ group.key }}')"><i class="fa-solid fa-plus"></i> افزودن برچسب</button>
-      {% endif %}
     </div>
   </div>
   {% endfor %}
@@ -217,11 +214,6 @@
     document.getElementById('modalTitle').textContent = 'افزودن مورد PESTEL';
     document.getElementById('submitBtn').textContent = 'ثبت مورد';
     openModal();
-  }
-
-  function newFactorFor(category){
-    newFactor();
-    document.getElementById('id_category').value = category;
   }
 
   function editFactor(btn){

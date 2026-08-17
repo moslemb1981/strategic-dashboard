@@ -18,10 +18,13 @@
   .id-badge.on{background:rgba(62,122,82,.22);border-color:rgba(62,122,82,.4);color:#a9e0ba;}
   .id-badge i{font-size:10px;}
 
-  .id-banner{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:34px;}
-  @media(max-width:800px){.id-banner{grid-template-columns:1fr;}}
+  .id-3col{display:flex;align-items:center;justify-content:center;gap:26px;flex-wrap:wrap;margin:10px 0 22px;}
+  .id-card-side{flex:0 0 260px;align-self:center;}
+  @media(max-width:1100px){.id-3col{flex-direction:column;}.id-card-side{width:100%;max-width:420px;}}
+
   .id-card{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);
-    border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:20px 24px;position:relative;}
+    border-radius:var(--radius-lg);box-shadow:0 10px 24px -8px rgba(27,36,48,.16),0 2px 6px rgba(27,36,48,.06);
+    padding:20px 24px;position:relative;}
   .id-card .id-icon{width:38px;height:38px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
     display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:10px;}
   .id-card h3{margin:0 0 10px;font-size:15px;color:var(--ink);font-weight:800;}
@@ -45,7 +48,8 @@
     align-items:center;justify-content:center;gap:5px;cursor:pointer;text-align:center;}
   .wedge-ico{width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;
     justify-content:center;font-size:14px;box-shadow:0 3px 8px rgba(13,27,46,.25);flex:none;}
-  .wedge-txt{font-size:10.5px;font-weight:800;line-height:1.35;color:var(--ink);text-shadow:0 1px 0 rgba(255,255,255,.4);}
+  .wedge-txt{font-size:10.5px;font-weight:800;line-height:1.35;color:#fff;
+    text-shadow:0 1px 3px rgba(0,0,0,.55),0 0 2px rgba(0,0,0,.35);}
   .wedge-acts{position:absolute;top:-4px;left:50%;transform:translateX(-50%);display:flex;gap:3px;}
   .wedge-acts button{border:none;background:rgba(13,27,46,.7);color:#fff;width:16px;height:16px;border-radius:4px;
     font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
@@ -151,8 +155,10 @@
   </div>
 </div>
 
-<div class="id-banner">
-  <div class="id-card">
+<div class="section-title">نظام ارزشیابی سایپا یدک (مشکات نور)</div>
+<div class="section-sub">مشتری‌مداری در مرکز همه‌ی ارزش‌های سازمانی</div>
+<div class="id-3col">
+  <div class="id-card id-card-side">
     {% if user.is_superuser %}
     <button class="id-edit-btn" onclick="openIdentityModal()"><i class="fa-solid fa-pen"></i></button>
     {% endif %}
@@ -160,65 +166,69 @@
     <h3>چشم‌انداز</h3>
     <p>{{ identity.vision|linebreaksbr|default:"ثبت نشده" }}</p>
   </div>
-  <div class="id-card">
+
+  <div class="values-wheel-wrap">
+    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+      {% for w in wheel_wedges %}
+      <path class="wedge-path" d="{{ w.path }}" fill="{{ w.value.color|default:'#C97A2B' }}"
+        data-vid="{{ w.value.pk }}"></path>
+      {% endfor %}
+      {% for c in wheel_connectors %}
+      <foreignObject x="{{ c.x|add:'-13' }}" y="{{ c.y|add:'-13' }}" width="26" height="26">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="wheel-connector"><i class="fa-solid fa-rotate"></i></div>
+      </foreignObject>
+      {% endfor %}
+      {% for w in wheel_wedges %}
+      <foreignObject x="{{ w.content_x|add:'-62' }}" y="{{ w.content_y|add:'-40' }}" width="124" height="80">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:100%;height:100%;">
+          <button type="button" class="wedge-content-btn" data-vid="{{ w.value.pk }}">
+            <div class="wedge-ico" style="color:{{ w.value.color|default:'#C97A2B' }};"><i class="{{ w.value.icon|default:'fa-solid fa-star' }}"></i></div>
+            <div class="wedge-txt">{{ w.value.text }}</div>
+          </button>
+          {% if user.is_superuser %}
+          <div class="wedge-acts">
+            <button type="button" onclick="event.stopPropagation();editValue(this)"
+              data-id="{{ w.value.pk }}" data-text="{{ w.value.text }}" data-icon="{{ w.value.icon }}" data-color="{{ w.value.color }}"
+              data-related-policy="{{ w.value.related_policy_id|default:'' }}">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <form method="post" action="{% url 'strategic:org_value_delete' w.value.pk %}" style="display:inline;" onsubmit="return confirm('این ارزش حذف شود؟');">
+              {% csrf_token %}<button type="submit" onclick="event.stopPropagation();"><i class="fa-solid fa-xmark"></i></button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </foreignObject>
+      {% endfor %}
+    </svg>
+    <button type="button" class="value-center" data-vid="{{ center_value.pk }}"
+      style="--vcenter-color:{{ center_value.color|default:'#A8321E' }};">
+      <i class="{{ center_value.icon|default:'fa-solid fa-heart' }}"></i>
+      {{ center_value.text|default:"مشتری‌مداری" }}
+    </button>
+  </div>
+
+  <div class="id-card id-card-side">
     <div class="id-icon"><i class="fa-solid fa-bullseye"></i></div>
     <h3>مأموریت</h3>
     <p>{{ identity.mission|linebreaksbr|default:"ثبت نشده" }}</p>
   </div>
 </div>
 
-<div class="section-title">نظام ارزشیابی سایپا یدک (مشکات نور)</div>
-<div class="section-sub">مشتری‌مداری در مرکز همه‌ی ارزش‌های سازمانی</div>
-<div class="values-wheel-wrap">
-  <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-    {% for w in wheel_wedges %}
-    <path class="wedge-path" d="{{ w.path }}" fill="{{ w.value.color|default:'#C97A2B' }}"
-      data-vid="{{ w.value.pk }}" onclick="showValueDetail(this)"></path>
-    {% endfor %}
-    {% for c in wheel_connectors %}
-    <foreignObject x="{{ c.x|add:'-13' }}" y="{{ c.y|add:'-13' }}" width="26" height="26">
-      <div xmlns="http://www.w3.org/1999/xhtml" class="wheel-connector"><i class="fa-solid fa-rotate"></i></div>
-    </foreignObject>
-    {% endfor %}
-    {% for w in wheel_wedges %}
-    <foreignObject x="{{ w.content_x|add:'-62' }}" y="{{ w.content_y|add:'-40' }}" width="124" height="80">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:100%;height:100%;">
-        <button type="button" class="wedge-content-btn" data-vid="{{ w.value.pk }}" onclick="showValueDetail(this)">
-          <div class="wedge-ico" style="color:{{ w.value.color|default:'#C97A2B' }};"><i class="{{ w.value.icon|default:'fa-solid fa-star' }}"></i></div>
-          <div class="wedge-txt">{{ w.value.text }}</div>
-        </button>
-        {% if user.is_superuser %}
-        <div class="wedge-acts">
-          <button type="button" onclick="event.stopPropagation();editValue(this)"
-            data-id="{{ w.value.pk }}" data-text="{{ w.value.text }}" data-icon="{{ w.value.icon }}" data-color="{{ w.value.color }}"
-            data-related-policy="{{ w.value.related_policy_id|default:'' }}">
-            <i class="fa-solid fa-pen"></i>
-          </button>
-          <form method="post" action="{% url 'strategic:org_value_delete' w.value.pk %}" style="display:inline;" onsubmit="return confirm('این ارزش حذف شود؟');">
-            {% csrf_token %}<button type="submit" onclick="event.stopPropagation();"><i class="fa-solid fa-xmark"></i></button>
-          </form>
-        </div>
-        {% endif %}
-      </div>
-    </foreignObject>
-    {% endfor %}
-  </svg>
-  <button type="button" class="value-center" data-vid="{{ center_value.pk }}" onclick="showValueDetail(this)"
-    style="--vcenter-color:{{ center_value.color|default:'#A8321E' }};">
-    <i class="{{ center_value.icon|default:'fa-solid fa-heart' }}"></i>
-    {{ center_value.text|default:"مشتری‌مداری" }}
-  </button>
-</div>
-<div class="wheel-tip"><i class="fa-solid fa-hand-pointer"></i> روی هر ارزش کلیک کنید تا بند خط‌مشی مرتبط با آن نمایش داده شود</div>
-
-<div class="value-detail-panel" id="valueDetailPanel" style="display:none;">
-  <button class="vd-close" onclick="closeValueDetail()"><i class="fa-solid fa-xmark"></i></button>
-  <div class="vd-head">
-    <div class="vd-ico" id="vd-ico"><i class="fa-solid fa-star"></i></div>
-    <div class="vd-title" id="vd-title"></div>
+<div class="section-title" style="margin-top:14px;">ارتباط ارزش‌ها با اهداف و نتایج سازمان</div>
+<div class="section-hint"><i class="fa-solid fa-circle-info"></i> نمونه‌ی نمایشی برای نوع این ارتباط — به داده‌ی واقعی نقشه استراتژیک وصل نیست</div>
+<div class="chain-wrap">
+  {% for row in value_chain_samples %}
+  <div class="chain-row">
+    <div class="chain-cell value-cell"><b>ارزش سازمانی</b>{{ row.value }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>هدف استراتژیک</b>{{ row.goal }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>شاخص کلیدی (KPI)</b>{{ row.kpi }}</div>
+    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
+    <div class="chain-cell"><b>پروژه‌های مرتبط</b>{{ row.project }}</div>
   </div>
-  <h5 id="vd-policy-heading"><i class="fa-solid fa-list-check"></i> بند خط‌مشی مرتبط</h5>
-  <p class="vd-policy-text" id="vd-policy-text"></p>
+  {% endfor %}
 </div>
 
 {% if user.is_superuser %}
@@ -268,22 +278,6 @@
     </div>
     <hr>
     <div class="iso-domain"><b>دامنه:</b> {{ iso.domain }}</div>
-  </div>
-  {% endfor %}
-</div>
-
-<div class="section-title">ارتباط ارزش‌ها با اهداف و نتایج سازمان</div>
-<div class="section-hint"><i class="fa-solid fa-circle-info"></i> نمونه‌ی نمایشی برای نوع این ارتباط — به داده‌ی واقعی نقشه استراتژیک وصل نیست</div>
-<div class="chain-wrap">
-  {% for row in value_chain_samples %}
-  <div class="chain-row">
-    <div class="chain-cell value-cell"><b>ارزش سازمانی</b>{{ row.value }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>هدف استراتژیک</b>{{ row.goal }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>شاخص کلیدی (KPI)</b>{{ row.kpi }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>پروژه‌های مرتبط</b>{{ row.project }}</div>
   </div>
   {% endfor %}
 </div>
@@ -381,58 +375,6 @@
 
 {% block extra_js %}
 <script>
-  const VALUES_DATA = JSON.parse(document.getElementById('values-data').textContent);
-  let activeValueId = null;
-
-  function showValueDetail(btn){
-    const vid = btn.dataset.vid;
-    const panel = document.getElementById('valueDetailPanel');
-    document.querySelectorAll('.wedge-path, .wedge-content-btn, .value-center').forEach(b => b.classList.remove('active'));
-
-    if(activeValueId === vid){
-      // همون مقدار دوباره کلیک شد: پنل رو ببند
-      panel.style.display = 'none';
-      activeValueId = null;
-      return;
-    }
-
-    const d = VALUES_DATA[vid];
-    if(!d) return;
-    activeValueId = vid;
-    document.querySelectorAll('[data-vid="' + vid + '"]').forEach(el => el.classList.add('active'));
-
-    panel.style.setProperty('--vcolor', d.color || '#C97A2B');
-    document.getElementById('vd-ico').style.background = d.color || '#C97A2B';
-    document.getElementById('vd-ico').innerHTML = '<i class="' + (d.icon || 'fa-solid fa-star') + '"></i>';
-    document.getElementById('vd-title').textContent = d.text;
-
-    const heading = document.getElementById('vd-policy-heading');
-    const pText = document.getElementById('vd-policy-text');
-    if(d.is_center){
-      // مشتری‌مداری: صرفاً خودش نمایش داده می‌شود، بدون هیچ توضیح یا بند مرتبطی
-      heading.style.display = 'none';
-      pText.style.display = 'none';
-    } else if(d.policy_number && d.policy_text){
-      heading.style.display = '';
-      pText.style.display = '';
-      pText.innerHTML = '<b>بند ' + d.policy_number + ':</b> ';
-      pText.appendChild(document.createTextNode(d.policy_text));
-    } else {
-      heading.style.display = '';
-      pText.style.display = '';
-      pText.textContent = 'برای این ارزش هنوز بند خط‌مشی مرتبطی انتخاب نشده است.';
-    }
-
-    panel.style.display = 'block';
-    panel.scrollIntoView({behavior:'smooth', block:'nearest'});
-  }
-
-  function closeValueDetail(){
-    document.getElementById('valueDetailPanel').style.display = 'none';
-    document.querySelectorAll('.wedge-path, .wedge-content-btn, .value-center').forEach(b => b.classList.remove('active'));
-    activeValueId = null;
-  }
-
   function scrollPolicy(dir){
     document.getElementById('policyTrack').scrollBy({left: dir * 320, behavior:'smooth'});
   }

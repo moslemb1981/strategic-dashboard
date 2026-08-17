@@ -655,13 +655,13 @@ class OrgValue(models.Model):
         ("fa-solid fa-star", "ستاره (پیش‌فرض)"),
     ]
     COLOR_CHOICES = [
-        ("#F59E0B", "کهربایی"),
-        ("#EC4899", "صورتی"),
-        ("#8B5CF6", "بنفش"),
-        ("#0EA5E9", "آبی"),
-        ("#F43F5E", "قرمز مرجانی"),
-        ("#EAB308", "زرد طلایی"),
-        ("#22C55E", "سبز"),
+        ("#C97A2B", "کهربایی (نارنجی ملایم)"),
+        ("#1E6E7A", "سرمه‌ای فیروزه‌ای"),
+        ("#6C56A3", "بنفش ملایم"),
+        ("#2E5C8A", "آبی سرمه‌ای"),
+        ("#B0413E", "قرمز آجری روشن"),
+        ("#D9A441", "طلایی خاکی"),
+        ("#3E7A52", "سبز زیتونی"),
         ("#A8321E", "قرمز آجری (مرکز)"),
     ]
 
@@ -821,6 +821,9 @@ class Stakeholder(models.Model):
     opportunity_impact = models.PositiveIntegerField(null=True, blank=True, verbose_name="امتیاز تأثیر فرصت")
     opportunity_score = models.PositiveIntegerField(null=True, blank=True, verbose_name="عدد فرصت")
     action = models.TextField(verbose_name="اقدام تعریف‌شده", blank=True)
+    related_initiatives = models.ManyToManyField(
+        "Initiative", blank=True, related_name="linked_stakeholders", verbose_name="پروژه‌های تحول مرتبط",
+    )
     domain = models.CharField(max_length=100, blank=True, verbose_name="حوزه")
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="open", verbose_name="وضعیت رسیدگی")
     created_at = models.DateTimeField(auto_now_add=True)

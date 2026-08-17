@@ -306,7 +306,7 @@ class StakeholderForm(forms.ModelForm):
             "department", "name", "is_internal", "is_external", "related_porters", "channel", "need", "need_flag", "expectation_flag",
             "risk_text", "risk_occurrence", "risk_severity", "risk_detection", "risk_score",
             "opportunity_text", "opportunity_importance", "opportunity_impact", "opportunity_score",
-            "action", "domain", "status",
+            "action", "related_initiatives", "domain", "status",
         ]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "مثلاً: شبکه نمایندگی‌ها"}),
@@ -318,6 +318,7 @@ class StakeholderForm(forms.ModelForm):
             "related_porters": forms.CheckboxSelectMultiple(),
             "opportunity_text": forms.Textarea(attrs={"rows": 2}),
             "action": forms.Textarea(attrs={"rows": 2}),
+            "related_initiatives": forms.CheckboxSelectMultiple(),
         }
 
 

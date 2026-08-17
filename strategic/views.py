@@ -415,7 +415,7 @@ def pestel(request):
             "key": key, "label": label, "color": color, "soft": soft, "icon": icon,
             "letter": LETTERS[key],
             "items": cat_items,
-            "summary": cat_items[:6],
+            "summary": cat_items,
         })
 
     top_factors = sorted(factors, key=lambda f: f.priority_score, reverse=True)[:8]

@@ -89,7 +89,7 @@
     <col style="width:16%;"><col style="width:16%;"><col style="width:17%;"><col style="width:60px;">
   </colgroup>
   <thead><tr>
-    <th>واحد</th><th>ذینفع</th><th>نیاز/انتظار</th><th>ریسک</th><th>فرصت</th><th>اقدام</th><th></th>
+    <th>واحد</th><th>ذینفع</th><th>نیاز/انتظار</th><th>ریسک</th><th>فرصت</th><th>پروژه‌های تحول / اقدام اجرایی</th><th></th>
   </tr>
   <tr class="sk-livesearch-row">
     <th><input type="text" id="liveDept" class="sk-live-input" placeholder="جستجو..."></th>
@@ -117,7 +117,9 @@
       <td>{{ i.need|default:"—" }}</td>
       <td>{% if i.risk_text %}<span class="sk-badge" style="background:#B0413E;">{{ i.risk_score|default:"—" }}</span> {{ i.risk_text }}{% else %}—{% endif %}</td>
       <td>{% if i.opportunity_text %}<span class="sk-badge" style="background:var(--success);">{{ i.opportunity_score|default:"—" }}</span> {{ i.opportunity_text }}{% else %}—{% endif %}</td>
-      <td>{{ i.action|default:"—" }}</td>
+      <td>{{ i.action|default:"—" }}
+        {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
+      </td>
       <td style="white-space:nowrap;">
         {% if perms.strategic.change_stakeholder %}
         <button type="button" onclick="editStakeholder(this)"
@@ -129,6 +131,7 @@
           data-opp="{{ i.opportunity_text }}" data-oppimportance="{{ i.opportunity_importance|default:'' }}" data-oppimpact="{{ i.opportunity_impact|default:'' }}"
           data-oppscore="{{ i.opportunity_score|default:'' }}"
           data-action="{{ i.action }}" data-domain="{{ i.domain }}" data-status="{{ i.status }}"
+          data-related-initiatives="{% for init in i.related_initiatives.all %}{{ init.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
           style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
         {% endif %}
         {% if perms.strategic.delete_stakeholder %}
@@ -200,6 +203,7 @@
       </div>
       <div class="field-group"><label>عدد فرصت</label>{{ form.opportunity_score }}</div>
       <div class="field-group"><label>اقدام تعریف‌شده</label>{{ form.action }}</div>
+      <div class="field-group"><label>پروژه‌های تحول مرتبط (اختیاری)</label><div class="picker-box">{{ form.related_initiatives }}</div></div>
       <div class="field-group"><label>حوزه</label>{{ form.domain }}</div>
       <div class="field-group"><label>وضعیت رسیدگی</label>{{ form.status }}</div>
       <div class="modal-actions">
@@ -320,6 +324,10 @@
     document.getElementById('id_opportunity_impact').value = d.oppimpact;
     document.getElementById('id_opportunity_score').value = d.oppscore;
     document.getElementById('id_action').value = d.action;
+    const initIds = (d.relatedInitiatives || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="related_initiatives"]').forEach(function(cb){
+      cb.checked = initIds.includes(cb.value);
+    });
     document.getElementById('id_domain').value = d.domain;
     document.getElementById('id_status').value = d.status;
     document.getElementById('modalTitle').textContent = 'ویرایش ذینفع';
