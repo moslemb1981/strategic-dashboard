@@ -21,6 +21,7 @@
   .opk-table td{padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top;word-break:break-word;}
   .opk-table tr.opk-hidden{display:none;}
   .opk-code{font-family:monospace;font-size:10px;color:var(--ink-faint);}
+  .opk-domain-badge{display:inline-block;font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 9px;cursor:help;}
   .opk-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
   .opk-bar-fill{height:100%;border-radius:4px;}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
@@ -51,17 +52,18 @@
 <div class="opk-table-wrap">
 <table class="opk-table">
   <colgroup>
-    <col style="width:10%;"><col style="width:26%;"><col style="width:8%;"><col style="width:16%;">
-    <col style="width:9%;"><col style="width:9%;"><col style="width:12%;"><col style="width:50px;">
+    <col style="width:9%;"><col style="width:23%;"><col style="width:7%;"><col style="width:7%;"><col style="width:15%;">
+    <col style="width:8%;"><col style="width:8%;"><col style="width:11%;"><col style="width:50px;">
   </colgroup>
   <thead>
     <tr>
-      <th>کد</th><th>عنوان شاخص</th><th>واحد</th><th>دپارتمان مالک</th>
+      <th>کد</th><th>عنوان شاخص</th><th>حوزه</th><th>واحد</th><th>دپارتمان مالک</th>
       <th>هدف ۱۴۰۵</th><th>عملکرد ۱۴۰۵</th><th>تحقق</th><th></th>
     </tr>
     <tr class="opk-livesearch-row">
       <th><input type="text" id="liveCode" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveTitle" class="opk-live-input" placeholder="جستجو..."></th>
+      <th><input type="text" id="liveDomain" class="opk-live-input" placeholder="Q/D/C/M"></th>
       <th><input type="text" id="liveUnit" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveDept" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveTarget" class="opk-live-input" placeholder="جستجو..."></th>
@@ -76,7 +78,9 @@
       <td class="opk-code">{{ k.code }}</td>
       <td>{{ k.title }}
         {% if k.strategic_objectives.all %}<span class="used-badge" title="کارت‌های نقشه استراتژیک مرتبط:&#10;{% for o in k.strategic_objectives.all %}● {{ o.code }}: {{ o.title }} — کسب‌وکار: {{ o.business_unit.name|default:'—' }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-map"></i> {{ k.strategic_objectives.all|length }}</span>{% endif %}
+        {% if k.promoted_to_company_kpis.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="این شاخص عملیاتی به شاخص کلان شرکت هم ارتقا یافته:&#10;{% for ck in k.promoted_to_company_kpis.all %}● {{ ck.code }} — {{ ck.name }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-star"></i> شاخص کلان</span>{% endif %}
       </td>
+      <td><span class="opk-domain-badge" style="background:{{ k.domain_color }};" title="{{ k.get_domain_display }}">{{ k.domain }}</span></td>
       <td>{{ k.unit|default:"—" }}</td>
       <td>{{ k.department|default:"—" }}</td>
       <td>{{ k.target_1405|default:"—" }}</td>
@@ -87,7 +91,7 @@
       <td style="white-space:nowrap;">
         {% if perms.strategic.change_operationalkpi %}
         <button type="button" class="opk-actbtn" onclick="editOpk(this)"
-          data-id="{{ k.pk }}" data-code="{{ k.code }}" data-title="{{ k.title }}" data-unit="{{ k.unit }}"
+          data-id="{{ k.pk }}" data-code="{{ k.code }}" data-title="{{ k.title }}" data-domain="{{ k.domain }}" data-unit="{{ k.unit }}"
           data-department="{{ k.department }}" data-t4="{{ k.target_1404 }}" data-a4="{{ k.actual_1404 }}"
           data-t5="{{ k.target_1405 }}" data-a5="{{ k.actual_1405 }}" data-progress="{{ k.progress_1405 }}" data-order="{{ k.order }}">
           <i class="fa-solid fa-pen"></i></button>
@@ -112,8 +116,9 @@
     <form method="post" id="opkForm" action="{% url 'strategic:operational_kpis' %}">
       {% csrf_token %}
       <input type="hidden" name="obj_id" id="opk_obj_id">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
         <div class="field-group"><label>کد شاخص</label>{{ form.code }}</div>
+        <div class="field-group"><label>حوزه</label>{{ form.domain }}</div>
         <div class="field-group"><label>واحد سنجش</label>{{ form.unit }}</div>
       </div>
       <div class="field-group"><label>عنوان شاخص</label>{{ form.title }}</div>
@@ -165,6 +170,7 @@
     const inputs = {
       code: document.getElementById('liveCode'),
       title: document.getElementById('liveTitle'),
+      domain: document.getElementById('liveDomain'),
       unit: document.getElementById('liveUnit'),
       dept: document.getElementById('liveDept'),
       target: document.getElementById('liveTarget'),
@@ -179,14 +185,15 @@
       let visible = 0;
       rows.forEach(function(row){
         const cells = row.querySelectorAll('td');
-        if (cells.length < 7) return;
+        if (cells.length < 8) return;
         const match = (!vals.code || cells[0].textContent.toLowerCase().includes(vals.code))
           && (!vals.title || cells[1].textContent.toLowerCase().includes(vals.title))
-          && (!vals.unit || cells[2].textContent.toLowerCase().includes(vals.unit))
-          && (!vals.dept || cells[3].textContent.toLowerCase().includes(vals.dept))
-          && (!vals.target || cells[4].textContent.toLowerCase().includes(vals.target))
-          && (!vals.actual || cells[5].textContent.toLowerCase().includes(vals.actual))
-          && (!vals.progress || cells[6].textContent.toLowerCase().includes(vals.progress));
+          && (!vals.domain || cells[2].textContent.toLowerCase().includes(vals.domain))
+          && (!vals.unit || cells[3].textContent.toLowerCase().includes(vals.unit))
+          && (!vals.dept || cells[4].textContent.toLowerCase().includes(vals.dept))
+          && (!vals.target || cells[5].textContent.toLowerCase().includes(vals.target))
+          && (!vals.actual || cells[6].textContent.toLowerCase().includes(vals.actual))
+          && (!vals.progress || cells[7].textContent.toLowerCase().includes(vals.progress));
         row.classList.toggle('opk-hidden', !match);
         if (match) visible++;
       });
@@ -211,6 +218,7 @@
     document.getElementById('opk_obj_id').value = d.id;
     document.getElementById('id_code').value = d.code;
     document.getElementById('id_title').value = d.title;
+    document.getElementById('id_domain').value = d.domain;
     document.getElementById('id_unit').value = d.unit;
     document.getElementById('id_department').value = d.department;
     document.getElementById('id_target_1404').value = d.t4;

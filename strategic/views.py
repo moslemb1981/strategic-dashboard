@@ -11,6 +11,8 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.db.models import Q
 
+from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
+
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
@@ -295,6 +297,10 @@ def study_delete(request, pk):
 
 def roadmap(request):
     business_units = list(BusinessUnit.objects.all())
+    group_mode = request.POST.get("group_mode") or request.GET.get("group_mode") or "bu"
+    if group_mode not in ("bu", "division", "work_group"):
+        group_mode = "bu"
+
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
     current_bu = None
     if bu_id:
@@ -302,7 +308,16 @@ def roadmap(request):
     if not current_bu and business_units:
         current_bu = business_units[0]
 
-    if request.method == "POST":
+    group_field = {"division": "division", "work_group": "work_group"}.get(group_mode)
+    group_tabs, current_group_key = [], None
+    if group_field:
+        distinct_values = sorted(set(
+            v.strip() for v in Initiative.objects.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
+        ))
+        group_tabs = distinct_values
+        current_group_key = request.POST.get("g") or request.GET.get("g") or (distinct_values[0] if distinct_values else None)
+
+    if request.method == "POST" and request.POST.get("form_kind", "initiative") == "initiative":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
         if _has_perm(request, perm):
@@ -315,23 +330,159 @@ def roadmap(request):
                 obj.save()
                 form.save_m2m()
                 _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(obj))
-                bu_param = f"?bu={current_bu.pk}" if current_bu else ""
-                return redirect(reverse("strategic:roadmap") + bu_param)
+                params = f"?group_mode={group_mode}"
+                params += f"&g={current_group_key}" if group_field and current_group_key else f"&bu={current_bu.pk}" if current_bu else ""
+                return redirect(reverse("strategic:roadmap") + params)
         else:
             form = InitiativeForm(business_unit=current_bu)
     else:
         form = InitiativeForm(business_unit=current_bu)
 
-    initiatives = (
-        Initiative.objects.filter(business_unit=current_bu)
-        .prefetch_related("objectives", "source_kpi", "source_tows", "source_risk",
-                           "source_tows__source_items")
-        if current_bu else Initiative.objects.none()
-    )
+    base_prefetch = ("objectives", "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
+                      "source_tows__source_items", "linked_stakeholders")
+    if group_field:
+        initiatives = (
+            Initiative.objects.filter(**{group_field: current_group_key})
+            .prefetch_related(*base_prefetch)
+            if current_group_key else Initiative.objects.none()
+        )
+    else:
+        initiatives = (
+            Initiative.objects.filter(business_unit=current_bu).prefetch_related(*base_prefetch)
+            if current_bu else Initiative.objects.none()
+        )
+
     return render(request, "strategic/roadmap.html", {
         "active_page": "roadmap", "initiatives": initiatives, "form": form,
         "business_units": business_units, "current_bu": current_bu,
+        "group_mode": group_mode, "group_tabs": group_tabs, "current_group_key": current_group_key,
     })
+
+
+_INITIATIVE_EXCEL_HEADERS = [
+    "عنوان پروژه", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
+    "تاریخ پایان (شمسی)", "پیشرفت (٪)", "وضعیت",
+]
+_INITIATIVE_STATUS_LABEL_TO_KEY = {label: key for key, label in Initiative.STATUS_CHOICES}
+
+
+@login_required
+def initiative_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:roadmap")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "پروژه‌های تحول"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_INITIATIVE_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for row_i, i in enumerate(Initiative.objects.all().select_related("business_unit"), start=2):
+        values = [
+            i.title, i.owner, i.work_group, i.division,
+            i.business_unit.name if i.business_unit else "",
+            gregorian_to_jalali_str(i.start_date) if i.start_date else "",
+            gregorian_to_jalali_str(i.end_date) if i.end_date else "",
+            i.progress, i.get_status_display(),
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [34, 20, 22, 22, 22, 14, 14, 10, 16]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT Initiative Excel", f"{Initiative.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="projeh-haye-tahavol.xlsx"'
+    return response
+
+
+@login_required
+def initiative_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:roadmap")
+
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:roadmap")
+
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:roadmap")
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    business_units_by_name = {b.name: b for b in BusinessUnit.objects.all()}
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not row[0]:
+            continue
+        title = _s(row[0])
+        if not title:
+            skipped += 1
+            continue
+        owner = _s(row[1]) if len(row) > 1 else ""
+        work_group = _s(row[2]) if len(row) > 2 else ""
+        division = _s(row[3]) if len(row) > 3 else ""
+        bu_name = _s(row[4]) if len(row) > 4 else ""
+        business_unit = business_units_by_name.get(bu_name)
+        try:
+            start_date = jalali_str_to_gregorian(_s(row[5])) if len(row) > 5 and _s(row[5]) else None
+            end_date = jalali_str_to_gregorian(_s(row[6])) if len(row) > 6 and _s(row[6]) else None
+        except Exception:
+            start_date, end_date = None, None
+        if not start_date or not end_date:
+            skipped += 1
+            continue
+        try:
+            progress = int(row[7]) if len(row) > 7 and row[7] not in (None, "") else 0
+        except (TypeError, ValueError):
+            progress = 0
+        status_label = _s(row[8]) if len(row) > 8 else ""
+        status = _INITIATIVE_STATUS_LABEL_TO_KEY.get(status_label, "on_track")
+
+        existing = Initiative.objects.filter(title=title, business_unit=business_unit).first()
+        defaults = dict(
+            owner=owner, work_group=work_group, division=division, business_unit=business_unit,
+            start_date=start_date, end_date=end_date, progress=progress, status=status,
+        )
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            Initiative.objects.create(title=title, **defaults)
+            created += 1
+
+    _log_action(request, "IMPORT Initiative Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} پروژه جدید، {updated} پروژه به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:roadmap")
 
 
 @login_required
@@ -1481,6 +1632,7 @@ def company_goals(request):
                     _log_action(request, "UPDATE CompanyKPI" if obj_id else "CREATE CompanyKPI", str(form.instance))
                     return redirect("strategic:company_goals")
 
+    kpis = list(CompanyKPI.objects.all().select_related("source_operational_kpi").prefetch_related("objectives"))
     objectives = list(CompanyObjective.objects.all().prefetch_related("kpis"))
     grouped = []
     seen_groups = {}
@@ -1491,12 +1643,16 @@ def company_goals(request):
             grouped.append(seen_groups[key])
         seen_groups[key]["objectives"].append(o)
 
-    kpis = list(CompanyKPI.objects.all().prefetch_related("objectives"))
+    operational_kpi_choices = [
+        {"id": k.pk, "code": k.code, "title": k.title, "unit": k.unit, "domain": k.domain}
+        for k in OperationalKPI.objects.all()
+    ]
 
     return render(request, "strategic/company_goals.html", {
         "active_page": "company_goals", "grouped": grouped, "kpis": kpis,
         "objective_form": CompanyObjectiveForm(),
         "kpi_form": CompanyKPIForm(),
+        "operational_kpi_choices": operational_kpi_choices,
     })
 
 
@@ -1702,7 +1858,7 @@ def company_kpi_import(request):
 # ---------------- بانک شاخص‌های عملیاتی (سطح دپارتمانی، جدا از شاخص‌های کلان شرکت) ----------------
 
 _OPKPI_EXCEL_HEADERS = [
-    "کد", "عنوان شاخص", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
+    "کد", "عنوان شاخص", "حوزه (Q/D/C/M)", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
     "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "ترتیب نمایش",
 ]
 
@@ -1730,7 +1886,7 @@ def operational_kpis(request):
     else:
         form = OperationalKPIForm()
 
-    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit"))
+    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis"))
 
     return render(request, "strategic/operational_kpis.html", {
         "active_page": "operational_kpis", "items": items, "total": len(items),
@@ -1772,13 +1928,13 @@ def operational_kpi_export(request):
 
     for row_i, k in enumerate(OperationalKPI.objects.all(), start=2):
         values = [
-            k.code, k.title, k.unit, k.department,
+            k.code, k.title, k.domain, k.unit, k.department,
             k.target_1404, k.actual_1404, k.target_1405, k.actual_1405, k.progress_1405, k.order,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [12, 42, 12, 28, 12, 12, 12, 12, 12, 10]
+    widths = [12, 42, 10, 12, 28, 12, 12, 12, 12, 12, 10]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -1825,22 +1981,25 @@ def operational_kpi_import(request):
             skipped += 1
             continue
         title = _s(row[1]) if len(row) > 1 else ""
-        unit = _s(row[2]) if len(row) > 2 else ""
-        department = _s(row[3]) if len(row) > 3 else ""
-        target_1404 = _s(row[4]) if len(row) > 4 else ""
-        actual_1404 = _s(row[5]) if len(row) > 5 else ""
-        target_1405 = _s(row[6]) if len(row) > 6 else ""
-        actual_1405 = _s(row[7]) if len(row) > 7 else ""
-        progress_1405 = _s(row[8]) if len(row) > 8 else ""
+        domain = _s(row[2]).upper() if len(row) > 2 else ""
+        if domain not in ("Q", "D", "C", "M"):
+            domain = "Q"
+        unit = _s(row[3]) if len(row) > 3 else ""
+        department = _s(row[4]) if len(row) > 4 else ""
+        target_1404 = _s(row[5]) if len(row) > 5 else ""
+        actual_1404 = _s(row[6]) if len(row) > 6 else ""
+        target_1405 = _s(row[7]) if len(row) > 7 else ""
+        actual_1405 = _s(row[8]) if len(row) > 8 else ""
+        progress_1405 = _s(row[9]) if len(row) > 9 else ""
         try:
-            order = int(row[9]) if len(row) > 9 and row[9] not in (None, "") else 0
+            order = int(row[10]) if len(row) > 10 and row[10] not in (None, "") else 0
         except (TypeError, ValueError):
             order = 0
 
         _, was_created = OperationalKPI.objects.update_or_create(
             code=code,
             defaults=dict(
-                title=title, unit=unit, department=department,
+                title=title, domain=domain, unit=unit, department=department,
                 target_1404=target_1404, actual_1404=actual_1404,
                 target_1405=target_1405, actual_1405=actual_1405,
                 progress_1405=progress_1405, order=order,

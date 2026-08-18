@@ -26,6 +26,8 @@ urlpatterns = [
 
     path("roadmap/", views.roadmap, name="roadmap"),
     path("roadmap/delete/<int:pk>/", views.initiative_delete, name="initiative_delete"),
+    path("roadmap/export/", views.initiative_export, name="initiative_export"),
+    path("roadmap/import/", views.initiative_import, name="initiative_import"),
 
     path("market/", views.market, name="market"),
     path("market/delete/<int:pk>/", views.competitor_delete, name="competitor_delete"),

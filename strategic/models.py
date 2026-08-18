@@ -60,6 +60,8 @@ class Initiative(models.Model):
         "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="initiatives", verbose_name="کسب‌وکار",
     )
+    work_group = models.CharField(max_length=150, blank=True, verbose_name="کارگروه")
+    division = models.CharField(max_length=150, blank=True, verbose_name="معاونت")
     objectives = models.ManyToManyField(
         "StrategicObjective", blank=True, related_name="initiatives",
         verbose_name="اهداف استراتژیک مرتبط",
@@ -1061,6 +1063,10 @@ class CompanyKPI(models.Model):
     code = models.CharField(max_length=10, unique=True, verbose_name="کد شاخص")
     domain = models.CharField(max_length=1, choices=DOMAIN_CHOICES, default="Q", verbose_name="حوزه اثربخشی")
     name = models.CharField(max_length=300, verbose_name="شاخص کلیدی")
+    source_operational_kpi = models.ForeignKey(
+        "OperationalKPI", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="promoted_to_company_kpis", verbose_name="برگرفته از شاخص عملیاتی (اختیاری)",
+    )
     unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
     target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴")
     actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴")
@@ -1166,8 +1172,17 @@ class RawIdentifiedFactor(models.Model):
 class OperationalKPI(models.Model):
     """بانک شاخص‌های عملیاتی/دپارتمانی کل سازمان — سطح جدا و پایین‌تر از «شاخص‌های کلان
     شرکت» (CompanyKPI)، طبق استاندارد Cascading در BSC. مرجع، نه لزوماً همه‌شان پایش‌شونده."""
+    DOMAIN_CHOICES = [
+        ("Q", "کیفیت (Quality)"),
+        ("D", "تحویل/حجم (Delivery)"),
+        ("C", "هزینه/درآمد (Cost)"),
+        ("M", "مدیریتی (Management)"),
+    ]
+    DOMAIN_COLOR = {"Q": "#2E5C8A", "D": "#C97A2B", "C": "#3E7A52", "M": "#5a6474"}
+
     code = models.CharField(max_length=20, unique=True, verbose_name="کد شاخص")
     title = models.CharField(max_length=300, verbose_name="عنوان شاخص")
+    domain = models.CharField(max_length=1, choices=DOMAIN_CHOICES, default="Q", verbose_name="حوزه اثربخشی")
     unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
     department = models.CharField(max_length=150, blank=True, verbose_name="دپارتمان مالک")
     target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴")
@@ -1234,6 +1249,10 @@ class OperationalKPI(models.Model):
         if p >= 60:
             return "#C97A2B"
         return "#B0413E"
+
+    @property
+    def domain_color(self):
+        return self.DOMAIN_COLOR.get(self.domain, "var(--ink-faint)")
 
 
 def document_upload_path(instance, filename):

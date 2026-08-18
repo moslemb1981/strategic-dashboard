@@ -7,26 +7,47 @@
 {% block content %}
 <div class="topbar">
   <div><h1>پروژه‌های تحول</h1><div class="sub">زمان‌بندی پروژه‌های تحول، وصل به اهداف نقشه استراتژیک همان کسب‌وکار</div></div>
-  {% if current_bu and perms.strategic.add_initiative %}
-  <button class="btn accent" onclick="newInitiative()"><i class="fa-solid fa-plus"></i>افزودن پروژه</button>
-  {% endif %}
+  <div style="display:flex;gap:8px;">
+    {% if user.is_superuser %}
+    <a href="{% url 'strategic:initiative_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+    <button type="button" class="btn ghost" onclick="document.getElementById('initImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+    {% endif %}
+    {% if perms.strategic.add_initiative and current_bu or perms.strategic.add_initiative and current_group_key %}
+    <button class="btn accent" onclick="newInitiative()"><i class="fa-solid fa-plus"></i>افزودن پروژه</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="group-mode-switch" style="display:flex;gap:6px;margin-bottom:10px;">
+  <a class="gm-btn {% if group_mode == 'bu' %}active{% endif %}" href="?group_mode=bu">نمایش بر اساس: کسب‌وکار</a>
+  <a class="gm-btn {% if group_mode == 'division' %}active{% endif %}" href="?group_mode=division">معاونت</a>
+  <a class="gm-btn {% if group_mode == 'work_group' %}active{% endif %}" href="?group_mode=work_group">کارگروه</a>
 </div>
 
 <div class="bu-bar" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:16px;">
-  {% for bu in business_units %}
-  <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}</a>
-  {% empty %}
-  <span style="font-size:13px;color:var(--ink-faint);">هنوز کسب‌وکاری تعریف نشده</span>
-  {% endfor %}
+  {% if group_mode == 'bu' %}
+    {% for bu in business_units %}
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?group_mode=bu&bu={{ bu.pk }}">{{ bu.name }}</a>
+    {% empty %}
+    <span style="font-size:13px;color:var(--ink-faint);">هنوز کسب‌وکاری تعریف نشده</span>
+    {% endfor %}
+  {% else %}
+    {% for g in group_tabs %}
+    <a class="bu-tab {% if g == current_group_key %}active{% endif %}" href="?group_mode={{ group_mode }}&g={{ g|urlencode }}">{{ g }}</a>
+    {% empty %}
+    <span style="font-size:13px;color:var(--ink-faint);">{% if group_mode == 'division' %}هنوز هیچ پروژه‌ای معاونت ثبت‌شده ندارد{% else %}هنوز هیچ پروژه‌ای کارگروه ثبت‌شده ندارد{% endif %}</span>
+    {% endfor %}
+  {% endif %}
 </div>
 
 <div class="roadmap-gantt-wrap">
   {% if initiatives %}
   <div id="gantt"></div>
   {% else %}
-  <div class="empty"><i class="fa-solid fa-route"></i>هنوز پروژه‌ای برای «{{ current_bu.name|default:"این کسب‌وکار" }}» ثبت نشده</div>
+  <div class="empty"><i class="fa-solid fa-route"></i>هنوز پروژه‌ای برای «{% if group_mode == 'bu' %}{{ current_bu.name|default:"این کسب‌وکار" }}{% else %}{{ current_group_key|default:"این گروه" }}{% endif %}» ثبت نشده</div>
   {% endif %}
 </div>
+
 
 <div class="roadmap-legend">
   <span><span class="sw" style="background:#3E7A52"></span>در حال اجرا</span>
@@ -63,6 +84,7 @@
     {% if perms.strategic.change_initiative %}
     <button type="button" onclick="editInitiative(this)"
       data-id="{{ i.pk }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
+      data-work-group="{{ i.work_group }}" data-division="{{ i.division }}"
       data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
       data-progress="{{ i.progress }}" data-status="{{ i.status }}"
       data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
@@ -89,9 +111,15 @@
     <h3 id="modalTitle">افزودن پروژه جدید</h3>
     <form method="post" id="initForm">
       {% csrf_token %}
+      <input type="hidden" name="form_kind" value="initiative">
       <input type="hidden" name="obj_id" id="obj_id" value="">
+      <input type="hidden" name="group_mode" value="{{ group_mode }}">
       <div class="field-group"><label>عنوان پروژه</label>{{ form.title }}</div>
       <div class="field-group"><label>واحد مسئول</label>{{ form.owner }}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>کارگروه</label>{{ form.work_group }}</div>
+        <div class="field-group"><label>معاونت</label>{{ form.division }}</div>
+      </div>
       <div class="field-group"><label>تاریخ شروع</label>{{ form.start_date }}</div>
       <div class="field-group"><label>تاریخ پایان</label>{{ form.end_date }}</div>
       <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
@@ -112,6 +140,29 @@
     </form>
   </div>
 </div>
+
+{% if user.is_superuser %}
+<div class="overlay" id="initImportOverlay">
+  <div class="modal-card">
+    <h3>ورود پروژه‌ها از اکسل</h3>
+    <form method="post" action="{% url 'strategic:initiative_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (ستون‌ها باید دقیقاً مطابق خروجی اکسل همین صفحه باشند)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
+        هر ردیف بر اساس «عنوان پروژه + کسب‌وکار» با پروژه‌ی موجود تطبیق داده می‌شود؛ اگر نبود، پروژه جدید ساخته می‌شود.
+        نام کسب‌وکار باید دقیقاً مطابق نام ثبت‌شده در سامانه باشد.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('initImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_css %}
@@ -127,6 +178,10 @@
     background:var(--surface);color:var(--ink-soft);text-decoration:none;white-space:nowrap;}
   .bu-tab:hover{border-color:var(--accent);color:var(--accent);}
   .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .gm-btn{font-size:.72rem;font-weight:700;padding:.3rem .8rem;border-radius:20px;border:1px solid var(--border);
+    background:var(--surface);color:var(--ink-faint);text-decoration:none;white-space:nowrap;}
+  .gm-btn:hover{border-color:var(--primary);color:var(--primary);}
+  .gm-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
   .picker-box{max-height:160px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#fff;}
   .picker-box label{display:block;font-size:11.5px;line-height:1.6;padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
   .picker-box label:hover{background:var(--bg);}
@@ -186,6 +241,8 @@
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_title').value = d.title;
     document.getElementById('id_owner').value = d.owner;
+    document.getElementById('id_work_group').value = d.workGroup || '';
+    document.getElementById('id_division').value = d.division || '';
     document.getElementById('id_start_date').value = d.start;
     document.getElementById('id_end_date').value = d.end;
     document.getElementById('id_progress').value = d.progress;

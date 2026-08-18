@@ -6,6 +6,9 @@
 {% block extra_css %}
 <style>
   .cg-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:20px;}
+  .opk-picker-row{padding:8px 10px;border-bottom:1px solid var(--border);font-size:11.5px;cursor:pointer;}
+  .opk-picker-row:hover{background:var(--bg);}
+  .opk-picker-unit{color:var(--ink-faint);font-size:10px;}
   .cg-section-title{font-size:15px;font-weight:900;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
 
   .cg-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
@@ -113,8 +116,8 @@
   <tbody id="kpiBody">
     {% for k in kpis %}
     <tr>
-      <td>{{ k.code }}</td>
-      <td>{{ k.name }}</td>
+      <td{% if k.source_operational_kpi %} style="cursor:help;" title="برگرفته از شاخص عملیاتی:&#10;{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.code }}{% if k.source_operational_kpi %} <i class="fa-solid fa-link" style="font-size:9px;color:var(--primary);"></i>{% endif %}</td>
+      <td{% if k.source_operational_kpi %} style="cursor:help;" title="برگرفته از شاخص عملیاتی:&#10;{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}</td>
       <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
       <td>{{ k.unit }}</td>
       <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}
@@ -141,6 +144,8 @@
           data-progress="{{ k.progress_1405 }}" data-order="{{ k.order }}"
           data-monitoring="{{ k.is_monitoring|yesno:'1,0' }}" data-notes="{{ k.notes }}"
           data-objectives="{% for o in k.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          data-source-opkpi-id="{{ k.source_operational_kpi_id|default:'' }}"
+          data-source-opkpi-label="{% if k.source_operational_kpi %}{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}{% endif %}"
           style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
         {% endif %}
         {% if perms.strategic.delete_companykpi %}
@@ -206,6 +211,15 @@
       {% csrf_token %}
       <input type="hidden" name="form_kind" value="kpi">
       <input type="hidden" name="obj_id" id="ck_obj_id" value="">
+      <input type="hidden" name="order" id="ck_order" value="0">
+      <input type="hidden" name="source_operational_kpi" id="ck_source_opkpi" value="">
+      <div class="field-group">
+        <button type="button" class="btn ghost" onclick="openOpkPicker()" style="width:100%;"><i class="fa-solid fa-magnifying-glass"></i> انتخاب از بانک شاخص‌های عملیاتی</button>
+        <div id="ck_source_readout" style="font-size:10.5px;color:var(--primary);margin-top:5px;display:none;">
+          برگرفته از: <span id="ck_source_label"></span>
+          <button type="button" onclick="clearOpkSource()" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
       <div class="field-group"><label>کد</label><input type="text" name="code" id="ck_code" placeholder="مثلاً I27"></div>
       <div class="field-group"><label>حوزه اثربخشی</label>
         <select name="domain" id="ck_domain">
@@ -229,7 +243,6 @@
         </div>
       </div>
       <div class="field-group"><label>ملاحظات</label><textarea name="notes" id="ck_notes" rows="2"></textarea></div>
-      <input type="hidden" name="order" id="ck_order" value="0">
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('kpiOverlay').classList.remove('open')">انصراف</button>
         <button type="submit" class="btn accent" id="kpiSubmitBtn">ثبت شاخص</button>
@@ -237,6 +250,20 @@
     </form>
   </div>
 </div>
+
+<div class="overlay" id="opkPickerOverlay">
+  <div class="modal-card" style="max-width:520px;max-height:70vh;display:flex;flex-direction:column;">
+    <h3 style="flex:none;">انتخاب از بانک شاخص‌های عملیاتی</h3>
+    <input type="text" id="opkPickerSearchInput" placeholder="جستجو با کد یا عنوان شاخص..."
+      oninput="renderOpkPickerList(this.value)"
+      style="flex:none;width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-family:inherit;box-sizing:border-box;">
+    <div id="opkPickerList" style="flex:1;overflow-y:auto;min-height:0;"></div>
+    <div class="modal-actions" style="flex:none;margin-top:10px;">
+      <button type="button" class="btn ghost" onclick="document.getElementById('opkPickerOverlay').classList.remove('open')">بستن</button>
+    </div>
+  </div>
+</div>
+{{ operational_kpi_choices|json_script:"opk-choices-data" }}
 {% endblock %}
 
 {% block extra_js %}
@@ -340,6 +367,7 @@
     document.getElementById('ck_obj_id').value = '';
     document.querySelectorAll('.ck-obj-cb').forEach(cb => cb.checked = false);
     syncObjPicked();
+    clearOpkSource();
     document.getElementById('kpiModalTitle').textContent = 'افزودن شاخص';
     document.getElementById('kpiSubmitBtn').textContent = 'ثبت شاخص';
     document.getElementById('kpiOverlay').classList.add('open');
@@ -362,9 +390,55 @@
     const objIds = (d.objectives || '').split(',').filter(Boolean);
     document.querySelectorAll('.ck-obj-cb').forEach(cb => { cb.checked = objIds.includes(cb.value); });
     syncObjPicked();
+    if (d.sourceOpkpiId) {
+      document.getElementById('ck_source_opkpi').value = d.sourceOpkpiId;
+      document.getElementById('ck_source_label').textContent = d.sourceOpkpiLabel;
+      document.getElementById('ck_source_readout').style.display = 'block';
+    } else {
+      clearOpkSource();
+    }
     document.getElementById('kpiModalTitle').textContent = 'ویرایش شاخص';
     document.getElementById('kpiSubmitBtn').textContent = 'ذخیره تغییرات';
     document.getElementById('kpiOverlay').classList.add('open');
+  }
+
+  function clearOpkSource(){
+    document.getElementById('ck_source_opkpi').value = '';
+    document.getElementById('ck_source_readout').style.display = 'none';
+  }
+
+  const OPK_CHOICES = JSON.parse(document.getElementById('opk-choices-data').textContent);
+
+  function openOpkPicker(){
+    document.getElementById('opkPickerOverlay').classList.add('open');
+    document.getElementById('opkPickerSearchInput').value = '';
+    renderOpkPickerList('');
+    document.getElementById('opkPickerSearchInput').focus();
+  }
+
+  function renderOpkPickerList(q){
+    q = q.trim().toLowerCase();
+    const list = document.getElementById('opkPickerList');
+    list.innerHTML = '';
+    const matched = OPK_CHOICES.filter(o => !q || o.code.toLowerCase().includes(q) || o.title.toLowerCase().includes(q)).slice(0, 60);
+    matched.forEach(function(o){
+      const row = document.createElement('div');
+      row.className = 'opk-picker-row';
+      row.innerHTML = '<b>' + o.code + '</b> — ' + o.title + (o.unit ? ' <span class="opk-picker-unit">(' + o.unit + ')</span>' : '');
+      row.onclick = function(){
+        document.getElementById('ck_source_opkpi').value = o.id;
+        document.getElementById('ck_source_label').textContent = o.code + ' — ' + o.title;
+        document.getElementById('ck_source_readout').style.display = 'block';
+        document.getElementById('ck_name').value = o.title;
+        document.getElementById('ck_unit').value = o.unit;
+        document.getElementById('ck_domain').value = o.domain;
+        document.getElementById('opkPickerOverlay').classList.remove('open');
+      };
+      list.appendChild(row);
+    });
+    if (!matched.length) {
+      list.innerHTML = '<div style="padding:14px;text-align:center;color:var(--ink-faint);font-size:11px;">موردی پیدا نشد</div>';
+    }
   }
 </script>
 {% endblock %}

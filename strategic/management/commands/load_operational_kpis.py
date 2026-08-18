@@ -22,13 +22,17 @@ class Command(BaseCommand):
                 if not line.strip():
                     continue
                 parts = line.split("|")
-                if len(parts) != 4:
+                if len(parts) not in (4, 5):
                     continue
-                code, title, unit, department = [p.strip() for p in parts]
+                if len(parts) == 5:
+                    code, title, unit, department, domain = [p.strip() for p in parts]
+                else:
+                    code, title, unit, department = [p.strip() for p in parts]
+                    domain = "Q"
                 order += 1
                 _, was_created = OperationalKPI.objects.update_or_create(
                     code=code,
-                    defaults=dict(title=title, unit=unit, department=department, order=order),
+                    defaults=dict(title=title, unit=unit, department=department, domain=domain, order=order),
                 )
                 created += 1 if was_created else 0
                 updated += 0 if was_created else 1

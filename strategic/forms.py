@@ -55,12 +55,14 @@ class InitiativeForm(forms.ModelForm):
     class Meta:
         model = Initiative
         fields = [
-            "title", "owner", "start_date", "end_date", "progress", "status", "objectives",
+            "title", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
             "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
         ]
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دیجیتالی‌سازی گزارش‌های ماهانه"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: واحد مطالعات"}),
+            "work_group": forms.TextInput(attrs={"placeholder": "مثلاً: کارگروه تحول دیجیتال"}),
+            "division": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت طرح و برنامه"}),
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
             "objectives": forms.SelectMultiple(attrs={"size": 8}),
             "source_kpi": forms.CheckboxSelectMultiple(),
@@ -384,12 +386,13 @@ class CompanyKPIForm(forms.ModelForm):
     class Meta:
         model = CompanyKPI
         fields = [
-            "code", "domain", "name", "unit", "target_1404", "actual_1404",
+            "code", "domain", "name", "source_operational_kpi", "unit", "target_1404", "actual_1404",
             "target_1405", "actual_1405", "progress_1405", "objectives", "is_monitoring", "notes", "order",
         ]
         widgets = {
             "objectives": forms.CheckboxSelectMultiple(),
             "notes": forms.Textarea(attrs={"rows": 2}),
+            "source_operational_kpi": forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -402,7 +405,7 @@ class OperationalKPIForm(forms.ModelForm):
     class Meta:
         model = OperationalKPI
         fields = [
-            "code", "title", "unit", "department",
+            "code", "title", "domain", "unit", "department",
             "target_1404", "actual_1404", "target_1405", "actual_1405", "progress_1405", "order",
         ]
         widgets = {
