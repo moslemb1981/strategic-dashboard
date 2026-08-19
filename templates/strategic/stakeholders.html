@@ -59,16 +59,16 @@
 
 <div class="sk-top">
   <div class="sk-card risk">
-    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ریسک‌های بحرانی ذینفعان (بالای {{ risk_threshold }})</div>
+    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان{% if risk_threshold %} (امتیاز ≥ {{ risk_threshold }}){% endif %}</div>
     {% for i in top_risks %}
     <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}</span><span class="num">{{ i.risk_score }}</span></div>
-    {% empty %}<div class="sk-empty">موردی بالای {{ risk_threshold }} ثبت نشده</div>{% endfor %}
+    {% empty %}<div class="sk-empty">هنوز ریسکی ثبت نشده</div>{% endfor %}
   </div>
   <div class="sk-card opp">
-    <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> فرصت‌های کلیدی ذینفعان (بالای {{ opp_threshold }})</div>
+    <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> ۲۰٪ کلیدی‌ترین فرصت‌های ذینفعان{% if opp_threshold %} (امتیاز ≥ {{ opp_threshold }}){% endif %}</div>
     {% for i in top_opportunities %}
     <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}</span><span class="num">{{ i.opportunity_score }}</span></div>
-    {% empty %}<div class="sk-empty">موردی بالای {{ opp_threshold }} ثبت نشده</div>{% endfor %}
+    {% empty %}<div class="sk-empty">هنوز فرصتی ثبت نشده</div>{% endfor %}
   </div>
 </div>
 

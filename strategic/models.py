@@ -30,32 +30,27 @@ class Study(models.Model):
 class Initiative(models.Model):
     STATUS_CHOICES = [
         ("in_progress", "در حال اجرا"),
-        ("on_track", "در مسیر"),
-        ("needs_attention", "نیازمند پیگیری"),
-        ("digital", "ابتکار دیجیتال"),
+        ("deviation", "انحراف پروژه"),
         ("done", "تکمیل‌شده"),
     ]
     STATUS_COLOR = {
         "in_progress": "bar-green",
-        "on_track": "bar-blue",
-        "needs_attention": "bar-amber",
-        "digital": "bar-purple",
+        "deviation": "bar-red",
         "done": "bar-gray",
     }
     STATUS_HEX = {
         "in_progress": "#3E7A52",
-        "on_track": "#2E5C8A",
-        "needs_attention": "#C97A2B",
-        "digital": "#6C56A3",
+        "deviation": "#B0413E",
         "done": "#8B93A1",
     }
 
+    code = models.CharField(max_length=30, blank=True, verbose_name="کد پروژه")
     title = models.CharField(max_length=300, verbose_name="عنوان پروژه")
     owner = models.CharField(max_length=150, verbose_name="واحد مسئول", blank=True)
     start_date = models.DateField(verbose_name="تاریخ شروع")
     end_date = models.DateField(verbose_name="تاریخ پایان")
     progress = models.PositiveSmallIntegerField(default=0, verbose_name="پیشرفت (٪)")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="on_track", verbose_name="وضعیت")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="in_progress", verbose_name="وضعیت")
     business_unit = models.ForeignKey(
         "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="initiatives", verbose_name="کسب‌وکار",
@@ -680,6 +675,9 @@ class OrgValue(models.Model):
     related_policy = models.ForeignKey(
         "QualityPolicyPoint", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="linked_values", verbose_name="بند خط‌مشی مرتبط",
+    )
+    related_objectives = models.ManyToManyField(
+        "StrategicObjective", blank=True, related_name="linked_org_values", verbose_name="اهداف استراتژیک مرتبط",
     )
 
     class Meta:

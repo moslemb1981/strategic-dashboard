@@ -27,13 +27,13 @@
 <div class="bu-bar" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:16px;">
   {% if group_mode == 'bu' %}
     {% for bu in business_units %}
-    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?group_mode=bu&bu={{ bu.pk }}">{{ bu.name }}</a>
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?group_mode=bu&bu={{ bu.pk }}">{{ bu.name }} <span class="bu-tab-cnt">{{ bu.init_count }}</span></a>
     {% empty %}
     <span style="font-size:13px;color:var(--ink-faint);">هنوز کسب‌وکاری تعریف نشده</span>
     {% endfor %}
   {% else %}
     {% for g in group_tabs %}
-    <a class="bu-tab {% if g == current_group_key %}active{% endif %}" href="?group_mode={{ group_mode }}&g={{ g|urlencode }}">{{ g }}</a>
+    <a class="bu-tab {% if g.key == current_group_key %}active{% endif %}" href="?group_mode={{ group_mode }}&g={{ g.key|urlencode }}">{{ g.key }} <span class="bu-tab-cnt">{{ g.count }}</span></a>
     {% empty %}
     <span style="font-size:13px;color:var(--ink-faint);">{% if group_mode == 'division' %}هنوز هیچ پروژه‌ای معاونت ثبت‌شده ندارد{% else %}هنوز هیچ پروژه‌ای کارگروه ثبت‌شده ندارد{% endif %}</span>
     {% endfor %}
@@ -51,9 +51,7 @@
 
 <div class="roadmap-legend">
   <span><span class="sw" style="background:#3E7A52"></span>در حال اجرا</span>
-  <span><span class="sw" style="background:#2E5C8A"></span>در مسیر</span>
-  <span><span class="sw" style="background:#C97A2B"></span>نیازمند پیگیری</span>
-  <span><span class="sw" style="background:#6C56A3"></span>پروژه دیجیتال</span>
+  <span><span class="sw" style="background:#B0413E"></span>انحراف پروژه</span>
   <span><span class="sw" style="background:#8B93A1"></span>تکمیل‌شده</span>
 </div>
 
@@ -63,7 +61,7 @@
   <div class="rec-item" style="border-inline-start:4px solid {{ i.status_hex }};">
     <div class="field" style="color:{{ i.status_hex }};">{{ i.progress }}٪</div>
     <div class="body">
-      <h4>{{ i.title }}</h4>
+      <h4>{% if i.code %}<span style="color:var(--ink-faint);font-weight:600;">{{ i.code }} —</span> {% endif %}{{ i.title }}</h4>
       <div class="meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }} · {{ i.start_date|jalali }} تا {{ i.end_date|jalali }}</div>
       <div class="share-track" style="margin-top:6px;height:6px;">
         <div class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></div>
@@ -83,7 +81,7 @@
     <span class="status-pill progress" style="background:{{ i.status_hex }}22;color:{{ i.status_hex }};">{{ i.get_status_display }}</span>
     {% if perms.strategic.change_initiative %}
     <button type="button" onclick="editInitiative(this)"
-      data-id="{{ i.pk }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
+      data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
       data-work-group="{{ i.work_group }}" data-division="{{ i.division }}"
       data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
       data-progress="{{ i.progress }}" data-status="{{ i.status }}"
@@ -114,6 +112,7 @@
       <input type="hidden" name="form_kind" value="initiative">
       <input type="hidden" name="obj_id" id="obj_id" value="">
       <input type="hidden" name="group_mode" value="{{ group_mode }}">
+      <div class="field-group"><label>کد پروژه (اختیاری)</label>{{ form.code }}</div>
       <div class="field-group"><label>عنوان پروژه</label>{{ form.title }}</div>
       <div class="field-group"><label>واحد مسئول</label>{{ form.owner }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -169,15 +168,15 @@
 <link rel="stylesheet" href="{% static 'vendor/frappe-gantt/frappe-gantt.css' %}">
 <style>
   .gantt .bar-green .bar{fill:#3E7A52;}
-  .gantt .bar-blue .bar{fill:#2E5C8A;}
-  .gantt .bar-amber .bar{fill:#C97A2B;}
-  .gantt .bar-purple .bar{fill:#6C56A3;}
+  .gantt .bar-red .bar{fill:#B0413E;}
   .gantt .bar-gray .bar{fill:#8B93A1;}
   .gantt .bar-progress{fill:rgba(0,0,0,.15);}
   .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--border);
     background:var(--surface);color:var(--ink-soft);text-decoration:none;white-space:nowrap;}
   .bu-tab:hover{border-color:var(--accent);color:var(--accent);}
   .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .bu-tab-cnt{display:inline-block;background:rgba(0,0,0,.08);border-radius:10px;padding:0 6px;font-size:.68rem;margin-inline-start:2px;}
+  .bu-tab.active .bu-tab-cnt{background:rgba(255,255,255,.22);}
   .gm-btn{font-size:.72rem;font-weight:700;padding:.3rem .8rem;border-radius:20px;border:1px solid var(--border);
     background:var(--surface);color:var(--ink-faint);text-decoration:none;white-space:nowrap;}
   .gm-btn:hover{border-color:var(--primary);color:var(--primary);}
@@ -240,6 +239,7 @@
     const d = btn.dataset;
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_title').value = d.title;
+    document.getElementById('id_code').value = d.code || '';
     document.getElementById('id_owner').value = d.owner;
     document.getElementById('id_work_group').value = d.workGroup || '';
     document.getElementById('id_division').value = d.division || '';
