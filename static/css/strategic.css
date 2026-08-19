@@ -10,13 +10,14 @@
   --shadow:0 1px 2px rgba(27,36,48,.05), 0 1px 1px rgba(27,36,48,.06);
 }
 *{box-sizing:border-box;}
+html,body{height:100%;}
 body{margin:0;font-family:'Vazirmatn','IRANSans',Tahoma,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);direction:rtl;}
 a{color:inherit;text-decoration:none;}
 ul{list-style:none;margin:0;padding:0;}
 button,input,select{font-family:inherit;font-size:inherit;}
 
-.shell{border:1px solid var(--border);border-radius:16px;overflow:hidden;margin:18px;background:var(--bg);}
-.topheader{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;
+.shell{border:1px solid var(--border);border-radius:16px;margin:0 18px 18px 18px;background:var(--bg);}
+.topheader{position:sticky;top:0;z-index:70;flex:none;display:flex;align-items:center;justify-content:space-between;padding:11px 20px;
   background:linear-gradient(90deg,#132b46,#0d1b2e);border-bottom:1px solid rgba(255,255,255,.08);
   font-size:11.5px;color:#c3d2e0;}
 .topheader .crumb{display:flex;align-items:center;gap:6px;}
@@ -29,9 +30,10 @@ button,input,select{font-family:inherit;font-size:inherit;}
 .topheader .right button:hover{background:rgba(255,255,255,.16);}
 
 /* Flex layout: aside comes first in the DOM, so under dir="rtl" it lands on the right */
-.app{display:flex;align-items:stretch;min-height:600px;}
-.sidebar{width:236px;flex:none;background:var(--primary-dark);color:#EAF0F6;padding:22px 18px;display:flex;flex-direction:column;gap:20px;}
-.main{flex:1;min-width:0;padding:22px 26px 36px;overflow-y:auto;background:var(--bg);}
+.app{display:flex;align-items:flex-start;}
+.sidebar{width:236px;flex:none;background:var(--primary-dark);color:#EAF0F6;padding:22px 18px;display:flex;flex-direction:column;gap:20px;
+  position:sticky;top:var(--topheader-h,50px);max-height:calc(100vh - var(--topheader-h,50px));overflow-y:auto;}
+.main{flex:1;min-width:0;padding:22px 26px 36px;background:var(--bg);}
 
 .brand{display:flex;flex-direction:column;gap:4px;}
 .brand .mark{width:36px;height:36px;margin-bottom:6px;display:block;}
@@ -235,8 +237,11 @@ button,input,select{font-family:inherit;font-size:inherit;}
 .roadmap-legend span{display:inline-flex;align-items:center;gap:6px;}
 .roadmap-legend .sw{width:10px;height:10px;border-radius:3px;}
 
-@media (max-width:900px){
+@media (max-width:640px){
   .gauge-row,.card-grid,.competitor-grid,.pestel-grid{grid-template-columns:repeat(2,1fr);}
-  .app{flex-direction:column;}
-  .sidebar{width:100%;}
+  .app{display:block;}
+  .sidebar{width:100%;position:static;max-height:none;overflow-y:visible;}
+}
+@media (max-width:900px) and (min-width:641px){
+  .gauge-row,.card-grid,.competitor-grid,.pestel-grid{grid-template-columns:repeat(2,1fr);}
 }

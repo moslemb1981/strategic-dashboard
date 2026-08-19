@@ -123,9 +123,13 @@
   .chain-row{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:6px;margin-bottom:12px;}
   @media(max-width:900px){.chain-row{grid-template-columns:1fr;}}
   .chain-cell{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:11px;
-    color:var(--ink-soft);display:flex;flex-direction:column;gap:4px;justify-content:center;}
-  .chain-cell b{font-size:10px;color:var(--ink-faint);font-weight:700;}
-  .chain-cell.value-cell{border-inline-start:3px solid var(--accent);}
+    color:var(--ink-soft);display:flex;flex-direction:column;gap:4px;justify-content:flex-start;}
+  .chain-cell b{font-size:10px;color:var(--ink-faint);font-weight:700;margin-bottom:2px;}
+  .chain-cell.value-cell{border-inline-start:3px solid var(--accent);justify-content:center;}
+  .chain-item{display:flex;gap:6px;align-items:flex-start;line-height:1.6;}
+  .chain-num{flex:none;width:16px;height:16px;border-radius:50%;background:var(--primary-soft);color:var(--primary-dark);
+    font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+  .chain-item-sep{border-top:1px dashed var(--border);margin:2px 0;}
   .chain-arrow{display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:13px;}
   @media(max-width:900px){.chain-arrow{transform:rotate(90deg);padding:2px 0;}}
 
@@ -171,7 +175,7 @@
     <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
       {% for w in wheel_wedges %}
       <path class="wedge-path" d="{{ w.path }}" fill="{{ w.value.color|default:'#C97A2B' }}"
-        data-vid="{{ w.value.pk }}"></path>
+        data-vid="{{ w.value.pk }}" onclick="showValueChain(this)"></path>
       {% endfor %}
       {% for c in wheel_connectors %}
       <foreignObject x="{{ c.x|add:'-13' }}" y="{{ c.y|add:'-13' }}" width="26" height="26">
@@ -181,7 +185,7 @@
       {% for w in wheel_wedges %}
       <foreignObject x="{{ w.content_x|add:'-62' }}" y="{{ w.content_y|add:'-40' }}" width="124" height="80">
         <div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:100%;height:100%;">
-          <button type="button" class="wedge-content-btn" data-vid="{{ w.value.pk }}">
+          <button type="button" class="wedge-content-btn" data-vid="{{ w.value.pk }}" onclick="showValueChain(this)">
             <div class="wedge-ico" style="color:{{ w.value.color|default:'#C97A2B' }};"><i class="{{ w.value.icon|default:'fa-solid fa-star' }}"></i></div>
             <div class="wedge-txt">{{ w.value.text }}</div>
           </button>
@@ -189,7 +193,8 @@
           <div class="wedge-acts">
             <button type="button" onclick="event.stopPropagation();editValue(this)"
               data-id="{{ w.value.pk }}" data-text="{{ w.value.text }}" data-icon="{{ w.value.icon }}" data-color="{{ w.value.color }}"
-              data-related-policy="{{ w.value.related_policy_id|default:'' }}">
+              data-related-policy="{{ w.value.related_policy_id|default:'' }}"
+              data-related-objectives="{% for o in w.value.related_objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}">
               <i class="fa-solid fa-pen"></i>
             </button>
             <form method="post" action="{% url 'strategic:org_value_delete' w.value.pk %}" style="display:inline;" onsubmit="return confirm('این ارزش حذف شود؟');">
@@ -201,7 +206,7 @@
       </foreignObject>
       {% endfor %}
     </svg>
-    <button type="button" class="value-center" data-vid="{{ center_value.pk }}"
+    <button type="button" class="value-center" data-vid="{{ center_value.pk }}" onclick="showValueChain(this)"
       style="--vcenter-color:{{ center_value.color|default:'#A8321E' }};">
       <i class="{{ center_value.icon|default:'fa-solid fa-heart' }}"></i>
       {{ center_value.text|default:"مشتری‌مداری" }}
@@ -216,20 +221,8 @@
 </div>
 
 <div class="section-title" style="margin-top:14px;">ارتباط ارزش‌ها با اهداف و نتایج سازمان</div>
-<div class="section-hint"><i class="fa-solid fa-circle-info"></i> نمونه‌ی نمایشی برای نوع این ارتباط — به داده‌ی واقعی نقشه استراتژیک وصل نیست</div>
-<div class="chain-wrap">
-  {% for row in value_chain_samples %}
-  <div class="chain-row">
-    <div class="chain-cell value-cell"><b>ارزش سازمانی</b>{{ row.value }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>هدف استراتژیک</b>{{ row.goal }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>شاخص کلیدی (KPI)</b>{{ row.kpi }}</div>
-    <div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>
-    <div class="chain-cell"><b>پروژه‌های مرتبط</b>{{ row.project }}</div>
-  </div>
-  {% endfor %}
-</div>
+<div class="section-hint" id="chainHint"><i class="fa-solid fa-hand-pointer"></i> روی هر ارزش (برش دایره یا مرکز) کلیک کنید تا اهداف استراتژیک، شاخص‌ها و پروژه‌های مرتبط آن نمایش داده شود</div>
+<div class="chain-wrap" id="chainWrap"></div>
 
 {% if user.is_superuser %}
 <div class="values-add-row"><button class="btn ghost" onclick="newValue()"><i class="fa-solid fa-plus"></i> افزودن ارزش</button></div>
@@ -344,6 +337,16 @@
           {% endfor %}
         </select>
       </div>
+      <div class="field-group">
+        <label>اهداف استراتژیک مرتبط (اختیاری، می‌تواند چند مورد باشد)</label>
+        <input type="text" id="objPickerSearch" placeholder="جستجو با کد، عنوان یا کسب‌وکار..."
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="valueObjectivesBox" style="max-height:220px;">
+          {% for o in objective_choices %}
+          <label><input type="checkbox" name="related_objectives" value="{{ o.id }}" data-search="{{ o.code|lower }} {{ o.title|lower }} {{ o.bu|lower }}"> {{ o.code }}: {{ o.title }}{% if o.bu %} <span style="color:var(--ink-faint);">({{ o.bu }})</span>{% endif %}</label>
+          {% endfor %}
+        </div>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('valueOverlay').classList.remove('open')">انصراف</button>
         <button type="submit" class="btn accent">ثبت</button>
@@ -387,9 +390,80 @@
     document.getElementById('value_icon').value = 'fa-solid fa-star';
     document.getElementById('value_color').value = '#C97A2B';
     document.getElementById('value_related_policy').value = '';
+    document.querySelectorAll('input[name="related_objectives"]').forEach(cb => cb.checked = false);
     document.getElementById('valueModalTitle').textContent = 'افزودن ارزش';
     document.getElementById('valueOverlay').classList.add('open');
   }
+  const VALUES_DATA = JSON.parse(document.getElementById('values-data').textContent);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const objSearch = document.getElementById('objPickerSearch');
+    if (objSearch) {
+      objSearch.addEventListener('input', function(){
+        const q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#valueObjectivesBox label').forEach(function(lbl){
+          const input = lbl.querySelector('input');
+          const hay = input ? input.dataset.search : lbl.textContent.toLowerCase();
+          lbl.style.display = (!q || hay.includes(q)) ? '' : 'none';
+        });
+      });
+    }
+
+    const defaultBtn = document.querySelector('.value-center') || document.querySelector('.wedge-content-btn');
+    if (defaultBtn) showValueChain(defaultBtn);
+  });
+
+  function showValueChain(btn){
+    const vid = btn.dataset.vid;
+    const d = VALUES_DATA[vid];
+    if(!d) return;
+
+    document.querySelectorAll('.wedge-path, .wedge-content-btn, .value-center').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-vid="' + vid + '"]').forEach(el => el.classList.add('active'));
+
+    document.getElementById('chainHint').style.display = 'none';
+    const wrap = document.getElementById('chainWrap');
+    wrap.innerHTML = '';
+
+    const row = document.createElement('div');
+    row.className = 'chain-row';
+
+    if(!d.objectives || d.objectives.length === 0){
+      row.innerHTML =
+        '<div class="chain-cell value-cell"><b>ارزش سازمانی</b>' + d.text + '</div>' +
+        '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+        '<div class="chain-cell"><b>هدف استراتژیک</b>هنوز ارتباطی ثبت نشده</div>' +
+        '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+        '<div class="chain-cell"><b>شاخص کلیدی (KPI)</b>—</div>' +
+        '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+        '<div class="chain-cell"><b>پروژه‌های مرتبط</b>—</div>';
+      wrap.appendChild(row);
+      return;
+    }
+
+    let goalsHtml = '', kpisHtml = '', projHtml = '';
+    d.objectives.forEach(function(o, i){
+      const n = i + 1;
+      const goalText = o.code + ': ' + o.title + (o.business_unit ? ' (' + o.business_unit + ')' : '');
+      const kpiText = o.kpis.length ? o.kpis.join('، ') : 'هنوز ثبت نشده';
+      const projText = o.initiatives.length ? o.initiatives.join('، ') : 'هنوز ثبت نشده';
+      const sep = i > 0 ? '<div class="chain-item-sep"></div>' : '';
+      goalsHtml += sep + '<div class="chain-item"><span class="chain-num">' + n + '</span>' + goalText + '</div>';
+      kpisHtml  += sep + '<div class="chain-item"><span class="chain-num">' + n + '</span>' + kpiText + '</div>';
+      projHtml  += sep + '<div class="chain-item"><span class="chain-num">' + n + '</span>' + projText + '</div>';
+    });
+
+    row.innerHTML =
+      '<div class="chain-cell value-cell"><b>ارزش سازمانی</b>' + d.text + '</div>' +
+      '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+      '<div class="chain-cell"><b>هدف استراتژیک</b>' + goalsHtml + '</div>' +
+      '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+      '<div class="chain-cell"><b>شاخص کلیدی (KPI)</b>' + kpisHtml + '</div>' +
+      '<div class="chain-arrow"><i class="fa-solid fa-arrow-left"></i></div>' +
+      '<div class="chain-cell"><b>پروژه‌های مرتبط</b>' + projHtml + '</div>';
+    wrap.appendChild(row);
+  }
+
   function editValue(btn){
     const d = btn.dataset;
     document.getElementById('value_obj_id').value = d.id;
@@ -397,6 +471,10 @@
     if(d.icon) document.getElementById('value_icon').value = d.icon;
     if(d.color) document.getElementById('value_color').value = d.color;
     document.getElementById('value_related_policy').value = d.relatedPolicy || '';
+    const objIds = (d.relatedObjectives || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="related_objectives"]').forEach(function(cb){
+      cb.checked = objIds.includes(cb.value);
+    });
     document.getElementById('valueModalTitle').textContent = 'ویرایش ارزش';
     document.getElementById('valueOverlay').classList.add('open');
   }

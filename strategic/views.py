@@ -139,8 +139,8 @@ def home(request):
         k: (round(v / obj_total * 100) if obj_total else 0) for k, v in obj_status_breakdown.items()
     }
     init_status_breakdown = {
-        "running": sum(1 for i in initiatives if i.status in ("in_progress", "on_track", "digital")),
-        "planned": sum(1 for i in initiatives if i.status == "needs_attention"),
+        "running": sum(1 for i in initiatives if i.status == "in_progress"),
+        "planned": sum(1 for i in initiatives if i.status == "deviation"),
         "done": sum(1 for i in initiatives if i.status == "done"),
     }
     init_status_pct = {
@@ -253,13 +253,20 @@ def stakeholders(request):
         items = items.filter(department=dept)
 
     all_items = list(Stakeholder.objects.all())
-    RISK_THRESHOLD, OPP_THRESHOLD = 40, 64
+
+    risk_scores = sorted((i.risk_score for i in all_items if i.risk_score), reverse=True)
+    n_risk = max(1, round(len(risk_scores) * 0.2)) if risk_scores else 0
+    RISK_THRESHOLD = risk_scores[n_risk - 1] if n_risk else None
     top_risks = sorted(
-        [i for i in all_items if i.risk_score and i.risk_score > RISK_THRESHOLD],
+        [i for i in all_items if i.risk_score and RISK_THRESHOLD is not None and i.risk_score >= RISK_THRESHOLD],
         key=lambda i: i.risk_score, reverse=True,
     )
+
+    opp_scores = sorted((i.opportunity_score for i in all_items if i.opportunity_score), reverse=True)
+    n_opp = max(1, round(len(opp_scores) * 0.2)) if opp_scores else 0
+    OPP_THRESHOLD = opp_scores[n_opp - 1] if n_opp else None
     top_opportunities = sorted(
-        [i for i in all_items if i.opportunity_score and i.opportunity_score > OPP_THRESHOLD],
+        [i for i in all_items if i.opportunity_score and OPP_THRESHOLD is not None and i.opportunity_score >= OPP_THRESHOLD],
         key=lambda i: i.opportunity_score, reverse=True,
     )
     departments = sorted({i.department for i in all_items if i.department})
@@ -314,8 +321,15 @@ def roadmap(request):
         distinct_values = sorted(set(
             v.strip() for v in Initiative.objects.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
         ))
-        group_tabs = distinct_values
+        counts = {}
+        for v in distinct_values:
+            counts[v] = Initiative.objects.filter(**{group_field: v}).count()
+        group_tabs = [{"key": v, "count": counts[v]} for v in distinct_values]
         current_group_key = request.POST.get("g") or request.GET.get("g") or (distinct_values[0] if distinct_values else None)
+
+    bu_counts = {b.pk: Initiative.objects.filter(business_unit=b).count() for b in business_units}
+    for b in business_units:
+        b.init_count = bu_counts.get(b.pk, 0)
 
     if request.method == "POST" and request.POST.get("form_kind", "initiative") == "initiative":
         obj_id = request.POST.get("obj_id")
@@ -355,12 +369,12 @@ def roadmap(request):
     return render(request, "strategic/roadmap.html", {
         "active_page": "roadmap", "initiatives": initiatives, "form": form,
         "business_units": business_units, "current_bu": current_bu,
-        "group_mode": group_mode, "group_tabs": group_tabs, "current_group_key": current_group_key,
+        "group_mode": group_mode, "group_tabs": group_tabs, "current_group_key": current_group_key, "bu_counts": bu_counts,
     })
 
 
 _INITIATIVE_EXCEL_HEADERS = [
-    "عنوان پروژه", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
+    "کد پروژه", "عنوان پروژه", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
     "تاریخ پایان (شمسی)", "پیشرفت (٪)", "وضعیت",
 ]
 _INITIATIVE_STATUS_LABEL_TO_KEY = {label: key for key, label in Initiative.STATUS_CHOICES}
@@ -390,7 +404,7 @@ def initiative_export(request):
 
     for row_i, i in enumerate(Initiative.objects.all().select_related("business_unit"), start=2):
         values = [
-            i.title, i.owner, i.work_group, i.division,
+            i.code, i.title, i.owner, i.work_group, i.division,
             i.business_unit.name if i.business_unit else "",
             gregorian_to_jalali_str(i.start_date) if i.start_date else "",
             gregorian_to_jalali_str(i.end_date) if i.end_date else "",
@@ -399,7 +413,7 @@ def initiative_export(request):
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [34, 20, 22, 22, 22, 14, 14, 10, 16]
+    widths = [14, 34, 20, 22, 22, 22, 14, 14, 10, 16]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -440,35 +454,36 @@ def initiative_import(request):
     business_units_by_name = {b.name: b for b in BusinessUnit.objects.all()}
     created, updated, skipped = 0, 0, 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not row[0]:
+        if not row or not row[1]:
             continue
-        title = _s(row[0])
+        code = _s(row[0]) if len(row) > 0 else ""
+        title = _s(row[1])
         if not title:
             skipped += 1
             continue
-        owner = _s(row[1]) if len(row) > 1 else ""
-        work_group = _s(row[2]) if len(row) > 2 else ""
-        division = _s(row[3]) if len(row) > 3 else ""
-        bu_name = _s(row[4]) if len(row) > 4 else ""
+        owner = _s(row[2]) if len(row) > 2 else ""
+        work_group = _s(row[3]) if len(row) > 3 else ""
+        division = _s(row[4]) if len(row) > 4 else ""
+        bu_name = _s(row[5]) if len(row) > 5 else ""
         business_unit = business_units_by_name.get(bu_name)
         try:
-            start_date = jalali_str_to_gregorian(_s(row[5])) if len(row) > 5 and _s(row[5]) else None
-            end_date = jalali_str_to_gregorian(_s(row[6])) if len(row) > 6 and _s(row[6]) else None
+            start_date = jalali_str_to_gregorian(_s(row[6])) if len(row) > 6 and _s(row[6]) else None
+            end_date = jalali_str_to_gregorian(_s(row[7])) if len(row) > 7 and _s(row[7]) else None
         except Exception:
             start_date, end_date = None, None
         if not start_date or not end_date:
             skipped += 1
             continue
         try:
-            progress = int(row[7]) if len(row) > 7 and row[7] not in (None, "") else 0
+            progress = int(row[8]) if len(row) > 8 and row[8] not in (None, "") else 0
         except (TypeError, ValueError):
             progress = 0
-        status_label = _s(row[8]) if len(row) > 8 else ""
-        status = _INITIATIVE_STATUS_LABEL_TO_KEY.get(status_label, "on_track")
+        status_label = _s(row[9]) if len(row) > 9 else ""
+        status = _INITIATIVE_STATUS_LABEL_TO_KEY.get(status_label, "in_progress")
 
         existing = Initiative.objects.filter(title=title, business_unit=business_unit).first()
         defaults = dict(
-            owner=owner, work_group=work_group, division=division, business_unit=business_unit,
+            code=code, owner=owner, work_group=work_group, division=division, business_unit=business_unit,
             start_date=start_date, end_date=end_date, progress=progress, status=status,
         )
         if existing:
@@ -1434,6 +1449,7 @@ def org_identity(request):
             expected_behaviors = request.POST.get("expected_behaviors", "").strip()
             examples = request.POST.get("examples", "").strip()
             related_policy_id = request.POST.get("related_policy") or None
+            related_objective_ids = request.POST.getlist("related_objectives")
             if text:
                 field_values = dict(
                     text=text, is_center=is_center, icon=icon, color=color,
@@ -1442,8 +1458,10 @@ def org_identity(request):
                 )
                 if obj_id:
                     OrgValue.objects.filter(pk=obj_id).update(**field_values)
+                    value_obj = OrgValue.objects.get(pk=obj_id)
                 else:
-                    OrgValue.objects.create(order=OrgValue.objects.count(), **field_values)
+                    value_obj = OrgValue.objects.create(order=OrgValue.objects.count(), **field_values)
+                value_obj.related_objectives.set(related_objective_ids)
                 _log_action(request, "UPDATE OrgValue" if obj_id else "CREATE OrgValue", text)
             return redirect("strategic:org_identity")
 
@@ -1470,20 +1488,38 @@ def org_identity(request):
         for v, seg in zip(outer_values, segments)
     ]
 
+    def _obj_summary(o):
+        kpis = [f"{k.code} — {k.name}" for k in o.linked_kpis.all()]
+        opkpis = [f"{k.code} — {k.title}" for k in o.linked_operational_kpis.all()]
+        initiatives = [i.title for i in o.initiatives.all()]
+        return {
+            "id": o.pk, "code": o.code, "title": o.title,
+            "business_unit": o.business_unit.name if o.business_unit else "",
+            "kpis": kpis + opkpis, "initiatives": initiatives,
+        }
+
     values_for_js = {
         str(v.pk): {
             "text": v.text, "icon": v.icon, "color": v.color, "is_center": v.is_center,
             "policy_number": v.related_policy.number if v.related_policy else None,
             "policy_text": v.related_policy.text if v.related_policy else None,
+            "objectives": [_obj_summary(o) for o in v.related_objectives.select_related("business_unit").prefetch_related(
+                "linked_kpis", "linked_operational_kpis", "initiatives"
+            )],
         } for v in values
     }
+
+    objective_choices = [
+        {"id": o.pk, "code": o.code, "title": o.title, "bu": o.business_unit.name if o.business_unit else ""}
+        for o in StrategicObjective.objects.select_related("business_unit").all()
+    ]
 
     return render(request, "strategic/org_identity.html", {
         "active_page": "org_identity", "identity": identity,
         "outer_values": outer_values, "center_value": center_value,
         "policy_points": policy_points,
         "wheel_wedges": wheel_wedges, "wheel_connectors": connectors,
-        "values_for_js": values_for_js,
+        "values_for_js": values_for_js, "objective_choices": objective_choices,
         "iso_standards": ORG_ISO_STANDARDS,
         "value_chain_samples": ORG_VALUE_CHAIN_SAMPLES,
         "icon_choices": OrgValue.ICON_CHOICES,
@@ -2435,6 +2471,16 @@ def environmental_factors(request):
 
     all_items = list(EnvironmentalFactor.objects.all())
     categories = sorted({i.category for i in all_items if i.category})
+
+    category_order = {
+        "عوامل سیاسی": 1, "عوامل اقتصادی": 2, "عوامل اجتماعی": 3,
+        "عوامل فناوری و تکنولوژی": 4, "عوامل زیست محیطی": 5,
+        "قوانین و الزامات": 6, "عوامل قوانین و الزامات": 6,
+        "قدرت رقبای موجود": 11, "قدرت چانه زنی خریداران": 12,
+        "قدرت چانه زنی تامین کنندگان": 13, "تهدید تازه واردان به صنعت بازرگانی قطعات و ارائه خدمات": 14,
+        "تهدید قطعات و خدمات جایگزین": 15,
+    }
+    items = sorted(items, key=lambda i: (category_order.get(i.category, 99), -(i.avg_score or 0), i.order))
 
     return render(request, "strategic/environmental_factors.html", {
         "active_page": "environmental_factors", "items": items, "form": form, "q": q, "cat": cat,

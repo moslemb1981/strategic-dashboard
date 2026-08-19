@@ -55,10 +55,11 @@ class InitiativeForm(forms.ModelForm):
     class Meta:
         model = Initiative
         fields = [
-            "title", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
+            "code", "title", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
             "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
         ]
         widgets = {
+            "code": forms.TextInput(attrs={"placeholder": "مثلاً: PRJ-01"}),
             "title": forms.TextInput(attrs={"placeholder": "مثلاً: دیجیتالی‌سازی گزارش‌های ماهانه"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: واحد مطالعات"}),
             "work_group": forms.TextInput(attrs={"placeholder": "مثلاً: کارگروه تحول دیجیتال"}),
