@@ -1260,6 +1260,36 @@ def document_upload_path(instance, filename):
     return f"documents/{instance.category}/{slugify(instance.title) or 'doc'}{ext}"
 
 
+class MarketIntelRecord(models.Model):
+    """رکورد داده‌ی هوش بازار (نرخ ارز، مواد اولیه، رقبا و...) — با کلیک دستی ادمین از اینترنت
+    گرفته و اینجا ذخیره می‌شود. هر بار به‌روزرسانی، یک رکورد جدید اضافه می‌کند (نه جایگزینی)،
+    تا تاریخچه و روند هم حفظ شود."""
+    CATEGORY_CHOICES = [
+        ("exchange_rate", "نرخ ارز"),
+        ("raw_material", "مواد اولیه / قطعات وارداتی"),
+        ("competitor", "رقبا"),
+        ("other", "سایر"),
+    ]
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="دسته‌بندی")
+    title = models.CharField(max_length=200, verbose_name="عنوان")
+    value = models.TextField(verbose_name="مقدار / توضیح")
+    unit = models.CharField(max_length=40, blank=True, verbose_name="واحد (اختیاری)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="نام منبع")
+    source_url = models.URLField(max_length=500, blank=True, verbose_name="آدرس منبع")
+    fetched_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان دریافت")
+    fetched_by = models.ForeignKey(
+        "auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="دریافت‌شده توسط",
+    )
+
+    class Meta:
+        ordering = ["-fetched_at"]
+        verbose_name = "رکورد هوش بازار"
+        verbose_name_plural = "هوش بازار"
+
+    def __str__(self):
+        return f"{self.title} — {self.fetched_at:%Y-%m-%d %H:%M}"
+
+
 class Document(models.Model):
     """اسناد بالادستی و دستورالعمل‌های سازمانی."""
     CATEGORY_CHOICES = [

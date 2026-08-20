@@ -3,7 +3,7 @@
   <span class="txt" {% if item.detailed_description %}title="{{ item.detailed_description }}"{% endif %}>
     <span class="txt-main">{{ item.text }}</span>
     {% if item.effect_type %}<span class="effect-badge {{ item.effect_type }}">{{ item.get_effect_type_display }}</span>{% endif %}
-    {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">{{ item.related_standard }}</span>{% endif %}
+    {% if item.related_standard %}<span class="standard-badge" title="استاندارد مرتبط">🏅 {{ item.related_standard }}</span>{% endif %}
   </span>
   <span class="acts">
     {% if perms.strategic.change_porterforce %}

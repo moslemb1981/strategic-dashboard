@@ -3,6 +3,7 @@ import re
 import io
 import math
 import json
+import requests
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -18,13 +19,14 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
+    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor, MarketIntelRecord,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
     StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm, ScenarioResponseStrategyForm,
+    clean_number_string,
 )
 
 logger = logging.getLogger("strategic")
@@ -271,11 +273,37 @@ def stakeholders(request):
     )
     departments = sorted({i.department for i in all_items if i.department})
 
+    total = len(all_items)
+    internal_n = sum(1 for i in all_items if i.is_internal)
+    external_n = sum(1 for i in all_items if i.is_external)
+    with_need_n = sum(1 for i in all_items if i.need)
+    with_risk_n = sum(1 for i in all_items if i.risk_text)
+    with_opp_n = sum(1 for i in all_items if i.opportunity_text)
+    critical_with_action_n = sum(
+        1 for i in top_risks if i.action or i.related_initiatives.exists()
+    )
+
+    def pct(part, whole):
+        return round(part / whole * 100) if whole else 0
+
+    ie_sum = max(internal_n + external_n, 1)
+    summary = {
+        "total": total,
+        "internal": internal_n, "external": external_n,
+        "internal_pct": round(internal_n / ie_sum * 100), "external_pct": round(external_n / ie_sum * 100),
+        "with_need": with_need_n, "with_need_pct": pct(with_need_n, total),
+        "with_risk": with_risk_n, "with_risk_pct": pct(with_risk_n, total),
+        "with_opportunity": with_opp_n, "with_opportunity_pct": pct(with_opp_n, total),
+        "critical_total": len(top_risks),
+        "critical_with_action": critical_with_action_n,
+        "critical_with_action_pct": pct(critical_with_action_n, len(top_risks)),
+    }
+
     return render(request, "strategic/stakeholders.html", {
         "active_page": "stakeholders", "items": items, "form": form, "q": q, "dept": dept,
         "departments": departments, "top_risks": top_risks, "top_opportunities": top_opportunities,
         "risk_threshold": RISK_THRESHOLD, "opp_threshold": OPP_THRESHOLD,
-        "porter_forces": PorterForce.objects.all(),
+        "porter_forces": PorterForce.objects.all(), "summary": summary,
         "total_count": len(all_items),
     })
 
@@ -514,6 +542,62 @@ def initiative_delete(request, pk):
 
 
 # ---------------- Market / competitive intelligence ----------------
+
+def market_intel(request):
+    records = list(MarketIntelRecord.objects.all()[:200])
+    grouped = {}
+    for r in records:
+        grouped.setdefault(r.category, []).append(r)
+    category_labels = dict(MarketIntelRecord.CATEGORY_CHOICES)
+    latest_fetch = records[0].fetched_at if records else None
+
+    return render(request, "strategic/market_intel.html", {
+        "active_page": "market_intel", "grouped": grouped, "category_labels": category_labels,
+        "categories": MarketIntelRecord.CATEGORY_CHOICES, "latest_fetch": latest_fetch,
+        "total_count": len(records),
+    })
+
+
+@login_required
+def market_intel_fetch(request):
+    if request.method != "POST" or not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم و از طریق دکمه‌ی مربوطه مجاز است.")
+        return redirect("strategic:market_intel")
+
+    created, errors = [], []
+
+    # --- نمونه‌ی اول: نرخ برابری چند ارز اصلی (منبع: Frankfurter/ECB، عمومی و بدون نیاز به کلید) ---
+    # ⚠️ این یک نمونه‌ی عمومی است، نه نرخ ریال ایران — چون منابع استاندارد بین‌المللی نرخ ریال را
+    # به‌دلیل تحریم‌ها ندارند. برای نرخ دلار/ریال باید یک منبع اختصاصی ایرانی انتخاب و بعداً اضافه شود.
+    try:
+        resp = requests.get("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP", timeout=8)
+        resp.raise_for_status()
+        data = resp.json()
+        rate_date = data.get("date", "")
+        for currency, rate in data.get("rates", {}).items():
+            rec = MarketIntelRecord.objects.create(
+                category="exchange_rate",
+                title=f"نرخ برابری USD به {currency}",
+                value=str(rate),
+                unit=currency,
+                source_name="Frankfurter (ECB)",
+                source_url="https://www.frankfurter.app/",
+                fetched_by=request.user,
+            )
+            created.append(rec.title)
+    except Exception as e:
+        errors.append(f"نرخ ارز: {e}")
+
+    if created:
+        _log_action(request, "FETCH MarketIntel", f"{len(created)} رکورد: {', '.join(created)}")
+        messages.success(request, f"به‌روزرسانی انجام شد: {len(created)} رکورد جدید ثبت شد.")
+    if errors:
+        messages.error(request, "برخی موارد با خطا مواجه شدند: " + " | ".join(errors))
+    if not created and not errors:
+        messages.warning(request, "هیچ داده‌ی جدیدی دریافت نشد.")
+
+    return redirect("strategic:market_intel")
+
 
 def market(request):
     if request.method == "POST":
@@ -1855,11 +1939,11 @@ def company_kpi_import(request):
             domain = "Q"
         name = _s(row[2])
         unit = _s(row[3]) if len(row) > 3 else ""
-        target_1404 = _s(row[4]) if len(row) > 4 else ""
-        actual_1404 = _s(row[5]) if len(row) > 5 else ""
-        target_1405 = _s(row[6]) if len(row) > 6 else ""
-        actual_1405 = _s(row[7]) if len(row) > 7 else ""
-        progress_1405 = _s(row[8]) if len(row) > 8 else ""
+        target_1404 = clean_number_string(_s(row[4]) if len(row) > 4 else "")
+        actual_1404 = clean_number_string(_s(row[5]) if len(row) > 5 else "")
+        target_1405 = clean_number_string(_s(row[6]) if len(row) > 6 else "")
+        actual_1405 = clean_number_string(_s(row[7]) if len(row) > 7 else "")
+        progress_1405 = clean_number_string(_s(row[8]) if len(row) > 8 else "")
         is_monitoring = _s(row[9]).startswith("بل") if len(row) > 9 else False
         related_raw = _s(row[10]) if len(row) > 10 else ""
         notes = _s(row[11]) if len(row) > 11 else ""
@@ -2022,11 +2106,11 @@ def operational_kpi_import(request):
             domain = "Q"
         unit = _s(row[3]) if len(row) > 3 else ""
         department = _s(row[4]) if len(row) > 4 else ""
-        target_1404 = _s(row[5]) if len(row) > 5 else ""
-        actual_1404 = _s(row[6]) if len(row) > 6 else ""
-        target_1405 = _s(row[7]) if len(row) > 7 else ""
-        actual_1405 = _s(row[8]) if len(row) > 8 else ""
-        progress_1405 = _s(row[9]) if len(row) > 9 else ""
+        target_1404 = clean_number_string(_s(row[5]) if len(row) > 5 else "")
+        actual_1404 = clean_number_string(_s(row[6]) if len(row) > 6 else "")
+        target_1405 = clean_number_string(_s(row[7]) if len(row) > 7 else "")
+        actual_1405 = clean_number_string(_s(row[8]) if len(row) > 8 else "")
+        progress_1405 = clean_number_string(_s(row[9]) if len(row) > 9 else "")
         try:
             order = int(row[10]) if len(row) > 10 and row[10] not in (None, "") else 0
         except (TypeError, ValueError):
@@ -2324,9 +2408,35 @@ def legal_requirements(request):
     all_items = list(LegalRequirement.objects.all())
     departments = sorted({i.department for i in all_items if i.department})
 
+    total = len(all_items)
+    legal_n = sum(1 for i in all_items if i.is_legal)
+    org_n = sum(1 for i in all_items if i.is_organizational)
+    internal_n = sum(1 for i in all_items if i.is_internal)
+    external_n = sum(1 for i in all_items if i.is_external)
+    with_risk_n = sum(1 for i in all_items if i.risk_text)
+    with_opp_n = sum(1 for i in all_items if i.opportunity_text)
+    linked_pestel_n = sum(1 for i in all_items if i.related_pestel_id)
+
+    def pct(part, whole):
+        return round(part / whole * 100) if whole else 0
+
+    lo_sum = max(legal_n + org_n, 1)
+    ie_sum = max(internal_n + external_n, 1)
+
+    summary = {
+        "total": total,
+        "legal": legal_n, "organizational": org_n,
+        "legal_pct": round(legal_n / lo_sum * 100), "org_pct": round(org_n / lo_sum * 100),
+        "internal": internal_n, "external": external_n,
+        "internal_pct": round(internal_n / ie_sum * 100), "external_pct": round(external_n / ie_sum * 100),
+        "with_risk": with_risk_n, "with_risk_pct": pct(with_risk_n, total),
+        "with_opportunity": with_opp_n, "with_opportunity_pct": pct(with_opp_n, total),
+        "linked_pestel": linked_pestel_n, "linked_pestel_pct": pct(linked_pestel_n, total),
+    }
+
     return render(request, "strategic/legal_requirements.html", {
         "active_page": "legal_requirements", "items": items, "form": form, "q": q, "dept": dept,
-        "departments": departments, "total_count": len(all_items),
+        "departments": departments, "total_count": total, "summary": summary,
     })
 
 

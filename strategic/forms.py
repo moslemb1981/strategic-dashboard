@@ -8,6 +8,27 @@ from .models import (
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
 
+def clean_number_string(value):
+    """اگه مقدار یه عدد باشه، تا ۲ رقم اعشار گرد می‌کنه؛ اگه بعد از گرد کردن عدد صحیح
+    شد، بدون اعشار نشون می‌ده (مثلاً 86.00 → "86"، 58.139534... → "58.14").
+    اگه عدد نبود، همون مقدار اصلی رو بدون تغییر برمی‌گردونه. برای جلوگیری از ثبت
+    مقادیر عدد اعشاری خیلی طولانی (از اکسل یا فرم دستی) استفاده می‌شود."""
+    if value is None:
+        return value
+    text = str(value).strip()
+    if not text:
+        return value
+    try:
+        f = float(text)
+    except ValueError:
+        return value
+    rounded = round(f, 2)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    return str(rounded)
+
+
+
 class JalaliDateField(forms.CharField):
     """A form field that displays/accepts Jalali (Persian) dates but produces a
     real Python date object for the model's DateField (which stays Gregorian
@@ -401,6 +422,21 @@ class CompanyKPIForm(forms.ModelForm):
         self.fields["objectives"].required = False
         self.fields["objectives"].queryset = CompanyObjective.objects.all()
 
+    def clean_target_1404(self):
+        return clean_number_string(self.cleaned_data.get("target_1404"))
+
+    def clean_actual_1404(self):
+        return clean_number_string(self.cleaned_data.get("actual_1404"))
+
+    def clean_target_1405(self):
+        return clean_number_string(self.cleaned_data.get("target_1405"))
+
+    def clean_actual_1405(self):
+        return clean_number_string(self.cleaned_data.get("actual_1405"))
+
+    def clean_progress_1405(self):
+        return clean_number_string(self.cleaned_data.get("progress_1405"))
+
 
 class OperationalKPIForm(forms.ModelForm):
     class Meta:
@@ -413,6 +449,21 @@ class OperationalKPIForm(forms.ModelForm):
             "title": forms.TextInput(attrs={"placeholder": "عنوان کامل شاخص"}),
             "department": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت‌های بازرگانی قطعات"}),
         }
+
+    def clean_target_1404(self):
+        return clean_number_string(self.cleaned_data.get("target_1404"))
+
+    def clean_actual_1404(self):
+        return clean_number_string(self.cleaned_data.get("actual_1404"))
+
+    def clean_target_1405(self):
+        return clean_number_string(self.cleaned_data.get("target_1405"))
+
+    def clean_actual_1405(self):
+        return clean_number_string(self.cleaned_data.get("actual_1405"))
+
+    def clean_progress_1405(self):
+        return clean_number_string(self.cleaned_data.get("progress_1405"))
 
 
 class DocumentForm(forms.ModelForm):
