@@ -42,28 +42,27 @@
   .sm .toolbar .spacer{flex:1;}
   .sm #sm-status{font-size:.74rem;color:var(--sm-muted);font-weight:500;}
 
-  .sm .bu-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem;}
-  .sm .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--sm-hair);
+  .sm .bu-bar{display:flex;align-items:center;gap:.28rem;flex-wrap:wrap;margin-bottom:.6rem;}
+  .sm .bu-tab{font-size:.6rem;font-weight:600;padding:.2rem .5rem;border-radius:6px;border:1px solid var(--sm-hair);
     background:#fff;color:var(--sm-muted);white-space:nowrap;}
   .sm .bu-tab:hover{border-color:var(--sm-brake);color:var(--sm-brake);}
   .sm .bu-tab.active{background:var(--sm-ink);color:#fff;border-color:var(--sm-ink);}
-  .sm .bu-tag{font-size:.6rem;opacity:.7;margin-right:4px;}
-  .sm .bu-add-btn{font-size:.76rem;font-weight:600;padding:.4rem .8rem;border-radius:8px;border:1px dashed var(--sm-hair);
+  .sm .bu-add-btn{font-size:.6rem;font-weight:600;padding:.2rem .45rem;border-radius:6px;border:1px dashed var(--sm-hair);
     background:transparent;color:var(--sm-muted);cursor:pointer;}
   .sm .bu-add-btn:hover{border-color:var(--sm-brake);color:var(--sm-brake);}
   .sm .bu-empty{padding:2.5rem;text-align:center;color:var(--sm-muted);font-size:.85rem;background:#fff;
     border:1px dashed var(--sm-hair);border-radius:12px;margin-bottom:1rem;}
 
-  .sm .theme-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;font-size:.76rem;}
+  .sm .theme-bar{display:flex;align-items:center;gap:.28rem;flex-wrap:wrap;margin-bottom:.65rem;font-size:.6rem;}
   .sm .theme-bar-lbl{color:var(--sm-muted);font-weight:600;}
   .sm .theme-bar-empty{color:var(--sm-muted);font-style:italic;}
-  .sm .theme-chip{display:inline-flex;align-items:center;gap:.4rem;padding:.32rem .7rem;border-radius:20px;
-    border:1px solid;font-weight:600;}
-  .sm .theme-chip button{border:none;background:none;color:inherit;cursor:pointer;font-size:.68rem;opacity:.7;padding:0;}
+  .sm .theme-chip{display:inline-flex;align-items:center;gap:.28rem;padding:.16rem .45rem;border-radius:14px;
+    border:1px solid;font-weight:600;font-size:.6rem;}
+  .sm .theme-chip button{border:none;background:none;color:inherit;cursor:pointer;font-size:.58rem;opacity:.7;padding:0;}
   .sm .theme-chip button:hover{opacity:1;}
   .sm .theme-add-form{display:flex;gap:4px;}
-  .sm .theme-add-form input{font-size:.74rem;border:1px solid var(--sm-hair);border-radius:7px;padding:.3rem .6rem;width:130px;}
-  .sm .theme-add-form button{border:none;background:var(--sm-ink);color:#fff;border-radius:7px;padding:.3rem .7rem;cursor:pointer;}
+  .sm .theme-add-form input{font-size:.6rem;border:1px solid var(--sm-hair);border-radius:6px;padding:.2rem .45rem;width:100px;}
+  .sm .theme-add-form button{border:none;background:var(--sm-ink);color:#fff;border-radius:6px;padding:.24rem .6rem;cursor:pointer;}
 
   .sm .panel{position:relative;border-radius:14px;overflow:hidden;
     background:radial-gradient(120% 100% at 50% -10%,#12294a 0%,#0c1a30 55%,#0a1626 100%);
@@ -216,7 +215,7 @@
 
     <div class="bu-bar">
       {% for bu in business_units %}
-      <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}<span class="bu-tag">· {{ bu.get_archetype_display }}</span></a>
+      <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}" title="{{ bu.name }} — {{ bu.get_archetype_display }}">{{ bu.name|cut:"کسب و کار " }}</a>
       {% endfor %}
       {% if perms.strategic.add_businessunit %}
       <button type="button" class="bu-add-btn" onclick="openBuModal()"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>

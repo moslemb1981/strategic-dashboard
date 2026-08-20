@@ -345,6 +345,12 @@ class StakeholderForm(forms.ModelForm):
             "related_initiatives": forms.CheckboxSelectMultiple(),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["related_initiatives"].label_from_instance = (
+            lambda obj: f"{obj.code} — {obj.title}" if obj.code else obj.title
+        )
+
 
 class CrossImpactFactorForm(forms.ModelForm):
     class Meta:

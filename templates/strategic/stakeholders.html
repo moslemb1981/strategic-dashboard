@@ -137,13 +137,17 @@
   <div class="sk-card opp">
     <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> ۲۰٪ کلیدی‌ترین فرصت‌های ذینفعان{% if opp_threshold %} (امتیاز ≥ {{ opp_threshold }}){% endif %}</div>
     {% for i in top_opportunities %}
-    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}</span><span class="num">{{ i.opportunity_score }}</span></div>
+    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}
+      {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
+      </span><span class="num">{{ i.opportunity_score }}</span></div>
     {% empty %}<div class="sk-empty">هنوز فرصتی ثبت نشده</div>{% endfor %}
   </div>
   <div class="sk-card risk">
     <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان{% if risk_threshold %} (امتیاز ≥ {{ risk_threshold }}){% endif %}</div>
     {% for i in top_risks %}
-    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}</span><span class="num">{{ i.risk_score }}</span></div>
+    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}
+      {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
+      </span><span class="num">{{ i.risk_score }}</span></div>
     {% empty %}<div class="sk-empty">هنوز ریسکی ثبت نشده</div>{% endfor %}
   </div>
 </div>
@@ -279,7 +283,12 @@
       </div>
       <div class="field-group"><label>عدد فرصت</label>{{ form.opportunity_score }}</div>
       <div class="field-group"><label>اقدام تعریف‌شده</label>{{ form.action }}</div>
-      <div class="field-group"><label>پروژه‌های تحول مرتبط (اختیاری)</label><div class="picker-box">{{ form.related_initiatives }}</div></div>
+      <div class="field-group">
+        <label>پروژه‌های تحول مرتبط (اختیاری)</label>
+        <input type="text" id="initPickerSearch" placeholder="جست‌وجو در عنوان پروژه..."
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="initiativesPickerBox">{{ form.related_initiatives }}</div>
+      </div>
       <div class="field-group"><label>حوزه</label>{{ form.domain }}</div>
       <div class="field-group"><label>وضعیت رسیدگی</label>{{ form.status }}</div>
       <div class="modal-actions">
@@ -293,7 +302,14 @@
 
 {% block extra_js %}
 <script>
-  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function openModal(){
+    document.getElementById('overlay').classList.add('open');
+    const initSearch = document.getElementById('initPickerSearch');
+    if (initSearch) {
+      initSearch.value = '';
+      document.querySelectorAll('#initiativesPickerBox label').forEach(lbl => lbl.style.display = '');
+    }
+  }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 
   (function(){
@@ -362,6 +378,16 @@
         syncPorterPicked();
       });
     });
+
+    const initSearch = document.getElementById('initPickerSearch');
+    if (initSearch) {
+      initSearch.addEventListener('input', function(){
+        const q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#initiativesPickerBox label').forEach(function(lbl){
+          lbl.style.display = (!q || lbl.textContent.toLowerCase().includes(q)) ? '' : 'none';
+        });
+      });
+    }
   });
 
   function newStakeholder(){
