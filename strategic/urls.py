@@ -53,6 +53,7 @@ urlpatterns = [
     path("company-goals/kpi/delete/<int:pk>/", views.company_kpi_delete, name="company_kpi_delete"),
     path("company-goals/kpi/export/", views.company_kpi_export, name="company_kpi_export"),
     path("company-goals/kpi/import/", views.company_kpi_import, name="company_kpi_import"),
+    path("company-goals/kpi/refresh/", views.company_kpi_refresh_from_source, name="company_kpi_refresh_from_source"),
     path("operational-kpis/", views.operational_kpis, name="operational_kpis"),
     path("operational-kpis/delete/<int:pk>/", views.operational_kpi_delete, name="operational_kpi_delete"),
     path("operational-kpis/export/", views.operational_kpi_export, name="operational_kpi_export"),

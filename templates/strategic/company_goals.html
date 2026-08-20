@@ -113,6 +113,10 @@
   {% if user.is_superuser %}
   <a href="{% url 'strategic:company_kpi_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
   <button type="button" class="btn ghost" onclick="document.getElementById('kpiImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  <form method="post" action="{% url 'strategic:company_kpi_refresh_from_source' %}" style="display:inline;" onsubmit="return confirm('مقادیر عددی شاخص‌های وصل‌شده به بانک عملیاتی، از منبعشان بازخوانی شود؟ (نام و اهداف مرتبط دست‌نخورده می‌مانند)');">
+    {% csrf_token %}
+    <button type="submit" class="btn ghost"><i class="fa-solid fa-rotate"></i> به‌روزرسانی از بانک عملیاتی</button>
+  </form>
   {% endif %}
 </div>
 
@@ -480,6 +484,11 @@
         document.getElementById('ck_name').value = o.title;
         document.getElementById('ck_unit').value = o.unit;
         document.getElementById('ck_domain').value = o.domain;
+        document.getElementById('ck_t1404').value = o.target_1404 || '';
+        document.getElementById('ck_a1404').value = o.actual_1404 || '';
+        document.getElementById('ck_t1405').value = o.target_1405 || '';
+        document.getElementById('ck_a1405').value = o.actual_1405 || '';
+        document.getElementById('ck_progress').value = o.progress_1405 || '';
         document.getElementById('opkPickerOverlay').classList.remove('open');
       };
       list.appendChild(row);
