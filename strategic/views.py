@@ -254,7 +254,7 @@ def stakeholders(request):
     if dept:
         items = items.filter(department=dept)
 
-    all_items = list(Stakeholder.objects.all())
+    all_items = list(Stakeholder.objects.all().prefetch_related("related_initiatives"))
 
     risk_scores = sorted((i.risk_score for i in all_items if i.risk_score), reverse=True)
     n_risk = max(1, round(len(risk_scores) * 0.2)) if risk_scores else 0
