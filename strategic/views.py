@@ -1764,7 +1764,11 @@ def company_goals(request):
         seen_groups[key]["objectives"].append(o)
 
     operational_kpi_choices = [
-        {"id": k.pk, "code": k.code, "title": k.title, "unit": k.unit, "domain": k.domain}
+        {
+            "id": k.pk, "code": k.code, "title": k.title, "unit": k.unit, "domain": k.domain,
+            "target_1404": k.target_1404, "actual_1404": k.actual_1404,
+            "target_1405": k.target_1405, "actual_1405": k.actual_1405, "progress_1405": k.progress_1405,
+        }
         for k in OperationalKPI.objects.all()
     ]
 
@@ -1787,6 +1791,36 @@ def company_objective_delete(request, pk):
 
 
 @login_required
+@login_required
+def company_kpi_refresh_from_source(request):
+    if request.method != "POST" or not _has_perm(request, "strategic.change_companykpi"):
+        messages.error(request, "این عملیات مجاز نیست.")
+        return redirect("strategic:company_goals")
+
+    linked_kpis = CompanyKPI.objects.filter(source_operational_kpi__isnull=False).select_related("source_operational_kpi")
+    updated = 0
+    for kpi in linked_kpis:
+        src = kpi.source_operational_kpi
+        # فقط ستون‌های عددی/واحد/حوزه به‌روزرسانی می‌شوند — نام (name) و اهداف مرتبط
+        # (objectives) دست‌نخورده باقی می‌مانند، طبق تصمیم کاربر.
+        kpi.domain = src.domain
+        kpi.unit = src.unit
+        kpi.target_1404 = src.target_1404
+        kpi.actual_1404 = src.actual_1404
+        kpi.target_1405 = src.target_1405
+        kpi.actual_1405 = src.actual_1405
+        kpi.progress_1405 = src.progress_1405
+        kpi.save(update_fields=["domain", "unit", "target_1404", "actual_1404", "target_1405", "actual_1405", "progress_1405"])
+        updated += 1
+
+    _log_action(request, "REFRESH CompanyKPI from source", f"{updated} شاخص")
+    if updated:
+        messages.success(request, f"{updated} شاخص از بانک شاخص‌های عملیاتی به‌روزرسانی شد.")
+    else:
+        messages.warning(request, "هیچ شاخص کلانی به بانک عملیاتی وصل نیست — چیزی برای به‌روزرسانی نبود.")
+    return redirect("strategic:company_goals")
+
+
 def company_kpi_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_companykpi"):
         obj = get_object_or_404(CompanyKPI, pk=pk)
