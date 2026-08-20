@@ -207,6 +207,7 @@
                 {% for m in r.mitigation_list %}<li>{{ m }}</li>{% endfor %}
               </ol>
               {% else %}<span style="color:var(--ink-faint);font-size:11px;">ثبت نشده</span>{% endif %}
+              {% if r.initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;margin-top:4px;" title="پروژه‌های تحول متصل:&#10;{% for init in r.initiatives.all %}● {{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ r.initiatives.all|length }} پروژه‌ی متصل</span>{% endif %}
             </td>
             <td style="white-space:nowrap;font-size:11px;">{{ r.get_response_strategy_display }}</td>
             <td style="white-space:nowrap;text-align:center;">
