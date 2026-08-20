@@ -113,6 +113,18 @@
   .picker-box label.picked{background:rgba(214,69,40,.12);border-color:rgba(214,69,40,.35);font-weight:600;}
   .picker-box input[type="radio"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
 
+  .swot-guide-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;
+    padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;
+    background:linear-gradient(135deg,#6C56A3,#7E68B5);color:#fff;
+    animation:swotGuidePulse 2.2s ease-in-out infinite;
+    transition:transform .15s ease;}
+  .swot-guide-btn:hover{transform:translateY(-1px);animation-play-state:paused;
+    box-shadow:0 6px 18px -2px rgba(108,86,163,.75);}
+  @keyframes swotGuidePulse{
+    0%,100%{box-shadow:0 4px 12px -3px rgba(108,86,163,.45);}
+    50%{box-shadow:0 4px 20px 2px rgba(108,86,163,.85);}
+  }
+
   .swot-guide-card{max-width:640px;max-height:88vh;padding:0;}
   .swot-guide-card .sg-head{display:flex;align-items:center;justify-content:space-between;
     padding:16px 22px;border-bottom:1px solid #dde1e8;flex:none;}
@@ -172,7 +184,7 @@
     {% if current_bu %}
     <div style="display:flex;gap:8px;">
       <a href="{% url 'strategic:swot_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button" class="btn ghost"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
-      <button type="button" class="btn ghost" onclick="document.getElementById('swotGuideOverlay').classList.add('open')"><i class="fa-solid fa-graduation-cap"></i> آشنایی با SWOT</button>
+      <button type="button" class="swot-guide-btn" onclick="document.getElementById('swotGuideOverlay').classList.add('open')"><i class="fa-solid fa-graduation-cap"></i> آشنایی با SWOT</button>
     </div>
     {% endif %}
   </div>
@@ -419,7 +431,7 @@
   </div>
 </div>
 
-<div class="overlay" id="swotGuideOverlay">
+<div class="overlay" id="swotGuideOverlay" onclick="if(event.target===this) this.classList.remove('open')">
   <div class="modal-card swot-guide-card">
     <div class="sg-head">
       <h3 style="margin:0;">آشنایی با ماتریس SWOT</h3>
@@ -618,6 +630,11 @@
       if (input) lbl.classList.toggle('picked', input.checked && input.value !== '');
     });
   }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const guideOverlay = document.getElementById('swotGuideOverlay');
+    if (guideOverlay) guideOverlay.classList.add('open');
+  });
 
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.picker-box label').forEach(function(lbl){

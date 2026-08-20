@@ -32,3 +32,11 @@ def fanum(value):
     if value is None:
         return ""
     return "".join(PERSIAN_DIGITS[int(ch)] if ch.isdigit() else ch for ch in str(value))
+
+
+@register.filter
+def get_item(d, key):
+    """Dynamic dict lookup for templates: {{ mydict|get_item:some_var }}"""
+    if not d:
+        return None
+    return d.get(key)

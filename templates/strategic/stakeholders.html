@@ -1,10 +1,45 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}تحلیل ذینفعان{% endblock %}
 {% block crumb %}تحلیل ذینفعان{% endblock %}
 
 {% block extra_css %}
 <style>
+  .sk-summary{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px;}
+  @media(max-width:1200px){.sk-summary{grid-template-columns:repeat(4,1fr);}}
+  @media(max-width:700px){.sk-summary{grid-template-columns:repeat(2,1fr);}}
+
+  .sk-sum-card{position:relative;display:flex;align-items:center;gap:10px;
+    background:linear-gradient(180deg,var(--surface),rgba(255,255,255,.4));
+    border:1px solid var(--border);border-radius:12px;padding:10px 12px;
+    box-shadow:0 6px 14px -6px rgba(27,36,48,.12),inset 0 1px 0 rgba(255,255,255,.6);
+    overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}
+  .sk-sum-card:hover{transform:translateY(-2px);box-shadow:0 10px 20px -6px rgba(27,36,48,.18);}
+  .sk-sum-card::before{content:"";position:absolute;top:0;right:0;bottom:0;width:3px;background:var(--card-accent,var(--primary));}
+
+  .sk-sum-icon{flex:none;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb, var(--card-accent,var(--primary)) 14%, transparent);
+    color:var(--card-accent,var(--primary));font-size:13px;}
+
+  .sk-sum-body{flex:1;min-width:0;}
+  .sk-sum-value{font-size:16.5px;font-weight:800;color:var(--ink);line-height:1.15;}
+  .sk-sum-label{display:block;margin-top:1px;font-size:8.5px;color:var(--ink-faint);line-height:1.3;font-weight:600;
+    white-space:normal;overflow:visible;}
+
+  .sk-sum-split{display:flex;align-items:baseline;gap:4px;}
+  .sk-sum-split b{font-size:15px;font-weight:800;}
+  .sk-sum-split .a{color:var(--primary-dark);}
+  .sk-sum-split .b{color:var(--accent);}
+  .sk-sum-split .slash{font-size:11px;color:var(--ink-faint);font-weight:400;}
+  .sk-sum-bar{display:flex;height:3px;border-radius:3px;overflow:hidden;margin-top:3px;background:var(--bg);}
+  .sk-sum-bar span.p1{background:var(--primary-dark);}
+  .sk-sum-bar span.p2{background:var(--accent);}
+
+  .sk-sum-pct{display:inline-block;margin-inline-start:4px;font-size:9px;font-weight:700;
+    color:var(--card-accent,var(--primary));background:color-mix(in srgb, var(--card-accent,var(--primary)) 12%, transparent);
+    border-radius:20px;padding:0 6px;}
+
   .sk-top{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
   @media(max-width:900px){.sk-top{grid-template-columns:1fr;}}
   .sk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow-y:auto;max-height:280px;}
@@ -57,18 +92,59 @@
   </div>
 </div>
 
-<div class="sk-top">
-  <div class="sk-card risk">
-    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان{% if risk_threshold %} (امتیاز ≥ {{ risk_threshold }}){% endif %}</div>
-    {% for i in top_risks %}
-    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}</span><span class="num">{{ i.risk_score }}</span></div>
-    {% empty %}<div class="sk-empty">هنوز ریسکی ثبت نشده</div>{% endfor %}
+<div class="sk-summary">
+  <div class="sk-sum-card" style="--card-accent:var(--primary-dark);">
+    <div class="sk-sum-icon"><i class="fa-solid fa-users"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.total|fanum }}</div><span class="sk-sum-label">کل ذینفعان</span></div>
   </div>
+
+  <div class="sk-sum-card" style="--card-accent:#2E5C8A;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-building"></i></div>
+    <div class="sk-sum-body">
+      <div class="sk-sum-split"><b class="a">{{ summary.internal|fanum }}</b><span class="slash">/</span><b class="b">{{ summary.external|fanum }}</b></div>
+      <div class="sk-sum-bar"><span class="p1" style="width:{{ summary.internal_pct }}%;"></span><span class="p2" style="width:{{ summary.external_pct }}%;"></span></div>
+      <span class="sk-sum-label">درون/برون‌سازمانی</span>
+    </div>
+  </div>
+
+  <div class="sk-sum-card" style="--card-accent:#6C56A3;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-hand-point-up"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.with_need|fanum }}<span class="sk-sum-pct">{{ summary.with_need_pct|fanum }}٪</span></div><span class="sk-sum-label">دارای نیاز</span></div>
+  </div>
+
+  <div class="sk-sum-card" style="--card-accent:#B0413E;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.with_risk|fanum }}<span class="sk-sum-pct">{{ summary.with_risk_pct|fanum }}٪</span></div><span class="sk-sum-label">دارای ریسک</span></div>
+  </div>
+
+  <div class="sk-sum-card" style="--card-accent:#3E7A52;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.with_opportunity|fanum }}<span class="sk-sum-pct">{{ summary.with_opportunity_pct|fanum }}٪</span></div><span class="sk-sum-label">دارای فرصت</span></div>
+  </div>
+
+  <div class="sk-sum-card" style="--card-accent:#C97A2B;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-fire"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.critical_total|fanum }}</div><span class="sk-sum-label">ریسک بحرانی</span></div>
+  </div>
+
+  <div class="sk-sum-card" style="--card-accent:#1E8A72;">
+    <div class="sk-sum-icon"><i class="fa-solid fa-route"></i></div>
+    <div class="sk-sum-body"><div class="sk-sum-value">{{ summary.critical_with_action|fanum }}<span class="sk-sum-pct">{{ summary.critical_with_action_pct|fanum }}٪</span></div><span class="sk-sum-label">بحرانی + اقدام</span></div>
+  </div>
+</div>
+
+<div class="sk-top">
   <div class="sk-card opp">
     <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> ۲۰٪ کلیدی‌ترین فرصت‌های ذینفعان{% if opp_threshold %} (امتیاز ≥ {{ opp_threshold }}){% endif %}</div>
     {% for i in top_opportunities %}
     <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}</span><span class="num">{{ i.opportunity_score }}</span></div>
     {% empty %}<div class="sk-empty">هنوز فرصتی ثبت نشده</div>{% endfor %}
+  </div>
+  <div class="sk-card risk">
+    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان{% if risk_threshold %} (امتیاز ≥ {{ risk_threshold }}){% endif %}</div>
+    {% for i in top_risks %}
+    <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}</span><span class="num">{{ i.risk_score }}</span></div>
+    {% empty %}<div class="sk-empty">هنوز ریسکی ثبت نشده</div>{% endfor %}
   </div>
 </div>
 
@@ -118,7 +194,7 @@
       <td>{% if i.risk_text %}<span class="sk-badge" style="background:#B0413E;">{{ i.risk_score|default:"—" }}</span> {{ i.risk_text }}{% else %}—{% endif %}</td>
       <td>{% if i.opportunity_text %}<span class="sk-badge" style="background:var(--success);">{{ i.opportunity_score|default:"—" }}</span> {{ i.opportunity_text }}{% else %}—{% endif %}</td>
       <td>{{ i.action|default:"—" }}
-        {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
+        {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
       </td>
       <td style="white-space:nowrap;">
         {% if perms.strategic.change_stakeholder %}
@@ -310,10 +386,9 @@
     document.getElementById('id_is_internal').checked = (d.isinternal === '1');
     document.getElementById('id_is_external').checked = (d.isexternal === '1');
     const porterIds = (d.relatedporters || '').split(',').filter(Boolean);
-    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+    document.querySelectorAll('input[name="related_porters"]').forEach(function(cb){
       cb.checked = porterIds.includes(cb.value);
     });
-    syncPorterPicked();
     document.getElementById('id_risk_text').value = d.risk;
     document.getElementById('id_risk_occurrence').value = d.riskoccurrence;
     document.getElementById('id_risk_severity').value = d.riskseverity;
@@ -328,6 +403,7 @@
     document.querySelectorAll('input[name="related_initiatives"]').forEach(function(cb){
       cb.checked = initIds.includes(cb.value);
     });
+    syncPorterPicked();
     document.getElementById('id_domain').value = d.domain;
     document.getElementById('id_status').value = d.status;
     document.getElementById('modalTitle').textContent = 'ویرایش ذینفع';
