@@ -509,7 +509,10 @@ def initiative_import(request):
         status_label = _s(row[9]) if len(row) > 9 else ""
         status = _INITIATIVE_STATUS_LABEL_TO_KEY.get(status_label, "in_progress")
 
-        existing = Initiative.objects.filter(title=title, business_unit=business_unit).first()
+        if code:
+            existing = Initiative.objects.filter(code=code).first()
+        else:
+            existing = Initiative.objects.filter(title=title, code="").first()
         defaults = dict(
             code=code, owner=owner, work_group=work_group, division=division, business_unit=business_unit,
             start_date=start_date, end_date=end_date, progress=progress, status=status,
