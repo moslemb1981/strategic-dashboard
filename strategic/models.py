@@ -113,6 +113,35 @@ class Initiative(models.Model):
                 })
         return origins
 
+    @property
+    def traced_origins_hover_text(self):
+        """متن هاور حرفه‌ای و سلسله‌مراتبی برای «ردیابی خودکار منشأ» — گروه‌بندی‌شده
+        بر اساس راهبرد TOWS (تا تکرار نشه)، با مسیر کامل: راهبرد ← منشأ SWOT ← ریشه‌ی
+        اصلی (با نوع منبع مشخص: PESTEL/Porter/ذی‌نفع/سناریو/McKinsey 7S/زنجیره ارزش)."""
+        origins = self.traced_origins
+        if not origins:
+            return ""
+        by_tows = {}
+        order = []
+        for o in origins:
+            tows = o["tows"]
+            if tows.pk not in by_tows:
+                by_tows[tows.pk] = {"tows": tows, "items": []}
+                order.append(tows.pk)
+            by_tows[tows.pk]["items"].append(o)
+
+        blocks = []
+        for pk in order:
+            group = by_tows[pk]
+            tows = group["tows"]
+            lines = [f"📍 راهبرد {tows.get_category_display()}: {tows.text.splitlines()[0][:90]}"]
+            for o in group["items"]:
+                si = o["swot_item"]
+                lines.append(f"   └─ برخاسته از ({si.get_category_display()} SWOT): {si.text[:80]}")
+                lines.append(f"        └─ ریشه در {o['source_type']}: {o['source_detail'][:100]}")
+            blocks.append("\n".join(lines))
+        return "\n\n".join(blocks)
+
 
 class Risk(models.Model):
     LEVEL_CHOICES = [(1, "۱ - بسیار کم"), (2, "۲ - کم"), (3, "۳ - متوسط"), (4, "۴ - زیاد"), (5, "۵ - بسیار زیاد")]
