@@ -109,6 +109,9 @@
   .sm .node .theme-badge{font-size:.58rem;font-weight:700;padding:.12rem .5rem;border-radius:5px;display:inline-block;width:fit-content;}
   .sm .node .tows-mini-badge{font-size:.5rem;font-weight:800;color:#fff;background:#8a6fb0;
     padding:1px 6px;border-radius:5px;margin-inline-start:auto;flex:none;cursor:default;letter-spacing:.02em;}
+  .sm .node .init-mini-badge{font-size:.5rem;font-weight:800;color:#fff;background:#3E7A52;
+    padding:1px 6px;border-radius:5px;flex:none;cursor:default;letter-spacing:.02em;display:inline-flex;align-items:center;gap:3px;}
+  .sm .node .init-mini-badge i{font-size:.48rem;}
   .sm .node .kpi::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ng);flex-shrink:0;box-shadow:0 0 6px var(--ng);}
   .sm .node.selected{border-color:var(--sm-brake);box-shadow:0 0 0 2px var(--sm-brake),0 16px 34px -10px rgba(214,69,40,.5);transform:translateY(-4px);}
   .sm.focusing .node:not(.hot){opacity:.22;}
@@ -317,6 +320,7 @@
                   {% endfor %}
                   <span class="kpi-circle-add" title="مدیریت شاخص‌ها"><i class="fa-solid fa-plus"></i></span>
                   </span>
+                  {% if n.initiatives.all %}<span class="init-mini-badge" title="پروژه‌های تحول متصل:&#10;{% for init in n.initiatives.all %}● {{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ n.initiatives.all|length }}</span>{% endif %}
                   {% if n.source_tows %}<span class="tows-mini-badge" title="{{ n.source_tows.get_category_display }} · {{ n.source_tows.text }}{% if n.source_tows.source_items.all %}&#10;&#10;مبتنی بر:{% for si in n.source_tows.source_items.all %}&#10;- {{ si.get_category_display }}: {{ si.text }}{% endfor %}{% endif %}">TOWS</span>{% endif %}
                 </div>
               </div>

@@ -491,6 +491,19 @@
       return seen.length ? seen.join('، ') : 'هنوز ثبت نشده';
     }
 
+    function dedupJoinCollapsed(list){
+      const seen = [];
+      list.forEach(function(arr){
+        arr.forEach(function(v){
+          if(v && seen.indexOf(v) === -1) seen.push(v);
+        });
+      });
+      if(!seen.length) return 'هنوز ثبت نشده';
+      if(seen.length === 1) return seen[0];
+      const detail = seen.map(v => '● ' + v).join('&#10;');
+      return '<span class="chain-multi" title="' + detail + '">اتصال به ' + seen.length + ' پروژه مرتبط</span>';
+    }
+
     groups.forEach(function(g, i){
       const n = i + 1;
       let goalText;
@@ -502,7 +515,7 @@
         goalText = o.code + ': ' + o.title + (o.business_unit ? ' (' + o.business_unit + ')' : '');
       }
       const kpiText = dedupJoin(g.items.map(o => o.kpis));
-      const projText = dedupJoin(g.items.map(o => o.initiatives));
+      const projText = dedupJoinCollapsed(g.items.map(o => o.initiatives));
       const sep = i > 0 ? '<div class="chain-item-sep"></div>' : '';
       goalsHtml += sep + '<div class="chain-item"><span class="chain-num">' + n + '</span>' + goalText + '</div>';
       kpisHtml  += sep + '<div class="chain-item"><span class="chain-num">' + n + '</span>' + kpiText + '</div>';

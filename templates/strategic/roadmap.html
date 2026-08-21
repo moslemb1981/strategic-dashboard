@@ -76,7 +76,7 @@
       {% endwith %}
       {% if i.source_tows.all %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" title="راهبردهای TOWS مبنا:&#10;{% for t in i.source_tows.all %}● {{ t.get_category_display }}: {{ t.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-board"></i> {{ i.source_tows.all|length }}</span>{% endif %}
       {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" title="ریسک‌های مبنا:&#10;{% for rk in i.source_risk.all %}● {{ rk.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ i.source_risk.all|length }}</span>{% endif %}
-      {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ردیابی خودکار منشأ:&#10;{% for o in i.traced_origins %}● {{ o.tows.get_category_display }}: {{ o.tows.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.traced_origins|length }}</span>{% endif %}
+      {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ردیابی خودکار منشأ راهبردی این پروژه:&#10;&#10;{{ i.traced_origins_hover_text }}"><i class="fa-solid fa-route"></i> {{ i.traced_origins|length }}</span>{% endif %}
     </div>
     {% endif %}
 
