@@ -256,21 +256,19 @@ def stakeholders(request):
 
     all_items = list(Stakeholder.objects.all().prefetch_related("related_initiatives"))
 
-    risk_scores = sorted((i.risk_score for i in all_items if i.risk_score), reverse=True)
-    n_risk = max(1, round(len(risk_scores) * 0.2)) if risk_scores else 0
-    RISK_THRESHOLD = risk_scores[n_risk - 1] if n_risk else None
+    risk_scores_sorted = sorted((i.risk_score for i in all_items if i.risk_score), reverse=True)
+    n_risk = max(1, round(len(risk_scores_sorted) * 0.2)) if risk_scores_sorted else 0
     top_risks = sorted(
-        [i for i in all_items if i.risk_score and RISK_THRESHOLD is not None and i.risk_score >= RISK_THRESHOLD],
+        [i for i in all_items if i.risk_score],
         key=lambda i: i.risk_score, reverse=True,
-    )
+    )[:n_risk]
 
-    opp_scores = sorted((i.opportunity_score for i in all_items if i.opportunity_score), reverse=True)
-    n_opp = max(1, round(len(opp_scores) * 0.2)) if opp_scores else 0
-    OPP_THRESHOLD = opp_scores[n_opp - 1] if n_opp else None
+    opp_scores_sorted = sorted((i.opportunity_score for i in all_items if i.opportunity_score), reverse=True)
+    n_opp = max(1, round(len(opp_scores_sorted) * 0.2)) if opp_scores_sorted else 0
     top_opportunities = sorted(
-        [i for i in all_items if i.opportunity_score and OPP_THRESHOLD is not None and i.opportunity_score >= OPP_THRESHOLD],
+        [i for i in all_items if i.opportunity_score],
         key=lambda i: i.opportunity_score, reverse=True,
-    )
+    )[:n_opp]
     departments = sorted({i.department for i in all_items if i.department})
 
     total = len(all_items)
@@ -302,7 +300,6 @@ def stakeholders(request):
     return render(request, "strategic/stakeholders.html", {
         "active_page": "stakeholders", "items": items, "form": form, "q": q, "dept": dept,
         "departments": departments, "top_risks": top_risks, "top_opportunities": top_opportunities,
-        "risk_threshold": RISK_THRESHOLD, "opp_threshold": OPP_THRESHOLD,
         "porter_forces": PorterForce.objects.all(), "summary": summary,
         "total_count": len(all_items),
     })
@@ -409,6 +406,73 @@ _INITIATIVE_STATUS_LABEL_TO_KEY = {label: key for key, label in Initiative.STATU
 
 
 @login_required
+@login_required
+def bsc_sync(request):
+    if request.method != "POST" or not request.user.is_superuser:
+        messages.error(request, "این عملیات مجاز نیست.")
+        return redirect("strategic:roadmap")
+
+    try:
+        import pyodbc
+    except ImportError:
+        return render(request, "strategic/bsc_sync_report.html", {
+            "connection_error": "کتابخانه‌ی pyodbc روی سرور نصب نیست.",
+        })
+
+    try:
+        conn = pyodbc.connect(
+            "DRIVER={ODBC Driver 17 for SQL Server};"
+            "SERVER=localhost\\SQLEXPRESS;DATABASE=BSC;Trusted_Connection=yes;",
+            timeout=10,
+        )
+    except Exception as e:
+        return render(request, "strategic/bsc_sync_report.html", {
+            "connection_error": str(e),
+        })
+
+    try:
+        cursor = conn.cursor()
+        updated, not_found = [], []
+        initiatives = Initiative.objects.exclude(code__isnull=True).exclude(code="")
+
+        for init in initiatives:
+            cursor.execute("SELECT id FROM projects WHERE code = ?", init.code)
+            row = cursor.fetchone()
+            if not row:
+                not_found.append({"code": init.code, "title": init.title})
+                continue
+
+            project_id = row[0]
+            cursor.execute(
+                "SELECT TOP 1 calced_val FROM project_values "
+                "WHERE project_id = ? AND calced_val IS NOT NULL "
+                "ORDER BY period_id DESC",
+                project_id,
+            )
+            prow = cursor.fetchone()
+            if not prow or prow[0] is None:
+                not_found.append({"code": init.code, "title": init.title})
+                continue
+
+            new_progress = max(0, min(100, round(prow[0])))
+            if init.progress != new_progress:
+                init.progress = new_progress
+                init.save(update_fields=["progress"])
+            updated.append({"code": init.code, "title": init.title, "progress": new_progress})
+    finally:
+        conn.close()
+
+    _log_action(request, "SYNC progress from BSC",
+                f"{len(updated)} به‌روزشده، {len(not_found)} یافت‌نشده")
+
+    return render(request, "strategic/bsc_sync_report.html", {
+        "updated": updated,
+        "not_found": not_found,
+        "updated_count": len(updated),
+        "not_found_count": len(not_found),
+    })
+
+
 def initiative_export(request):
     if not request.user.is_superuser:
         messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
@@ -590,6 +654,34 @@ def market_intel_fetch(request):
             created.append(rec.title)
     except Exception as e:
         errors.append(f"نرخ ارز: {e}")
+
+    # --- نمونه‌ی دوم: نرخ دلار به ریال (منبع: TGJU.org — چون منابع بین‌المللی استاندارد،
+    # نرخ ریال ایران رو به‌خاطر تحریم‌ها ندارن) ---
+    # روش کار: توی هر صفحه‌ی TGJU، یه نوار «قیمت لحظه‌ای» هست که شامل «دلار NUMBER (درصد%)»
+    # می‌شه — این الگو رو با regex پیدا می‌کنیم، نه صفحه‌بندی خاصی که ممکنه عوض بشه.
+    try:
+        resp = requests.get(
+            "https://www.tgju.org/profile/price_dollar_rl",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        m = re.search(r"دلار[^\d]{0,40}([\d,]{6,12})", resp.text)
+        if not m:
+            raise ValueError("الگوی قیمت دلار توی صفحه پیدا نشد (شاید ساختار سایت عوض شده)")
+        rial_value = m.group(1).replace(",", "")
+        rec = MarketIntelRecord.objects.create(
+            category="exchange_rate",
+            title="نرخ دلار آزاد به ریال",
+            value=rial_value,
+            unit="ریال",
+            source_name="TGJU.org",
+            source_url="https://www.tgju.org/profile/price_dollar_rl",
+            fetched_by=request.user,
+        )
+        created.append(rec.title)
+    except Exception as e:
+        errors.append(f"نرخ دلار (TGJU): {e}")
 
     if created:
         _log_action(request, "FETCH MarketIntel", f"{len(created)} رکورد: {', '.join(created)}")

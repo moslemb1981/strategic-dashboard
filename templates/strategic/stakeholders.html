@@ -135,7 +135,7 @@
 
 <div class="sk-top">
   <div class="sk-card opp">
-    <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> ۲۰٪ کلیدی‌ترین فرصت‌های ذینفعان{% if opp_threshold %} (امتیاز ≥ {{ opp_threshold }}){% endif %}</div>
+    <div class="head"><i class="fa-solid fa-arrow-trend-up"></i> ۲۰٪ کلیدی‌ترین فرصت‌های ذینفعان</div>
     {% for i in top_opportunities %}
     <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.opportunity_text|truncatechars:70 }}
       {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
@@ -143,7 +143,7 @@
     {% empty %}<div class="sk-empty">هنوز فرصتی ثبت نشده</div>{% endfor %}
   </div>
   <div class="sk-card risk">
-    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان{% if risk_threshold %} (امتیاز ≥ {{ risk_threshold }}){% endif %}</div>
+    <div class="head"><i class="fa-solid fa-triangle-exclamation"></i> ۲۰٪ بحرانی‌ترین ریسک‌های ذینفعان</div>
     {% for i in top_risks %}
     <div class="sk-row"><span>{{ i.name }}{% if i.department %} ({{ i.department }}){% endif %} — {{ i.risk_text|truncatechars:70 }}
       {% if i.related_initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in i.related_initiatives.all %}● {{ init.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ i.related_initiatives.all|length }}</span>{% endif %}
