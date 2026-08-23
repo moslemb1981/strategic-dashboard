@@ -37,6 +37,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'strategic.middleware.UserVisitLogMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -153,6 +154,15 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
+        "users_file": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs" / "users.log",
+            "maxBytes": 5 * 1024 * 1024,  # 5 مگابایت
+            "backupCount": 5,
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
     },
     "loggers": {
         "django": {
@@ -164,6 +174,11 @@ LOGGING = {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": True,
+        },
+        "user_visits": {
+            "handlers": ["users_file"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

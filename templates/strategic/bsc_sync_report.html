@@ -1,0 +1,77 @@
+{% extends "strategic/base.html" %}
+{% block title %}گزارش به‌روزرسانی از BSC{% endblock %}
+{% block crumb %}پروژه‌های تحول &raquo; گزارش به‌روزرسانی BSC{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>گزارش به‌روزرسانی پیشرفت از سیستم BSC</h1>
+  <div class="sub">نتیجه‌ی آخرین همگام‌سازی پیشرفت پروژه‌ها بر اساس کد پروژه</div></div>
+  <a href="{% url 'strategic:roadmap' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-arrow-right"></i> بازگشت به پروژه‌های تحول</button></a>
+</div>
+
+{% if connection_error %}
+<div class="bsc-error-box">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <div>
+    <b>اتصال به سیستم BSC ناموفق بود</b>
+    <p>{{ connection_error }}</p>
+    <p class="hint">مطمئن شوید سرویس SQL Server در حال اجراست و دیتابیس «BSC» روی همین سیستم Restore شده باشد.</p>
+  </div>
+</div>
+{% else %}
+
+<div class="bsc-summary-row">
+  <div class="bsc-summary-card ok">
+    <div class="num">{{ updated_count }}</div>
+    <div class="lbl">پروژه به‌روزرسانی شد</div>
+  </div>
+  <div class="bsc-summary-card warn">
+    <div class="num">{{ not_found_count }}</div>
+    <div class="lbl">در سیستم BSC پیدا نشد (دست‌نخورده ماند)</div>
+  </div>
+</div>
+
+{% if updated %}
+<div class="cg-section-title"><i class="fa-solid fa-circle-check"></i> پروژه‌های به‌روزرسانی‌شده</div>
+<table class="bsc-report-table">
+  <thead><tr><th>کد پروژه</th><th>عنوان</th><th>پیشرفت جدید</th></tr></thead>
+  <tbody>
+    {% for row in updated %}
+    <tr><td>{{ row.code }}</td><td>{{ row.title }}</td><td><b>{{ row.progress }}٪</b></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if not_found %}
+<div class="cg-section-title" style="margin-top:20px;"><i class="fa-solid fa-circle-question"></i> کدهای پیدانشده در سیستم BSC</div>
+<table class="bsc-report-table">
+  <thead><tr><th>کد پروژه</th><th>عنوان</th></tr></thead>
+  <tbody>
+    {% for row in not_found %}
+    <tr><td>{{ row.code }}</td><td>{{ row.title }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endif %}
+
+<style>
+  .bsc-error-box{display:flex;gap:14px;align-items:flex-start;background:#FBEAEA;border:1px solid #E8B7B7;
+    border-radius:12px;padding:18px 20px;color:#8A2E2E;font-size:16px;margin-top:6px;}
+  .bsc-error-box p{margin:6px 0 0;font-size:13px;line-height:1.8;}
+  .bsc-error-box .hint{color:#A65656;font-size:12px;}
+  .bsc-summary-row{display:flex;gap:14px;margin:6px 0 22px;}
+  .bsc-summary-card{flex:1;border-radius:12px;padding:18px 20px;text-align:center;}
+  .bsc-summary-card.ok{background:#EAF3EC;color:#1E6B52;}
+  .bsc-summary-card.warn{background:#FDF3E7;color:#9A6A1E;}
+  .bsc-summary-card .num{font-size:32px;font-weight:800;}
+  .bsc-summary-card .lbl{font-size:12.5px;margin-top:4px;}
+  .bsc-report-table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .bsc-report-table th{background:var(--ink,#1B2430);color:#fff;padding:9px 12px;text-align:right;}
+  .bsc-report-table td{padding:8px 12px;border-bottom:1px solid var(--border,#eee);}
+  .bsc-report-table tr:last-child td{border-bottom:none;}
+</style>
+{% endblock %}

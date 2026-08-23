@@ -28,6 +28,7 @@ urlpatterns = [
     path("roadmap/delete/<int:pk>/", views.initiative_delete, name="initiative_delete"),
     path("roadmap/export/", views.initiative_export, name="initiative_export"),
     path("roadmap/import/", views.initiative_import, name="initiative_import"),
+    path("roadmap/bsc-sync/", views.bsc_sync, name="bsc_sync"),
 
     path("market-intel/", views.market_intel, name="market_intel"),
     path("market-intel/fetch/", views.market_intel_fetch, name="market_intel_fetch"),

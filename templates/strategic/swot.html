@@ -92,13 +92,13 @@
   .stw .strat .addrow2 button{border:none;background:var(--ink);color:#fff;border-radius:6px;padding:0 10px;cursor:pointer;}
   .stw .empty-note{color:rgba(255,255,255,.6);font-size:.7rem;}
 
-  .stw .bu-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem;}
-  .stw .bu-tab{font-size:.76rem;font-weight:600;padding:.4rem .9rem;border-radius:8px;border:1px solid var(--hair);
+  .stw .bu-bar{display:flex;align-items:center;gap:.28rem;flex-wrap:wrap;margin-bottom:.7rem;}
+  .stw .bu-tab{font-size:.6rem;font-weight:600;padding:.2rem .5rem;border-radius:6px;border:1px solid var(--hair);
     background:#fff;color:var(--muted);white-space:nowrap;}
   .stw .bu-tab:hover{border-color:var(--brake);color:var(--brake);}
   .stw .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
-  .stw .bu-tag{font-size:.6rem;opacity:.7;margin-right:4px;}
-  .stw .bu-add-btn{font-size:.76rem;font-weight:600;padding:.4rem .8rem;border-radius:8px;border:1px dashed var(--hair);
+  .stw .bu-tag{display:none;}
+  .stw .bu-add-btn{font-size:.6rem;font-weight:600;padding:.2rem .45rem;border-radius:6px;border:1px dashed var(--hair);
     background:transparent;color:var(--muted);cursor:pointer;}
   .stw .bu-add-btn:hover{border-color:var(--brake);color:var(--brake);}
   .stw .bu-empty{padding:2.5rem;text-align:center;color:var(--muted);font-size:.85rem;background:#fff;
@@ -191,7 +191,7 @@
 
   <div class="bu-bar">
     {% for bu in business_units %}
-    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}">{{ bu.name }}<span class="bu-tag">· {{ bu.get_archetype_display }}</span></a>
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}" title="{{ bu.name }} — {{ bu.get_archetype_display }}">{{ bu.name|cut:"کسب و کار " }}</a>
     {% endfor %}
     {% if perms.strategic.add_businessunit %}
     <button type="button" class="bu-add-btn" onclick="document.getElementById('buOverlay').classList.add('open')"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>
