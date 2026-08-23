@@ -34,14 +34,14 @@ class Initiative(models.Model):
         ("done", "تکمیل‌شده"),
     ]
     STATUS_COLOR = {
-        "in_progress": "bar-green",
+        "in_progress": "bar-yellow",
         "deviation": "bar-red",
-        "done": "bar-gray",
+        "done": "bar-green",
     }
     STATUS_HEX = {
-        "in_progress": "#3E7A52",
+        "in_progress": "#C9A227",
         "deviation": "#B0413E",
-        "done": "#8B93A1",
+        "done": "#3E7A52",
     }
 
     code = models.CharField(max_length=30, blank=True, verbose_name="کد پروژه")
