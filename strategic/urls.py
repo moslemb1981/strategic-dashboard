@@ -32,6 +32,10 @@ urlpatterns = [
 
     path("market-intel/", views.market_intel, name="market_intel"),
     path("market-intel/fetch/", views.market_intel_fetch, name="market_intel_fetch"),
+    path("users/", views.user_list, name="user_list"),
+    path("users/add/", views.user_edit, name="user_add"),
+    path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),
+    path("users/<int:pk>/toggle/", views.user_toggle_active, name="user_toggle_active"),
     path("market/", views.market, name="market"),
     path("market/delete/<int:pk>/", views.competitor_delete, name="competitor_delete"),
 

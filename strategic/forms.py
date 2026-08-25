@@ -76,7 +76,7 @@ class InitiativeForm(forms.ModelForm):
     class Meta:
         model = Initiative
         fields = [
-            "code", "title", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
+            "code", "title", "item_type", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
             "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
         ]
         widgets = {

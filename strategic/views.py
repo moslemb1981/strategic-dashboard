@@ -356,6 +356,14 @@ def roadmap(request):
     for b in business_units:
         b.init_count = bu_counts.get(b.pk, 0)
 
+    type_filter = request.POST.get("item_type") or request.GET.get("item_type") or "all"
+    if type_filter not in ("all", "project", "action"):
+        type_filter = "all"
+
+    view_mode = request.POST.get("view") or request.GET.get("view") or "card"
+    if view_mode not in ("card", "list"):
+        view_mode = "card"
+
     if request.method == "POST" and request.POST.get("form_kind", "initiative") == "initiative":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
@@ -380,29 +388,47 @@ def roadmap(request):
     base_prefetch = ("objectives", "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
                       "source_tows__source_items", "linked_stakeholders")
     if group_field:
-        initiatives = (
+        initiatives_qs = (
             Initiative.objects.filter(**{group_field: current_group_key})
             .prefetch_related(*base_prefetch)
             if current_group_key else Initiative.objects.none()
         )
     else:
-        initiatives = (
+        initiatives_qs = (
             Initiative.objects.filter(business_unit=current_bu).prefetch_related(*base_prefetch)
             if current_bu else Initiative.objects.none()
         )
+    if type_filter != "all":
+        initiatives_qs = initiatives_qs.filter(item_type=type_filter)
+    # پروژه‌ها همیشه قبل از اقدام‌ها نمایش داده می‌شوند (سپس بر اساس تاریخ شروع)
+    initiatives = sorted(initiatives_qs, key=lambda i: (0 if i.item_type == "project" else 1, i.start_date))
+
+    STATUS_ORDER = [
+        ("deviation", "انحراف پروژه", True),
+        ("in_progress", "در حال اجرا", True),
+        ("done", "تکمیل‌شده", False),
+    ]
+    status_groups = []
+    for key, label, open_default in STATUS_ORDER:
+        items = [i for i in initiatives if i.status == key]
+        status_groups.append({
+            "key": key, "label": label, "items": items, "count": len(items), "open_default": open_default,
+        })
 
     return render(request, "strategic/roadmap.html", {
-        "active_page": "roadmap", "initiatives": initiatives, "form": form,
+        "active_page": "roadmap", "initiatives": initiatives, "status_groups": status_groups, "form": form,
         "business_units": business_units, "current_bu": current_bu,
         "group_mode": group_mode, "group_tabs": group_tabs, "current_group_key": current_group_key, "bu_counts": bu_counts,
+        "type_filter": type_filter, "view_mode": view_mode,
     })
 
 
 _INITIATIVE_EXCEL_HEADERS = [
-    "کد پروژه", "عنوان پروژه", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
+    "کد پروژه", "عنوان پروژه", "نوع (پروژه/اقدام)", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
     "تاریخ پایان (شمسی)", "پیشرفت (٪)", "وضعیت",
 ]
 _INITIATIVE_STATUS_LABEL_TO_KEY = {label: key for key, label in Initiative.STATUS_CHOICES}
+_INITIATIVE_TYPE_LABEL_TO_KEY = {label: key for key, label in Initiative.TYPE_CHOICES}
 
 
 @login_required
@@ -496,7 +522,7 @@ def initiative_export(request):
 
     for row_i, i in enumerate(Initiative.objects.all().select_related("business_unit"), start=2):
         values = [
-            i.code, i.title, i.owner, i.work_group, i.division,
+            i.code, i.title, i.get_item_type_display(), i.owner, i.work_group, i.division,
             i.business_unit.name if i.business_unit else "",
             gregorian_to_jalali_str(i.start_date) if i.start_date else "",
             gregorian_to_jalali_str(i.end_date) if i.end_date else "",
@@ -505,7 +531,7 @@ def initiative_export(request):
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [14, 34, 20, 22, 22, 22, 14, 14, 10, 16]
+    widths = [14, 34, 16, 20, 22, 22, 22, 14, 14, 10, 16]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -553,32 +579,34 @@ def initiative_import(request):
         if not title:
             skipped += 1
             continue
-        owner = _s(row[2]) if len(row) > 2 else ""
-        work_group = _s(row[3]) if len(row) > 3 else ""
-        division = _s(row[4]) if len(row) > 4 else ""
-        bu_name = _s(row[5]) if len(row) > 5 else ""
+        owner = _s(row[3]) if len(row) > 3 else ""
+        work_group = _s(row[4]) if len(row) > 4 else ""
+        division = _s(row[5]) if len(row) > 5 else ""
+        bu_name = _s(row[6]) if len(row) > 6 else ""
         business_unit = business_units_by_name.get(bu_name)
         try:
-            start_date = jalali_str_to_gregorian(_s(row[6])) if len(row) > 6 and _s(row[6]) else None
-            end_date = jalali_str_to_gregorian(_s(row[7])) if len(row) > 7 and _s(row[7]) else None
+            start_date = jalali_str_to_gregorian(_s(row[7])) if len(row) > 7 and _s(row[7]) else None
+            end_date = jalali_str_to_gregorian(_s(row[8])) if len(row) > 8 and _s(row[8]) else None
         except Exception:
             start_date, end_date = None, None
         if not start_date or not end_date:
             skipped += 1
             continue
         try:
-            progress = int(row[8]) if len(row) > 8 and row[8] not in (None, "") else 0
+            progress = int(row[9]) if len(row) > 9 and row[9] not in (None, "") else 0
         except (TypeError, ValueError):
             progress = 0
-        status_label = _s(row[9]) if len(row) > 9 else ""
+        status_label = _s(row[10]) if len(row) > 10 else ""
         status = _INITIATIVE_STATUS_LABEL_TO_KEY.get(status_label, "in_progress")
+        type_label = _s(row[2]) if len(row) > 2 else ""
+        item_type = _INITIATIVE_TYPE_LABEL_TO_KEY.get(type_label, "project")
 
         if code:
             existing = Initiative.objects.filter(code=code).first()
         else:
             existing = Initiative.objects.filter(title=title, code="").first()
         defaults = dict(
-            code=code, owner=owner, work_group=work_group, division=division, business_unit=business_unit,
+            code=code, item_type=item_type, owner=owner, work_group=work_group, division=division, business_unit=business_unit,
             start_date=start_date, end_date=end_date, progress=progress, status=status,
         )
         if existing:
@@ -1668,13 +1696,20 @@ def org_identity(request):
     ]
 
     def _obj_summary(o):
-        kpis = [f"{k.code} — {k.name}" for k in o.linked_kpis.all()]
-        opkpis = [f"{k.code} — {k.title}" for k in o.linked_operational_kpis.all()]
-        initiatives = [i.title for i in o.initiatives.all()]
+        kpis_qs = list(o.kpis.all())
+        kpi_labels = [f"{k.code} — {k.name}" for k in kpis_qs]
+        # روی هدف کلان، پروژه مستقیم وصل نیست — از طریق شاخص کلان می‌رسیم
+        initiatives = []
+        seen_init_pks = set()
+        for k in kpis_qs:
+            for i in k.initiatives.all():
+                if i.pk not in seen_init_pks:
+                    seen_init_pks.add(i.pk)
+                    initiatives.append(i.title)
         return {
             "id": o.pk, "code": o.code, "title": o.title,
-            "business_unit": o.business_unit.name if o.business_unit else "",
-            "kpis": kpis + opkpis, "initiatives": initiatives,
+            "business_unit": "",
+            "kpis": kpi_labels, "initiatives": initiatives,
         }
 
     values_for_js = {
@@ -1682,15 +1717,15 @@ def org_identity(request):
             "text": v.text, "icon": v.icon, "color": v.color, "is_center": v.is_center,
             "policy_number": v.related_policy.number if v.related_policy else None,
             "policy_text": v.related_policy.text if v.related_policy else None,
-            "objectives": [_obj_summary(o) for o in v.related_objectives.select_related("business_unit").prefetch_related(
-                "linked_kpis", "linked_operational_kpis", "initiatives"
+            "objectives": [_obj_summary(o) for o in v.related_objectives.prefetch_related(
+                "kpis", "kpis__initiatives"
             )],
         } for v in values
     }
 
     objective_choices = [
-        {"id": o.pk, "code": o.code, "title": o.title, "bu": o.business_unit.name if o.business_unit else ""}
-        for o in StrategicObjective.objects.select_related("business_unit").all()
+        {"id": o.pk, "code": o.code, "title": o.title, "bu": ""}
+        for o in CompanyObjective.objects.all()
     ]
 
     return render(request, "strategic/org_identity.html", {
@@ -3194,3 +3229,122 @@ def stratmap_export_excel(request):
     safe_name = current_bu.name.replace(" ", "-")
     response["Content-Disposition"] = f'attachment; filename="nagshe-esteratejik-{safe_name}.xlsx"'
     return response
+
+
+# ============================== مدیریت کاربران ==============================
+
+def _superuser_required(request):
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return False
+    return True
+
+
+@login_required
+def user_list(request):
+    if not _superuser_required(request):
+        messages.error(request, "دسترسی به این بخش فقط برای مدیر سامانه مجاز است.")
+        return redirect("strategic:home")
+
+    from django.contrib.auth.models import User
+    users = User.objects.all().select_related("profile").order_by("-date_joined")
+    return render(request, "strategic/user_list.html", {
+        "active_page": "user_list", "users": users,
+    })
+
+
+@login_required
+def user_edit(request, pk=None):
+    if not _superuser_required(request):
+        messages.error(request, "دسترسی به این بخش فقط برای مدیر سامانه مجاز است.")
+        return redirect("strategic:home")
+
+    from django.contrib.auth.models import User, Group
+    from strategic.models import UserProfile, BusinessUnit
+
+    instance = get_object_or_404(User, pk=pk) if pk else None
+
+    if request.method == "POST":
+        username = request.POST.get("username", "").strip()
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        role = request.POST.get("role", "viewer")
+        bu_id = request.POST.get("business_unit") or None
+        phone = request.POST.get("phone", "").strip()
+        new_password = request.POST.get("new_password", "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        if not username:
+            messages.error(request, "نام کاربری الزامی است.")
+            return redirect("strategic:user_edit", pk=pk) if pk else redirect("strategic:user_add")
+
+        if instance:
+            user_obj = instance
+            if User.objects.exclude(pk=user_obj.pk).filter(username=username).exists():
+                messages.error(request, "این نام کاربری قبلاً استفاده شده است.")
+                return redirect("strategic:user_edit", pk=pk)
+            user_obj.username = username
+        else:
+            if User.objects.filter(username=username).exists():
+                messages.error(request, "این نام کاربری قبلاً استفاده شده است.")
+                return redirect("strategic:user_add")
+            if not new_password:
+                messages.error(request, "برای کاربر جدید، تعیین رمز عبور الزامی است.")
+                return redirect("strategic:user_add")
+            user_obj = User(username=username)
+
+        user_obj.first_name = first_name
+        user_obj.last_name = last_name
+        user_obj.email = email
+        user_obj.is_active = is_active
+        user_obj.is_staff = True  # برای دسترسی به بخش‌های مدیریتی سامانه لازم است
+        user_obj.is_superuser = (role == "admin")
+        if new_password:
+            user_obj.set_password(new_password)
+        user_obj.save()
+
+        # اعمال گروه بر اساس نقش
+        user_obj.groups.clear()
+        if role == "editor":
+            editor_group, _ = Group.objects.get_or_create(name="ویرایشگر")
+            user_obj.groups.add(editor_group)
+        elif role == "viewer":
+            viewer_group, _ = Group.objects.get_or_create(name="کارشناس (فقط مشاهده)")
+            user_obj.groups.add(viewer_group)
+
+        profile, _ = UserProfile.objects.get_or_create(user=user_obj)
+        profile.role = role
+        profile.phone = phone
+        profile.business_unit_id = bu_id
+        profile.save()
+
+        action = "UPDATE User" if instance else "CREATE User"
+        _log_action(request, action, f"{user_obj.username} — نقش: {role}")
+        messages.success(request, f"کاربر «{username}» با موفقیت ذخیره شد.")
+        return redirect("strategic:user_list")
+
+    profile = getattr(instance, "profile", None) if instance else None
+    return render(request, "strategic/user_form.html", {
+        "active_page": "user_list", "instance": instance, "profile": profile,
+        "business_units": BusinessUnit.objects.all(),
+        "role_choices": UserProfile.ROLE_CHOICES,
+    })
+
+
+@login_required
+def user_toggle_active(request, pk):
+    if not _superuser_required(request) or request.method != "POST":
+        messages.error(request, "این عملیات مجاز نیست.")
+        return redirect("strategic:user_list")
+
+    from django.contrib.auth.models import User
+    user_obj = get_object_or_404(User, pk=pk)
+    if user_obj.pk == request.user.pk:
+        messages.error(request, "نمی‌توانید حساب کاربری خودتان را غیرفعال کنید.")
+        return redirect("strategic:user_list")
+
+    user_obj.is_active = not user_obj.is_active
+    user_obj.save(update_fields=["is_active"])
+    _log_action(request, "TOGGLE User active", f"{user_obj.username} -> {user_obj.is_active}")
+    messages.success(request, f"وضعیت کاربر «{user_obj.username}» تغییر کرد.")
+    return redirect("strategic:user_list")
