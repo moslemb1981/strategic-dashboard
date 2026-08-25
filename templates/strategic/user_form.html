@@ -1,0 +1,72 @@
+{% extends "strategic/base.html" %}
+{% block title %}{% if instance %}ویرایش کاربر{% else %}افزودن کاربر{% endif %}{% endblock %}
+{% block crumb %}مدیریت سامانه &raquo; <a href="{% url 'strategic:user_list' %}">مدیریت کاربران</a> &raquo; {% if instance %}ویرایش{% else %}افزودن{% endif %}{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>{% if instance %}ویرایش کاربر «{{ instance.username }}»{% else %}افزودن کاربر جدید{% endif %}</h1></div>
+  <a href="{% url 'strategic:user_list' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-arrow-right"></i> بازگشت به لیست</button></a>
+</div>
+
+<form method="post" class="usr-form">
+  {% csrf_token %}
+  <div class="usr-form-grid">
+    <div class="field-group">
+      <label>نام کاربری *</label>
+      <input type="text" name="username" required value="{{ instance.username|default:'' }}">
+    </div>
+    <div class="field-group">
+      <label>نام</label>
+      <input type="text" name="first_name" value="{{ instance.first_name|default:'' }}">
+    </div>
+    <div class="field-group">
+      <label>نام خانوادگی</label>
+      <input type="text" name="last_name" value="{{ instance.last_name|default:'' }}">
+    </div>
+    <div class="field-group">
+      <label>ایمیل</label>
+      <input type="email" name="email" value="{{ instance.email|default:'' }}">
+    </div>
+    <div class="field-group">
+      <label>تلفن</label>
+      <input type="text" name="phone" value="{{ profile.phone|default:'' }}">
+    </div>
+    <div class="field-group">
+      <label>نقش</label>
+      <select name="role">
+        {% for val, label in role_choices %}
+        <option value="{{ val }}" {% if profile.role == val or not instance and val == 'viewer' %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>کسب‌وکار مرتبط (اختیاری)</label>
+      <select name="business_unit">
+        <option value="">— بدون محدودیت —</option>
+        {% for bu in business_units %}
+        <option value="{{ bu.pk }}" {% if profile.business_unit_id == bu.pk %}selected{% endif %}>{{ bu.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-group">
+      <label>{% if instance %}رمز عبور جدید (اختیاری — خالی بگذارید تا تغییر نکند){% else %}رمز عبور *{% endif %}</label>
+      <input type="password" name="new_password" {% if not instance %}required{% endif %}>
+    </div>
+    <div class="field-group" style="display:flex;align-items:center;gap:8px;padding-top:22px;">
+      <input type="checkbox" name="is_active" id="is_active" {% if instance.is_active or not instance %}checked{% endif %} style="width:16px;height:16px;">
+      <label for="is_active" style="margin:0;">کاربر فعال باشد</label>
+    </div>
+  </div>
+
+  <button type="submit" class="btn primary" style="margin-top:20px;"><i class="fa-solid fa-check"></i> ذخیره</button>
+</form>
+
+<style>
+  .usr-form{background:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.06);max-width:760px;}
+  .usr-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .usr-form .field-group label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+  .usr-form .field-group input, .usr-form .field-group select{width:100%;border:1px solid var(--border);border-radius:8px;
+    padding:8px 10px;font-family:inherit;font-size:12.5px;box-sizing:border-box;}
+  @media(max-width:700px){.usr-form-grid{grid-template-columns:1fr;}}
+</style>
+{% endblock %}

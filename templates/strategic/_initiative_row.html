@@ -1,0 +1,40 @@
+{% load jalali_tags %}
+  <div class="init-row" style="--row-accent:{{ i.status_hex }};"
+    data-search="{{ i.title|lower }} {{ i.code|lower }} {{ i.owner|lower }} {{ i.division|lower }} {{ i.work_group|lower }}">
+    <span class="init-row-code">{{ i.code|default:"—" }}</span>
+    <span class="type-pill {% if i.item_type == 'action' %}type-action{% endif %}">{{ i.get_item_type_display }}</span>
+    <span class="init-row-title" title="{{ i.title }}">{{ i.title }}</span>
+    <span class="init-row-owner">{{ i.owner|default:"—" }}</span>
+    <span class="init-row-progress">
+      <span class="share-track"><span class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></span></span>
+      <span class="init-row-pct" style="color:{{ i.status_hex }};">{{ i.progress }}٪</span>
+    </span>
+    <span class="init-row-badges">
+      {% if i.objectives.all %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="اهداف استراتژیک مرتبط:&#10;{% for o in i.objectives.all %}● {{ o.code }}: {{ o.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ i.objectives.all|length }}</span>{% endif %}
+      {% with kc=i.source_kpi.count opkc=i.source_operational_kpi.count %}
+      {% if kc or opkc %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="شاخص‌های مبنا"><i class="fa-solid fa-chart-line"></i> {{ kc|add:opkc }}</span>{% endif %}
+      {% endwith %}
+      {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" title="ریسک‌های مبنا"><i class="fa-solid fa-triangle-exclamation"></i> {{ i.source_risk.all|length }}</span>{% endif %}
+    </span>
+    <span class="init-row-actions">
+      {% if perms.strategic.change_initiative %}
+      <button type="button" onclick="editInitiative(this)"
+        data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
+        data-work-group="{{ i.work_group }}" data-division="{{ i.division }}"
+        data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
+        data-progress="{{ i.progress }}" data-status="{{ i.status }}"
+        data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+        data-source-kpi="{% for k in i.source_kpi.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+        data-source-operational-kpi="{% for k in i.source_operational_kpi.all %}{{ k.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+        data-source-tows="{% for t in i.source_tows.all %}{{ t.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+        data-source-risk="{% for rk in i.source_risk.all %}{{ rk.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+        title="ویرایش"><i class="fa-solid fa-pen"></i></button>
+      {% endif %}
+      {% if perms.strategic.delete_initiative %}
+      <form method="post" action="{% url 'strategic:initiative_delete' i.pk %}" onsubmit="return confirm('این پروژه حذف شود؟');" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="danger" title="حذف"><i class="fa-solid fa-trash"></i></button>
+      </form>
+      {% endif %}
+    </span>
+  </div>

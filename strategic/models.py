@@ -33,6 +33,10 @@ class Initiative(models.Model):
         ("deviation", "انحراف پروژه"),
         ("done", "تکمیل‌شده"),
     ]
+    TYPE_CHOICES = [
+        ("project", "پروژه"),
+        ("action", "اقدام"),
+    ]
     STATUS_COLOR = {
         "in_progress": "bar-yellow",
         "deviation": "bar-red",
@@ -46,6 +50,7 @@ class Initiative(models.Model):
 
     code = models.CharField(max_length=30, blank=True, verbose_name="کد پروژه")
     title = models.CharField(max_length=300, verbose_name="عنوان پروژه")
+    item_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default="project", verbose_name="نوع")
     owner = models.CharField(max_length=150, verbose_name="واحد مسئول", blank=True)
     start_date = models.DateField(verbose_name="تاریخ شروع")
     end_date = models.DateField(verbose_name="تاریخ پایان")
@@ -706,7 +711,7 @@ class OrgValue(models.Model):
         related_name="linked_values", verbose_name="بند خط‌مشی مرتبط",
     )
     related_objectives = models.ManyToManyField(
-        "StrategicObjective", blank=True, related_name="linked_org_values", verbose_name="اهداف استراتژیک مرتبط",
+        "CompanyObjective", blank=True, related_name="linked_org_values", verbose_name="اهداف کلان مرتبط",
     )
 
     class Meta:
@@ -1516,3 +1521,25 @@ class EnvironmentalFactor(models.Model):
         if isinstance(match, PestelFactor):
             return list(match.linked_legal_requirements.all())
         return []
+
+
+class UserProfile(models.Model):
+    """اطلاعات تکمیلی هر کاربر — نقش نمایشی و کسب‌وکار مرتبط (اطلاعاتی، نه محدودکننده‌ی دسترسی)."""
+    ROLE_CHOICES = [
+        ("admin", "ادمین کامل"),
+        ("editor", "ویرایشگر"),
+        ("viewer", "کارشناس (فقط مشاهده)"),
+    ]
+    user = models.OneToOneField(
+        "auth.User", on_delete=models.CASCADE, related_name="profile", verbose_name="کاربر",
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="viewer", verbose_name="نقش")
+    business_unit = models.ForeignKey(
+        "BusinessUnit", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="profile_users", verbose_name="کسب‌وکار مرتبط (اختیاری)",
+    )
+    phone = models.CharField(max_length=20, blank=True, verbose_name="تلفن (اختیاری)")
+
+    def __str__(self):
+        return f"پروفایل {self.user.get_full_name() or self.user.username}"
+
