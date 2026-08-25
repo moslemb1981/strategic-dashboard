@@ -1904,6 +1904,7 @@ def company_goals(request):
 
     return render(request, "strategic/company_goals.html", {
         "active_page": "company_goals", "grouped": grouped, "kpis": kpis,
+        "total_objectives": len(objectives),
         "objective_form": CompanyObjectiveForm(),
         "kpi_form": CompanyKPIForm(),
         "operational_kpi_choices": operational_kpi_choices,

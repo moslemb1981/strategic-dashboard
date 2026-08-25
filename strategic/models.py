@@ -30,7 +30,7 @@ class Study(models.Model):
 class Initiative(models.Model):
     STATUS_CHOICES = [
         ("in_progress", "در حال اجرا"),
-        ("deviation", "انحراف پروژه"),
+        ("deviation", "توقف"),
         ("done", "تکمیل‌شده"),
     ]
     TYPE_CHOICES = [

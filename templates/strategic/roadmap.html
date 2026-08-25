@@ -62,7 +62,7 @@
 
 <div class="roadmap-legend">
   <span><span class="sw" style="background:#C9A227"></span>در حال اجرا</span>
-  <span><span class="sw" style="background:#B0413E"></span>انحراف پروژه</span>
+  <span><span class="sw" style="background:#B0413E"></span>توقف</span>
   <span><span class="sw" style="background:#3E7A52"></span>تکمیل‌شده</span>
 </div>
 
@@ -82,7 +82,7 @@
       {% if view_mode == 'list' %}
       <div class="init-row-list">
         <div class="init-row-header">
-          <span>کد</span><span>نوع</span><span>عنوان</span><span>مسئول</span><span>پیشرفت</span><span>ارتباطات</span><span></span>
+          <span>کد</span><span>نوع</span><span>عنوان</span><span>مسئول</span><span>وضعیت پیشرفت</span><span>ارتباطات</span><span></span>
         </div>
         {% for i in group.items %}{% include "strategic/_initiative_row.html" %}{% endfor %}
       </div>
@@ -120,7 +120,7 @@
       </div>
       <div class="field-group"><label>تاریخ شروع</label>{{ form.start_date }}</div>
       <div class="field-group"><label>تاریخ پایان</label>{{ form.end_date }}</div>
-      <div class="field-group"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
+      <div class="field-group" id="progressFieldGroup"><label>پیشرفت (٪)</label>{{ form.progress }}</div>
       <div class="field-group"><label>وضعیت</label>{{ form.status }}</div>
       <div class="field-group"><label>اهداف استراتژیک مرتبط</label>{{ form.objectives }}</div>
       <div class="field-group"><label>شاخص‌های مبنا (اختیاری)</label><div class="picker-box">{{ form.source_kpi }}</div></div>
@@ -204,18 +204,20 @@
   .status-accordion-body{padding:14px 16px 4px;background:var(--bg);}
 
   .init-row-list{display:flex;flex-direction:column;gap:2px;}
-  .init-row-header{display:grid;grid-template-columns:90px 60px 1fr 130px 140px 90px 70px;gap:10px;
+  .init-row-header{display:grid;grid-template-columns:46px 42px 1fr 175px 120px 140px 60px;gap:8px;
     padding:6px 12px;font-size:10px;font-weight:700;color:var(--ink-faint);}
-  .init-row{display:grid;grid-template-columns:90px 60px 1fr 130px 140px 90px 70px;gap:10px;align-items:center;
+  .init-row{display:grid;grid-template-columns:46px 42px 1fr 175px 120px 140px 60px;gap:8px;align-items:center;
     background:#fff;border-radius:8px;padding:8px 12px;font-size:11.5px;border-inline-start:3px solid var(--row-accent);}
   .init-row-code{font-size:10px;font-weight:800;color:var(--ink-faint);}
   .init-row-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--ink);}
   .init-row-owner{font-size:10.5px;color:var(--ink-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .init-row-progress{display:flex;align-items:center;gap:6px;}
-  .init-row-progress .share-track{flex:1;height:5px;border-radius:4px;background:var(--border);overflow:hidden;}
-  .init-row-progress .share-fill{height:100%;border-radius:4px;}
+  .init-row-progress .share-track{flex:1;display:block;height:5px;border-radius:4px;background:var(--border);overflow:hidden;}
+  .init-row-progress .share-fill{display:block;height:100%;border-radius:4px;}
   .init-row-pct{font-size:10px;font-weight:700;flex:none;}
-  .init-row-badges{display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;}
+  .init-row-na{font-size:11px;color:var(--ink-faint);}
+  .init-row-badges{display:flex;gap:3px;flex-wrap:wrap;align-content:center;}
+  .init-row-badges .used-badge{font-size:8.5px;padding:2px 6px;}
   .init-row-actions{display:flex;gap:4px;justify-content:flex-end;}
   .init-row-actions button{border:none;background:none;cursor:pointer;color:var(--ink-faint);padding:4px;}
   .init-row-actions button:hover{color:var(--primary);}
@@ -311,11 +313,23 @@
     });
   });
 
+  function toggleProgressField(){
+    const typeEl = document.getElementById('id_item_type');
+    const group = document.getElementById('progressFieldGroup');
+    if (!typeEl || !group) return;
+    group.style.display = (typeEl.value === 'action') ? 'none' : '';
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    const typeEl = document.getElementById('id_item_type');
+    if (typeEl) typeEl.addEventListener('change', toggleProgressField);
+  });
+
   function newInitiative(){
     document.getElementById('initForm').reset();
     document.getElementById('obj_id').value = '';
     document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(cb => cb.checked = false);
     syncPickerBoxes();
+    toggleProgressField();
     document.getElementById('modalTitle').textContent = 'افزودن پروژه جدید';
     document.getElementById('submitBtn').textContent = 'ثبت پروژه';
     openModal();
@@ -326,6 +340,7 @@
     document.getElementById('obj_id').value = d.id;
     document.getElementById('id_title').value = d.title;
     document.getElementById('id_code').value = d.code || '';
+    document.getElementById('id_item_type').value = d.itemType || 'project';
     document.getElementById('id_owner').value = d.owner;
     document.getElementById('id_work_group').value = d.workGroup || '';
     document.getElementById('id_division').value = d.division || '';
@@ -333,6 +348,7 @@
     document.getElementById('id_end_date').value = d.end;
     document.getElementById('id_progress').value = d.progress;
     document.getElementById('id_status').value = d.status;
+    toggleProgressField();
     const objIds = (d.objectives || '').split(',').filter(Boolean);
     const sel = document.getElementById('id_objectives');
     if (sel) { Array.from(sel.options).forEach(o => { o.selected = objIds.includes(o.value); }); }
@@ -390,7 +406,7 @@
           document.querySelectorAll('.status-accordion').forEach(function(acc){
             const body = acc.querySelector('.status-accordion-body');
             const head = acc.querySelector('.status-accordion-head');
-            const shouldOpen = acc.dataset.status !== 'done';
+            const shouldOpen = true;
             body.style.display = shouldOpen ? '' : 'none';
             head.classList.toggle('collapsed', !shouldOpen);
           });
