@@ -10,10 +10,12 @@
     <div class="init-card-meta"><i class="fa-solid fa-user"></i> {{ i.owner|default:"—" }}</div>
     <div class="init-card-meta"><i class="fa-solid fa-calendar-days"></i> {{ i.start_date|jalali }} تا {{ i.end_date|jalali }}</div>
 
+    {% if i.item_type == 'project' %}
     <div class="init-card-progress-row">
       <div class="share-track" style="flex:1;"><div class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></div></div>
       <span class="init-card-pct" style="color:{{ i.status_hex }};">{{ i.progress }}٪</span>
     </div>
+    {% endif %}
 
     {% if i.objectives.all or i.source_kpi.all or i.source_operational_kpi.all or i.source_tows.all or i.source_risk.all or i.traced_origins %}
     <div class="init-card-badges">
@@ -30,7 +32,7 @@
     <div class="init-card-actions">
       {% if perms.strategic.change_initiative %}
       <button type="button" onclick="editInitiative(this)"
-        data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-owner="{{ i.owner }}"
+        data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-item-type="{{ i.item_type }}" data-owner="{{ i.owner }}"
         data-work-group="{{ i.work_group }}" data-division="{{ i.division }}"
         data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
         data-progress="{{ i.progress }}" data-status="{{ i.status }}"
