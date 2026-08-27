@@ -88,6 +88,14 @@ class Initiative(models.Model):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        if self.status == "done" and self.progress != 100:
+            self.progress = 100
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "progress" not in update_fields:
+                kwargs["update_fields"] = list(update_fields) + ["progress"]
+        super().save(*args, **kwargs)
+
     @property
     def bar_class(self):
         return self.STATUS_COLOR.get(self.status, "bar-blue")

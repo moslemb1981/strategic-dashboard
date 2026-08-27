@@ -24,27 +24,27 @@
 
 <div class="group-mode-switch" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;justify-content:space-between;">
   <div style="display:flex;gap:6px;">
-    <a class="gm-btn {% if group_mode == 'bu' %}active{% endif %}" href="?group_mode=bu">نمایش بر اساس: کسب‌وکار</a>
-    <a class="gm-btn {% if group_mode == 'division' %}active{% endif %}" href="?group_mode=division">معاونت</a>
-    <a class="gm-btn {% if group_mode == 'work_group' %}active{% endif %}" href="?group_mode=work_group">کارگروه</a>
+    <a class="gm-btn {% if group_mode == 'bu' %}active{% endif %}" href="?group_mode=bu&item_type={{ type_filter }}&view={{ view_mode }}">نمایش بر اساس: کسب‌وکار</a>
+    <a class="gm-btn {% if group_mode == 'division' %}active{% endif %}" href="?group_mode=division&item_type={{ type_filter }}&view={{ view_mode }}">معاونت</a>
+    <a class="gm-btn {% if group_mode == 'work_group' %}active{% endif %}" href="?group_mode=work_group&item_type={{ type_filter }}&view={{ view_mode }}">کارگروه</a>
   </div>
   <div style="display:flex;gap:6px;">
-    <a class="gm-btn type-btn {% if type_filter == 'all' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=all">همه</a>
-    <a class="gm-btn type-btn {% if type_filter == 'project' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=project">فقط پروژه‌ها</a>
-    <a class="gm-btn type-btn {% if type_filter == 'action' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=action">فقط اقدام‌ها</a>
+    <a class="gm-btn type-btn {% if type_filter == 'all' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=all&view={{ view_mode }}">همه</a>
+    <a class="gm-btn type-btn {% if type_filter == 'project' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=project&view={{ view_mode }}">فقط پروژه‌ها</a>
+    <a class="gm-btn type-btn {% if type_filter == 'action' %}active{% endif %}" href="?group_mode={{ group_mode }}{% if current_bu %}&bu={{ current_bu.pk }}{% endif %}{% if current_group_key %}&g={{ current_group_key|urlencode }}{% endif %}&item_type=action&view={{ view_mode }}">فقط اقدام‌ها</a>
   </div>
 </div>
 
 <div class="bu-bar" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:16px;">
   {% if group_mode == 'bu' %}
     {% for bu in business_units %}
-    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?group_mode=bu&bu={{ bu.pk }}&item_type={{ type_filter }}">{{ bu.name }} <span class="bu-tab-cnt">{{ bu.init_count }}</span></a>
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?group_mode=bu&bu={{ bu.pk }}&item_type={{ type_filter }}&view={{ view_mode }}">{{ bu.name }} <span class="bu-tab-cnt">{{ bu.init_count }}</span></a>
     {% empty %}
     <span style="font-size:13px;color:var(--ink-faint);">هنوز کسب‌وکاری تعریف نشده</span>
     {% endfor %}
   {% else %}
     {% for g in group_tabs %}
-    <a class="bu-tab {% if g.key == current_group_key %}active{% endif %}" href="?group_mode={{ group_mode }}&g={{ g.key|urlencode }}&item_type={{ type_filter }}">{{ g.key }} <span class="bu-tab-cnt">{{ g.count }}</span></a>
+    <a class="bu-tab {% if g.key == current_group_key %}active{% endif %}" href="?group_mode={{ group_mode }}&g={{ g.key|urlencode }}&item_type={{ type_filter }}&view={{ view_mode }}">{{ g.key }} <span class="bu-tab-cnt">{{ g.count }}</span></a>
     {% empty %}
     <span style="font-size:13px;color:var(--ink-faint);">{% if group_mode == 'division' %}هنوز هیچ پروژه‌ای معاونت ثبت‌شده ندارد{% else %}هنوز هیچ پروژه‌ای کارگروه ثبت‌شده ندارد{% endif %}</span>
     {% endfor %}
@@ -216,6 +216,7 @@
   .init-row-progress .share-fill{display:block;height:100%;border-radius:4px;}
   .init-row-pct{font-size:10px;font-weight:700;flex:none;}
   .init-row-na{font-size:11px;color:var(--ink-faint);}
+  .status-pill{font-size:9.5px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap;}
   .init-row-badges{display:flex;gap:3px;flex-wrap:wrap;align-content:center;}
   .init-row-badges .used-badge{font-size:8.5px;padding:2px 6px;}
   .init-row-actions{display:flex;gap:4px;justify-content:flex-end;}

@@ -356,7 +356,7 @@ def roadmap(request):
     for b in business_units:
         b.init_count = bu_counts.get(b.pk, 0)
 
-    type_filter = request.POST.get("item_type") or request.GET.get("item_type") or "all"
+    type_filter = request.GET.get("item_type") or request.POST.get("item_type") or "all"
     if type_filter not in ("all", "project", "action"):
         type_filter = "all"
 
@@ -379,6 +379,7 @@ def roadmap(request):
                 _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(obj))
                 params = f"?group_mode={group_mode}"
                 params += f"&g={current_group_key}" if group_field and current_group_key else f"&bu={current_bu.pk}" if current_bu else ""
+                params += f"&item_type={type_filter}&view={view_mode}"
                 return redirect(reverse("strategic:roadmap") + params)
         else:
             form = InitiativeForm(business_unit=current_bu)
@@ -404,9 +405,9 @@ def roadmap(request):
     initiatives = sorted(initiatives_qs, key=lambda i: (0 if i.item_type == "project" else 1, i.start_date))
 
     STATUS_ORDER = [
-        ("deviation", "انحراف پروژه", True),
+        ("deviation", "توقف", True),
         ("in_progress", "در حال اجرا", True),
-        ("done", "تکمیل‌شده", False),
+        ("done", "تکمیل‌شده", True),
     ]
     status_groups = []
     for key, label, open_default in STATUS_ORDER:
