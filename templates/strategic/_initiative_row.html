@@ -10,7 +10,7 @@
       <span class="share-track"><span class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></span></span>
       <span class="init-row-pct" style="color:{{ i.status_hex }};">{{ i.progress }}٪</span>
       {% else %}
-      <span class="init-row-na">—</span>
+      <span class="status-pill" style="background:{{ i.status_hex }}22;color:{{ i.status_hex }};">{{ i.get_status_display }}</span>
       {% endif %}
     </span>
     <span class="init-row-badges">
