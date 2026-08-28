@@ -6,52 +6,681 @@
 
 {% block extra_css %}
 <style>
-  .mi-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:18px;line-height:1.8;}
-  .mi-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
-    box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
-  .mi-group-head{padding:12px 16px;background:var(--primary-soft);font-weight:800;font-size:13px;color:var(--primary-dark);}
-  .mi-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;
-    border-top:1px solid var(--border);font-size:11.5px;}
-  .mi-row .title{font-weight:700;color:var(--ink);}
-  .mi-row .val{font-weight:800;color:var(--primary-dark);}
-  .mi-row .meta{font-size:9.5px;color:var(--ink-faint);margin-top:2px;}
-  .mi-empty{padding:20px;text-align:center;color:var(--ink-faint);font-size:12px;}
+  .mi-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:16px;line-height:1.8;}
+  .mi-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px;}
+  .mi-tab{font-size:11px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid var(--border);
+    background:#fff;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
+  .mi-tab:hover{border-color:var(--primary);}
+  .mi-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .mi-panel{display:none;}
+  .mi-panel.active{display:block;}
+  .mi-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .mi-panel-head h3{margin:0;font-size:14px;color:var(--ink);}
+  .mi-table{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff;border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .mi-table th{background:var(--ink);color:#fff;padding:9px 12px;text-align:right;font-size:10.5px;}
+  .mi-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
+  .mi-table tr:last-child td{border-bottom:none;}
+  .mi-table td.actions{white-space:nowrap;width:60px;}
+  .mi-table td.actions button{border:none;background:none;cursor:pointer;color:var(--ink-faint);padding:3px;}
+  .mi-table td.actions button:hover{color:var(--primary);}
+  .mi-table td.actions button.danger{color:#B0413E;opacity:.75;}
+  .mi-empty{padding:26px;text-align:center;color:var(--ink-faint);font-size:12px;background:#fff;border-radius:10px;}
+  .impact-pill{font-size:9.5px;font-weight:700;border-radius:6px;padding:2px 9px;}
+  .impact-high{background:#FBEAEA;color:#B0413E;}
+  .impact-medium{background:#FDF3E7;color:#9A6A1E;}
+  .impact-low{background:#EAF3EC;color:#1E6B52;}
+  .status-pill-mi{font-size:9.5px;font-weight:700;border-radius:6px;padding:2px 9px;}
+  .status-stable{background:#EAF3EC;color:#1E6B52;}
+  .status-risky{background:#FDF3E7;color:#9A6A1E;}
+  .status-sanctioned{background:#FBEAEA;color:#B0413E;}
+  .trend-badge{font-size:9.5px;font-weight:700;margin-inline-start:6px;padding:1px 6px;border-radius:5px;}
+  .trend-up{background:#EAF1F7;color:#2E5C8A;}
+  .trend-down{background:#FDF3E7;color:#9A6A1E;}
+  .trend-flat{background:#F0EFE9;color:#8A8375;}
+
+  .mi-body-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start;}
+  .mi-detail-col{position:sticky;top:16px;}
+  .mi-detail-box{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);
+    min-height:200px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;overflow:hidden;}
+  .mi-detail-empty{color:var(--ink-faint);font-size:11.5px;text-align:center;padding:30px 16px;line-height:1.9;}
+  .mi-detail-empty i{display:block;font-size:20px;margin-bottom:8px;}
+  .mi-detail-title{font-size:12.5px;font-weight:800;color:#fff;background:var(--ink);margin:0;
+    padding:11px 16px;flex:none;}
+  .mi-detail-body{overflow-y:auto;flex:1;}
+  .mi-detail-note{font-size:12px;color:#2B333F;line-height:2.1;white-space:pre-wrap;padding:16px;}
+  .mi-table tbody tr{cursor:pointer;}
+  .mi-table tbody tr:hover{background:var(--bg);}
+
+  .report-card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;
+    margin-bottom:10px;cursor:pointer;}
+  .report-card:hover{box-shadow:0 3px 10px rgba(0,0,0,.09);}
+  .report-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .report-card-head h4{margin:0 0 4px;font-size:13px;color:var(--ink);}
+  .report-card-meta{font-size:10px;color:var(--ink-faint);}
+  .report-card-summary{font-size:11.5px;color:#4A4438;line-height:1.8;margin:8px 0 0;}
+  .report-card .actions{display:flex;gap:6px;flex:none;}
+  .report-card .actions button{border:none;background:none;cursor:pointer;color:var(--ink-faint);padding:3px;}
+  .report-card .actions button.danger{color:#B0413E;opacity:.75;}
+  @media(max-width:900px){.mi-body-grid{grid-template-columns:1fr;} .mi-detail-col{position:static;}}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="topbar">
-  <div><h1>هوش بازار</h1><div class="sub">داده‌های تحلیلی بازار، نرخ ارز و رقبا — به‌روزرسانی دستی توسط ادمین</div></div>
+  <div><h1>هوش بازار</h1>
+  <div class="sub">داده‌های تحلیلی محیط بیرونی — ثبت دستی توسط کارشناسان مربوطه</div></div>
   {% if user.is_superuser %}
-  <form method="post" action="{% url 'strategic:market_intel_fetch' %}" onsubmit="return confirm('دریافت داده‌ی جدید از اینترنت آغاز شود؟');">
-    {% csrf_token %}
-    <button type="submit" class="btn accent"><i class="fa-solid fa-rotate"></i> به‌روزرسانی از اینترنت</button>
-  </form>
+  <div style="display:flex;gap:8px;">
+    <a href="{% url 'strategic:market_intel_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+    <button type="button" class="btn ghost" onclick="document.getElementById('miImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  </div>
   {% endif %}
 </div>
 
-<div class="mi-note">
-  <i class="fa-solid fa-circle-info"></i>
-  این صفحه فقط با کلیک دستی ادمین به اینترنت وصل می‌شود — بقیه‌ی سامانه کاملاً آفلاین باقی می‌ماند.
-  {% if latest_fetch %}آخرین به‌روزرسانی: {{ latest_fetch|jalali }} — {{ total_count|fanum }} رکورد ثبت‌شده.{% endif %}
+<div class="overlay" id="miImportOverlay">
+  <div class="modal-card">
+    <h3>ورود داده از اکسل</h3>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.9;">
+      فایل اکسل باید دقیقاً با ساختار «خروجی اکسل» همین صفحه باشد (۱۳ شیت، هر شیت مخصوص یک دسته).
+      برای هر ردیف، اگه با یه رکورد موجود مطابقت داشته باشه (بر اساس ستون‌های کلیدی هر شیت)،
+      به‌روزرسانی می‌شه؛ وگرنه رکورد جدید ساخته می‌شه.
+    </p>
+    <form method="post" action="{% url 'strategic:market_intel_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group"><label>فایل اکسل</label><input type="file" name="excel_file" accept=".xlsx" required></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('miImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-{% for cat_key, cat_label in categories %}
-<div class="mi-group">
-  <div class="mi-group-head">{{ cat_label }}</div>
-  {% with items=grouped|get_item:cat_key %}
-  {% for r in items %}
-  <div class="mi-row">
-    <div>
-      <div class="title">{{ r.title }}</div>
-      <div class="meta">{{ r.fetched_at|jalali }}{% if r.source_name %} · منبع: {{ r.source_name }}{% endif %}</div>
+<div class="mi-tabs" id="miTabs">
+  <button type="button" class="mi-tab active" data-panel="exchange_rate">نرخ ارز</button>
+  <button type="button" class="mi-tab" data-panel="legal_trade">الزامات قانونی و تجاری</button>
+  <button type="button" class="mi-tab" data-panel="vehicle_market">آمار تولید/فروش خودرو کشور</button>
+  <button type="button" class="mi-tab" data-panel="ev_trend">روند خودروی برقی/هیبریدی</button>
+  <button type="button" class="mi-tab" data-panel="csat_benchmark">بنچمارک رضایت مشتری صنعت</button>
+  <button type="button" class="mi-tab" data-panel="supplier_domestic">تأمین‌کنندگان داخلی</button>
+  <button type="button" class="mi-tab" data-panel="supplier_intl">تأمین‌کنندگان بین‌المللی</button>
+  <button type="button" class="mi-tab" data-panel="interest_inflation">سود بانکی و تورم</button>
+  <button type="button" class="mi-tab" data-panel="labor_market">بازار کار صنعت</button>
+  <button type="button" class="mi-tab" data-panel="raw_material">مواد اولیه و نهاده‌های تولید</button>
+  <button type="button" class="mi-tab" data-panel="vehicle_loan">نرخ تسهیلات خرید خودرو</button>
+  <button type="button" class="mi-tab" data-panel="parts_trade">واردات/صادرات قطعات و خودرو</button>
+  <button type="button" class="mi-tab" data-panel="electronic_part">قطعات راهبردی و الکترونیک</button>
+  <button type="button" class="mi-tab" data-panel="competitor">رقبا</button>
+  <button type="button" class="mi-tab" data-panel="report">📊 گزارش تحلیلی دوره‌ای</button>
+</div>
+
+<div class="mi-body-grid">
+<div class="mi-panels-col">
+
+<!-- ============ ۱) نرخ ارز ============ -->
+<div class="mi-panel active" id="panel-exchange_rate">
+  <div class="mi-panel-head"><h3>نرخ ارز</h3>
+    {% if perms.strategic.add_exchangerate %}<button type="button" class="btn accent" onclick="openAdd('exchange_rate','افزودن نرخ ارز')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>ارز</th><th>نرخ (ریال)</th><th>تاریخ</th><th>منبع</th><th>توضیح</th><th></th></tr></thead>
+    <tbody>
+      {% for r in exchange_rates %}
+      <tr data-title="{{ r.currency_name|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.currency_name }}</td><td>{{ r.value_rial }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.period_date|jalali }}</td><td>{{ r.source_name|default:"—" }}</td><td title="{{ r.note }}">{{ r.note|default:"—"|truncatechars:30 }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_exchangerate %}<button onclick='openEdit("exchange_rate","افزودن نرخ ارز",{{ r.pk }},{"currency_name":"{{ r.currency_name|escapejs }}","value_rial":"{{ r.value_rial }}","period_date":"{{ r.period_date|jalali }}","source_name":"{{ r.source_name|escapejs }}","note":"{{ r.note|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_exchangerate %}<form method="post" action="{% url 'strategic:market_intel_delete' 'exchange_rate' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز نرخی ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۲) الزامات قانونی و تجاری ============ -->
+<div class="mi-panel" id="panel-legal_trade">
+  <div class="mi-panel-head"><h3>الزامات قانونی و تجاری (داخلی و بین‌المللی)</h3>
+    {% if perms.strategic.add_legaltraderequirement %}<button type="button" class="btn accent" onclick="openAdd('legal_trade','افزودن الزام قانونی/تجاری')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>عنوان</th><th>نوع</th><th>تاریخ ابلاغ</th><th>تاریخ اجرا/مهلت</th><th>سازمان</th><th>سطح اثر</th><th>توضیح</th><th></th></tr></thead>
+    <tbody>
+      {% for r in legal_trade_items %}
+      <tr data-title="{{ r.title|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.title }}</td><td>{{ r.get_item_type_display }}</td><td>{{ r.announce_date|jalali|default:"—" }}</td><td>{{ r.effective_date|jalali|default:"—" }}</td><td>{{ r.organization|default:"—" }}</td>
+        <td><span class="impact-pill impact-{{ r.impact_level }}">{{ r.get_impact_level_display }}</span></td>
+        <td title="{{ r.description }}">{{ r.description|default:"—"|truncatechars:35 }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_legaltraderequirement %}<button onclick='openEdit("legal_trade","ویرایش الزام قانونی/تجاری",{{ r.pk }},{"title":"{{ r.title|escapejs }}","item_type":"{{ r.item_type }}","announce_date":"{{ r.announce_date|jalali|default:'' }}","effective_date":"{{ r.effective_date|jalali|default:'' }}","organization":"{{ r.organization|escapejs }}","impact_level":"{{ r.impact_level }}","description":"{{ r.description|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_legaltraderequirement %}<form method="post" action="{% url 'strategic:market_intel_delete' 'legal_trade' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="8"><div class="mi-empty">هنوز الزامی ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۳) آمار تولید/فروش خودرو کشور ============ -->
+<div class="mi-panel" id="panel-vehicle_market">
+  <div class="mi-panel-head"><h3>آمار تولید و فروش خودرو کشور</h3>
+    {% if perms.strategic.add_vehiclemarketstat %}<button type="button" class="btn accent" onclick="openAdd('vehicle_market','افزودن آمار خودرو کشور')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>تولید کل کشور</th><th>فروش کل کشور</th><th>تفکیک برند</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in vehicle_stats %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.total_production|default:"—" }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.total_sales|default:"—" }}</td><td title="{{ r.brand_breakdown }}">{{ r.brand_breakdown|default:"—"|truncatechars:35 }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_vehiclemarketstat %}<button onclick='openEdit("vehicle_market","ویرایش آمار خودرو کشور",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","total_production":"{{ r.total_production|default:'' }}","total_sales":"{{ r.total_sales|default:'' }}","brand_breakdown":"{{ r.brand_breakdown|escapejs }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_vehiclemarketstat %}<form method="post" action="{% url 'strategic:market_intel_delete' 'vehicle_market' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز آماری ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۴) روند خودروی برقی/هیبریدی ============ -->
+<div class="mi-panel" id="panel-ev_trend">
+  <div class="mi-panel-head"><h3>روند خودروی برقی/هیبریدی</h3>
+    {% if perms.strategic.add_evtrend %}<button type="button" class="btn accent" onclick="openAdd('ev_trend','افزودن روند EV')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>تعداد ثبت‌شده</th><th>سیاست‌های تشویقی</th><th>زیرساخت شارژ</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in ev_trends %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.ev_count|default:"—" }}</td><td title="{{ r.incentive_policies }}">{{ r.incentive_policies|default:"—"|truncatechars:30 }}</td><td title="{{ r.charging_infrastructure }}">{{ r.charging_infrastructure|default:"—"|truncatechars:30 }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_evtrend %}<button onclick='openEdit("ev_trend","ویرایش روند EV",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","ev_count":"{{ r.ev_count|default:'' }}","incentive_policies":"{{ r.incentive_policies|escapejs }}","charging_infrastructure":"{{ r.charging_infrastructure|escapejs }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_evtrend %}<form method="post" action="{% url 'strategic:market_intel_delete' 'ev_trend' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۵) بنچمارک رضایت مشتری صنعت ============ -->
+<div class="mi-panel" id="panel-csat_benchmark">
+  <div class="mi-panel-head"><h3>بنچمارک رضایت مشتری صنعت</h3>
+    {% if perms.strategic.add_customersatisfactionbenchmark %}<button type="button" class="btn accent" onclick="openAdd('csat_benchmark','افزودن بنچمارک رضایت مشتری')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>میانگین رضایت صنعت</th><th>منبع</th><th>توضیح</th><th></th></tr></thead>
+    <tbody>
+      {% for r in csat_benchmarks %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.industry_avg_satisfaction }}</td><td>{{ r.source_name|default:"—" }}</td><td title="{{ r.note }}">{{ r.note|default:"—"|truncatechars:30 }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_customersatisfactionbenchmark %}<button onclick='openEdit("csat_benchmark","ویرایش بنچمارک رضایت مشتری",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","industry_avg_satisfaction":"{{ r.industry_avg_satisfaction }}","source_name":"{{ r.source_name|escapejs }}","note":"{{ r.note|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_customersatisfactionbenchmark %}<form method="post" action="{% url 'strategic:market_intel_delete' 'csat_benchmark' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="5"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۶ الف) تأمین‌کنندگان داخلی ============ -->
+<div class="mi-panel" id="panel-supplier_domestic">
+  <div class="mi-panel-head"><h3>تأمین‌کنندگان داخلی</h3>
+    {% if perms.strategic.add_suppliercondition %}<button type="button" class="btn accent" onclick="openAdd('supplier','افزودن تأمین‌کننده‌ی داخلی','supplier_domestic')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>استان/منطقه</th><th>وضعیت</th><th>زمان تحویل تخمینی</th><th>نرخ ارز محلی</th><th>توضیح</th><th></th></tr></thead>
+    <tbody>
+      {% for r in suppliers_domestic %}
+      <tr data-title="{{ r.country|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.country }}</td><td><span class="status-pill-mi status-{{ r.status }}">{{ r.get_status_display }}</span></td><td>{% if r.delivery_time_days %}{{ r.delivery_time_days }} روز{% else %}—{% endif %}</td><td>{{ r.local_currency_rate|default:"—" }}</td><td title="{{ r.description }}">{{ r.description|default:"—"|truncatechars:30 }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_suppliercondition %}<button onclick='openEdit("supplier","ویرایش تأمین‌کننده‌ی داخلی",{{ r.pk }},{"supplier_type":"{{ r.supplier_type }}","country":"{{ r.country|escapejs }}","status":"{{ r.status }}","delivery_time_days":"{{ r.delivery_time_days|default:'' }}","local_currency_rate":"{{ r.local_currency_rate|escapejs }}","description":"{{ r.description|escapejs }}"},"supplier_domestic")'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_suppliercondition %}<form method="post" action="{% url 'strategic:market_intel_delete' 'supplier' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<input type="hidden" name="active_panel" value="supplier_domestic"><button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز تأمین‌کننده‌ی داخلی ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۶ ب) تأمین‌کنندگان بین‌المللی ============ -->
+<div class="mi-panel" id="panel-supplier_intl">
+  <div class="mi-panel-head"><h3>شرایط تأمین‌کنندگان بین‌المللی</h3>
+    {% if perms.strategic.add_suppliercondition %}<button type="button" class="btn accent" onclick="openAdd('supplier','افزودن تأمین‌کننده‌ی بین‌المللی','supplier_intl')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>کشور</th><th>وضعیت</th><th>زمان تحویل تخمینی</th><th>نرخ ارز محلی</th><th>توضیح</th><th></th></tr></thead>
+    <tbody>
+      {% for r in suppliers_intl %}
+      <tr data-title="{{ r.country|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.country }}</td><td><span class="status-pill-mi status-{{ r.status }}">{{ r.get_status_display }}</span></td><td>{% if r.delivery_time_days %}{{ r.delivery_time_days }} روز{% else %}—{% endif %}</td><td>{{ r.local_currency_rate|default:"—" }}</td><td title="{{ r.description }}">{{ r.description|default:"—"|truncatechars:30 }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_suppliercondition %}<button onclick='openEdit("supplier","ویرایش تأمین‌کننده‌ی بین‌المللی",{{ r.pk }},{"supplier_type":"{{ r.supplier_type }}","country":"{{ r.country|escapejs }}","status":"{{ r.status }}","delivery_time_days":"{{ r.delivery_time_days|default:'' }}","local_currency_rate":"{{ r.local_currency_rate|escapejs }}","description":"{{ r.description|escapejs }}"},"supplier_intl")'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_suppliercondition %}<form method="post" action="{% url 'strategic:market_intel_delete' 'supplier' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<input type="hidden" name="active_panel" value="supplier_intl"><button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز تأمین‌کننده‌ی بین‌المللی ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۷) نرخ سود بانکی و تورم ============ -->
+<div class="mi-panel" id="panel-interest_inflation">
+  <div class="mi-panel-head"><h3>نرخ سود بانکی و تورم</h3>
+    {% if perms.strategic.add_interestinflationrate %}<button type="button" class="btn accent" onclick="openAdd('interest_inflation','افزودن نرخ سود/تورم')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>نرخ تورم (٪)</th><th>نرخ سود بانکی (٪)</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in interest_inflation %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.inflation_rate|default:"—" }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.bank_interest_rate|default:"—" }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_interestinflationrate %}<button onclick='openEdit("interest_inflation","ویرایش نرخ سود/تورم",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","inflation_rate":"{{ r.inflation_rate|default:'' }}","bank_interest_rate":"{{ r.bank_interest_rate|default:'' }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_interestinflationrate %}<form method="post" action="{% url 'strategic:market_intel_delete' 'interest_inflation' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="5"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۸) بازار کار صنعت ============ -->
+<div class="mi-panel" id="panel-labor_market">
+  <div class="mi-panel-head"><h3>بازار کار و دستمزد صنعت</h3>
+    {% if perms.strategic.add_labormarketstat %}<button type="button" class="btn accent" onclick="openAdd('labor_market','افزودن آمار بازار کار')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>رده‌ی شغلی</th><th>میانگین حقوق صنعت (ریال)</th><th>نرخ ترک شغل (٪)</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in labor_stats %}
+      <tr data-title="{{ r.job_role|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.job_role }}</td><td>{{ r.avg_industry_salary|default:"—" }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.turnover_rate|default:"—" }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_labormarketstat %}<button onclick='openEdit("labor_market","ویرایش آمار بازار کار",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","job_role":"{{ r.job_role|escapejs }}","avg_industry_salary":"{{ r.avg_industry_salary|default:'' }}","turnover_rate":"{{ r.turnover_rate|default:'' }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_labormarketstat %}<form method="post" action="{% url 'strategic:market_intel_delete' 'labor_market' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۹) مواد اولیه و نهاده‌های تولید ============ -->
+<div class="mi-panel" id="panel-raw_material">
+  <div class="mi-panel-head"><h3>مواد اولیه و نهاده‌های تولید</h3>
+    {% if perms.strategic.add_domesticrawmaterial %}<button type="button" class="btn accent" onclick="openAdd('raw_material','افزودن قیمت ماده اولیه')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>نام ماده</th><th>نوع کاربرد</th><th>قیمت (ریال)</th><th>واحد</th><th>نوسان ماهانه</th><th>دوره</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in raw_materials %}
+      <tr data-title="{{ r.material_name|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.material_name }}</td><td>{{ r.usage_type|default:"—" }}</td><td>{{ r.price }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.unit }}</td><td>{% if r.monthly_fluctuation_pct %}{{ r.monthly_fluctuation_pct }}٪{% else %}—{% endif %}</td><td>{{ r.period_label }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_domesticrawmaterial %}<button onclick='openEdit("raw_material","ویرایش قیمت ماده اولیه",{{ r.pk }},{"material_name":"{{ r.material_name|escapejs }}","usage_type":"{{ r.usage_type|escapejs }}","price":"{{ r.price }}","unit":"{{ r.unit|escapejs }}","monthly_fluctuation_pct":"{{ r.monthly_fluctuation_pct|default:'' }}","period_label":"{{ r.period_label|escapejs }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_domesticrawmaterial %}<form method="post" action="{% url 'strategic:market_intel_delete' 'raw_material' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="8"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۱۰) نرخ تسهیلات خرید خودرو ============ -->
+<div class="mi-panel" id="panel-vehicle_loan">
+  <div class="mi-panel-head"><h3>نرخ تسهیلات خرید خودرو</h3>
+    {% if perms.strategic.add_vehicleloanrate %}<button type="button" class="btn accent" onclick="openAdd('vehicle_loan','افزودن نرخ تسهیلات خودرو')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>نرخ سود (٪)</th><th>حداکثر مبلغ وام (ریال)</th><th>پیش‌پرداخت اجباری (٪)</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in vehicle_loans %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.interest_rate|default:"—" }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td><td>{{ r.max_loan_amount|default:"—" }}</td><td>{{ r.mandatory_down_payment_pct|default:"—" }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_vehicleloanrate %}<button onclick='openEdit("vehicle_loan","ویرایش نرخ تسهیلات خودرو",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","interest_rate":"{{ r.interest_rate|default:'' }}","max_loan_amount":"{{ r.max_loan_amount|default:'' }}","mandatory_down_payment_pct":"{{ r.mandatory_down_payment_pct|default:'' }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_vehicleloanrate %}<form method="post" action="{% url 'strategic:market_intel_delete' 'vehicle_loan' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="6"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۱۱) واردات/صادرات قطعات و خودرو ============ -->
+<div class="mi-panel" id="panel-parts_trade">
+  <div class="mi-panel-head"><h3>آمار واردات/صادرات قطعات و خودرو</h3>
+    {% if perms.strategic.add_vehiclepartstradestat %}<button type="button" class="btn accent" onclick="openAdd('parts_trade','افزودن آمار واردات/صادرات')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>دوره</th><th>تعداد خودروی وارداتی</th><th>ارزش واردات قطعات (دلار)</th><th>ارزش صادرات قطعات (دلار)</th><th>کشور مبدأ/مقصد</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in parts_trades %}
+      <tr data-title="{{ r.period_label|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.period_label }}</td><td>{{ r.imported_vehicle_count|default:"—" }}</td><td>{{ r.parts_import_value|default:"—" }}</td><td>{{ r.parts_export_value|default:"—" }}</td><td>{{ r.origin_destination|default:"—" }}</td><td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_vehiclepartstradestat %}<button onclick='openEdit("parts_trade","ویرایش آمار واردات/صادرات",{{ r.pk }},{"period_label":"{{ r.period_label|escapejs }}","imported_vehicle_count":"{{ r.imported_vehicle_count|default:'' }}","parts_import_value":"{{ r.parts_import_value|default:'' }}","parts_export_value":"{{ r.parts_export_value|default:'' }}","origin_destination":"{{ r.origin_destination|escapejs }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_vehiclepartstradestat %}<form method="post" action="{% url 'strategic:market_intel_delete' 'parts_trade' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="7"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۱۲) قطعات راهبردی و الکترونیک ============ -->
+<div class="mi-panel" id="panel-electronic_part">
+  <div class="mi-panel-head"><h3>قطعات راهبردی و الکترونیک</h3>
+    {% if perms.strategic.add_strategicelectronicpart %}<button type="button" class="btn accent" onclick="openAdd('electronic_part','افزودن قطعه راهبردی/الکترونیک')"><i class="fa-solid fa-plus"></i> افزودن</button>{% endif %}
+  </div>
+  <table class="mi-table">
+    <thead><tr><th>نام قطعه</th><th>موجودی انبار جهانی</th><th>زمان تحویل (روز)</th><th>قیمت (دلار)</th><th>وضعیت</th><th>منبع</th><th></th></tr></thead>
+    <tbody>
+      {% for r in electronic_parts %}
+      <tr data-title="{{ r.part_name|escapejs }}" data-note="{{ r.analyst_note|escapejs }}"><td>{{ r.part_name }}</td><td title="{{ r.global_inventory_note }}">{{ r.global_inventory_note|default:"—"|truncatechars:30 }}</td><td>{{ r.delivery_time_days|default:"—" }}</td><td>{{ r.price_usd|default:"—" }}{% if r.trend_pct is not None %}<span class="trend-badge trend-{% if r.trend_pct > 0 %}up{% elif r.trend_pct < 0 %}down{% else %}flat{% endif %}">{% if r.trend_pct > 0 %}▲{% elif r.trend_pct < 0 %}▼{% else %}—{% endif %} {{ r.trend_pct }}٪</span>{% endif %}</td>
+        <td><span class="status-pill-mi status-{% if r.status == 'critical' %}sanctioned{% elif r.status == 'limited' %}risky{% else %}stable{% endif %}">{{ r.get_status_display }}</span></td>
+        <td>{{ r.source_name|default:"—" }}</td>
+        <td class="actions">
+          {% if perms.strategic.change_strategicelectronicpart %}<button onclick='openEdit("electronic_part","ویرایش قطعه راهبردی/الکترونیک",{{ r.pk }},{"part_name":"{{ r.part_name|escapejs }}","global_inventory_note":"{{ r.global_inventory_note|escapejs }}","delivery_time_days":"{{ r.delivery_time_days|default:'' }}","price_usd":"{{ r.price_usd|default:'' }}","status":"{{ r.status }}","source_name":"{{ r.source_name|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_strategicelectronicpart %}<form method="post" action="{% url 'strategic:market_intel_delete' 'electronic_part' r.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="7"><div class="mi-empty">هنوز داده‌ای ثبت نشده</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ============ ۱۳) رقبا ============ -->
+<div class="mi-panel" id="panel-competitor">
+  <div class="mi-panel-head"><h3>رقبا</h3>
+    {% if perms.strategic.add_competitor %}<button type="button" class="btn accent" onclick="openAdd('competitor','افزودن رقیب')"><i class="fa-solid fa-plus"></i> افزودن رقیب</button>{% endif %}
+  </div>
+  <div class="competitor-grid">
+    {% for c in competitors %}
+    <div class="competitor-card">
+      <div class="head">
+        <h4>{{ c.name }}</h4>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <span class="share">{{ c.market_share }}٪</span>
+          {% if perms.strategic.change_competitor %}<button onclick='openEdit("competitor","ویرایش رقیب",{{ c.pk }},{"name":"{{ c.name|escapejs }}","market_share":"{{ c.market_share }}","strengths":"{{ c.strengths|escapejs }}","weaknesses":"{{ c.weaknesses|escapejs }}","recent_move":"{{ c.recent_move|escapejs }}","order":"{{ c.order }}"})' style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:0;"><i class="fa-solid fa-pen"></i></button>{% endif %}
+          {% if perms.strategic.delete_competitor %}<form method="post" action="{% url 'strategic:market_intel_delete' 'competitor' c.pk %}" style="margin:0;" onsubmit="return confirm('این رقیب حذف شود؟');">{% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:0;"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+        </span>
+      </div>
+      <div class="share-track"><div class="share-fill" style="width:{{ c.market_share }}%"></div></div>
+      <div class="sw-row">
+        <div class="sw-col pos"><span class="t">قوت</span><ul>{% for s in c.strengths_list %}<li>{{ s }}</li>{% endfor %}</ul></div>
+        <div class="sw-col neg"><span class="t">ضعف</span><ul>{% for w in c.weaknesses_list %}<li>{{ w }}</li>{% endfor %}</ul></div>
+      </div>
+      {% if c.recent_move %}<div class="move-row"><i class="fa-solid fa-circle-info"></i>{{ c.recent_move }}</div>{% endif %}
     </div>
-    <div class="val">{{ r.value }}{% if r.unit %} {{ r.unit }}{% endif %}</div>
+    {% empty %}
+    <div class="mi-empty">هنوز رقیبی ثبت نشده</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ============ ۱۴) گزارش تحلیلی دوره‌ای ============ -->
+<div class="mi-panel" id="panel-report">
+  <div class="mi-panel-head"><h3>📊 گزارش تحلیلی دوره‌ای</h3>
+    {% if perms.strategic.add_marketintelreport %}<button type="button" class="btn accent" onclick="openAdd('report','افزودن گزارش تحلیلی جدید')"><i class="fa-solid fa-plus"></i> افزودن گزارش</button>{% endif %}
+  </div>
+  {% for r in reports %}
+  <div class="report-card" onclick="rowClick(event, '{{ r.title|escapejs }}', '{{ r.content|escapejs }}')">
+    <div class="report-card-head">
+      <div>
+        <h4>{{ r.title }}</h4>
+        <div class="report-card-meta">دوره: {{ r.period_label }} · تاریخ تهیه: {{ r.report_date|jalali }}{% if r.entered_by %} · تهیه‌شده توسط: {{ r.entered_by.get_full_name|default:r.entered_by.username }}{% endif %}</div>
+      </div>
+      <div class="actions">
+        {% if perms.strategic.change_marketintelreport %}<button onclick='event.stopPropagation(); openEdit("report","ویرایش گزارش تحلیلی",{{ r.pk }},{"title":"{{ r.title|escapejs }}","period_label":"{{ r.period_label|escapejs }}","report_date":"{{ r.report_date|jalali }}","summary":"{{ r.summary|escapejs }}","content":"{{ r.content|escapejs }}","key_risks":"{{ r.key_risks|escapejs }}","key_opportunities":"{{ r.key_opportunities|escapejs }}","recommended_actions":"{{ r.recommended_actions|escapejs }}"})'><i class="fa-solid fa-pen"></i></button>{% endif %}
+        {% if perms.strategic.delete_marketintelreport %}<form method="post" action="{% url 'strategic:market_intel_delete' 'report' r.pk %}" onsubmit="event.stopPropagation(); return confirm('این گزارش حذف شود؟');" onclick="event.stopPropagation();">{% csrf_token %}<button type="submit" class="danger"><i class="fa-solid fa-trash"></i></button></form>{% endif %}
+      </div>
+    </div>
+    <p class="report-card-summary">{{ r.summary }}</p>
   </div>
   {% empty %}
-  <div class="mi-empty">هنوز داده‌ای برای این دسته ثبت نشده</div>
+  <div class="mi-empty">هنوز گزارشی ثبت نشده</div>
   {% endfor %}
-  {% endwith %}
 </div>
-{% endfor %}
+
+</div><!-- /mi-panels-col -->
+
+<div class="mi-detail-col">
+  <div class="mi-detail-box" id="miDetailBox">
+    <div class="mi-detail-title">تحلیل و جزئیات</div>
+    <div class="mi-detail-body">
+      <div class="mi-detail-empty"><i class="fa-solid fa-arrow-pointer"></i> روی هر ردیف کلیک کنید تا تحلیل/جزئیات آن اینجا نشان داده شود</div>
+    </div>
+  </div>
+</div>
+</div><!-- /mi-body-grid -->
+
+<!-- ============ مودال مشترک افزودن/ویرایش ============ -->
+<div class="overlay" id="overlay">
+  <div class="modal-card">
+    <h3 id="modalTitle">افزودن</h3>
+    <form method="post" id="miForm">
+      {% csrf_token %}
+      <input type="hidden" name="form_kind" id="form_kind" value="">
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <input type="hidden" name="active_panel" id="active_panel" value="exchange_rate">
+      <div id="formFieldsHost"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent">ثبت</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- قالب‌های مخفی فیلدهای هر فرم (کپی می‌شن داخل مودال مشترک) -->
+<div style="display:none;">
+  <div id="tpl-exchange_rate">
+    <div class="field-group"><label>نام ارز</label>{{ forms.exchange_rate.currency_name }}</div>
+    <div class="field-group"><label>نرخ (ریال)</label>{{ forms.exchange_rate.value_rial }}</div>
+    <div class="field-group"><label>تاریخ نرخ</label>{{ forms.exchange_rate.period_date }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.exchange_rate.source_name }}</div>
+    <div class="field-group"><label>توضیح (اختیاری)</label>{{ forms.exchange_rate.note }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.exchange_rate.analyst_note }}</div>
+  </div>
+  <div id="tpl-legal_trade">
+    <div class="field-group"><label>عنوان الزام/محدودیت</label>{{ forms.legal_trade.title }}</div>
+    <div class="field-group"><label>نوع</label>{{ forms.legal_trade.item_type }}</div>
+    <div class="field-group"><label>تاریخ ابلاغ</label>{{ forms.legal_trade.announce_date }}</div>
+    <div class="field-group"><label>تاریخ اجرا/مهلت</label>{{ forms.legal_trade.effective_date }}</div>
+    <div class="field-group"><label>سازمان مربوطه</label>{{ forms.legal_trade.organization }}</div>
+    <div class="field-group"><label>سطح اثر بر ما</label>{{ forms.legal_trade.impact_level }}</div>
+    <div class="field-group"><label>توضیح اثر</label>{{ forms.legal_trade.description }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.legal_trade.analyst_note }}</div>
+  </div>
+  <div id="tpl-vehicle_market">
+    <div class="field-group"><label>دوره</label>{{ forms.vehicle_market.period_label }}</div>
+    <div class="field-group"><label>تعداد تولید کل کشور</label>{{ forms.vehicle_market.total_production }}</div>
+    <div class="field-group"><label>تعداد فروش کل کشور</label>{{ forms.vehicle_market.total_sales }}</div>
+    <div class="field-group"><label>تفکیک برند (اختیاری)</label>{{ forms.vehicle_market.brand_breakdown }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.vehicle_market.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.vehicle_market.analyst_note }}</div>
+  </div>
+  <div id="tpl-ev_trend">
+    <div class="field-group"><label>دوره</label>{{ forms.ev_trend.period_label }}</div>
+    <div class="field-group"><label>تعداد خودروی برقی/هیبریدی ثبت‌شده</label>{{ forms.ev_trend.ev_count }}</div>
+    <div class="field-group"><label>سیاست‌های تشویقی دولت</label>{{ forms.ev_trend.incentive_policies }}</div>
+    <div class="field-group"><label>وضعیت زیرساخت شارژ</label>{{ forms.ev_trend.charging_infrastructure }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.ev_trend.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.ev_trend.analyst_note }}</div>
+  </div>
+  <div id="tpl-csat_benchmark">
+    <div class="field-group"><label>دوره</label>{{ forms.csat_benchmark.period_label }}</div>
+    <div class="field-group"><label>میانگین رضایت صنعت (٪ یا امتیاز)</label>{{ forms.csat_benchmark.industry_avg_satisfaction }}</div>
+    <div class="field-group"><label>منبع بنچمارک</label>{{ forms.csat_benchmark.source_name }}</div>
+    <div class="field-group"><label>توضیح (اختیاری)</label>{{ forms.csat_benchmark.note }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.csat_benchmark.analyst_note }}</div>
+  </div>
+  <div id="tpl-supplier">
+    <div class="field-group"><label>نوع تأمین‌کننده</label>{{ forms.supplier.supplier_type }}</div>
+    <div class="field-group"><label>کشور/منطقه‌ی تأمین‌کننده</label>{{ forms.supplier.country }}</div>
+    <div class="field-group"><label>وضعیت سیاسی/تجاری</label>{{ forms.supplier.status }}</div>
+    <div class="field-group"><label>زمان تحویل تخمینی (روز)</label>{{ forms.supplier.delivery_time_days }}</div>
+    <div class="field-group"><label>نرخ ارز محلی مرتبط (اختیاری)</label>{{ forms.supplier.local_currency_rate }}</div>
+    <div class="field-group"><label>توضیح</label>{{ forms.supplier.description }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.supplier.analyst_note }}</div>
+  </div>
+  <div id="tpl-interest_inflation">
+    <div class="field-group"><label>دوره</label>{{ forms.interest_inflation.period_label }}</div>
+    <div class="field-group"><label>نرخ تورم نقطه‌به‌نقطه (٪)</label>{{ forms.interest_inflation.inflation_rate }}</div>
+    <div class="field-group"><label>نرخ سود تسهیلات بانکی (٪)</label>{{ forms.interest_inflation.bank_interest_rate }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.interest_inflation.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.interest_inflation.analyst_note }}</div>
+  </div>
+  <div id="tpl-labor_market">
+    <div class="field-group"><label>دوره</label>{{ forms.labor_market.period_label }}</div>
+    <div class="field-group"><label>رده‌ی شغلی</label>{{ forms.labor_market.job_role }}</div>
+    <div class="field-group"><label>میانگین حقوق صنعت (ریال)</label>{{ forms.labor_market.avg_industry_salary }}</div>
+    <div class="field-group"><label>نرخ ترک شغل صنعت (٪ اختیاری)</label>{{ forms.labor_market.turnover_rate }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.labor_market.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.labor_market.analyst_note }}</div>
+  </div>
+  <div id="tpl-raw_material">
+    <div class="field-group"><label>نام ماده</label>{{ forms.raw_material.material_name }}</div>
+    <div class="field-group"><label>نوع کاربرد (اختیاری)</label>{{ forms.raw_material.usage_type }}</div>
+    <div class="field-group"><label>قیمت داخلی (ریال)</label>{{ forms.raw_material.price }}</div>
+    <div class="field-group"><label>واحد</label>{{ forms.raw_material.unit }}</div>
+    <div class="field-group"><label>نرخ نوسان ماهانه (٪ اختیاری)</label>{{ forms.raw_material.monthly_fluctuation_pct }}</div>
+    <div class="field-group"><label>دوره</label>{{ forms.raw_material.period_label }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.raw_material.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.raw_material.analyst_note }}</div>
+  </div>
+  <div id="tpl-competitor">
+    <div class="field-group"><label>نام رقیب</label>{{ forms.competitor.name }}</div>
+    <div class="field-group"><label>سهم بازار (٪)</label>{{ forms.competitor.market_share }}</div>
+    <div class="field-group"><label>نقاط قوت</label>{{ forms.competitor.strengths }}</div>
+    <div class="field-group"><label>نقاط ضعف</label>{{ forms.competitor.weaknesses }}</div>
+    <div class="field-group"><label>آخرین حرکت</label>{{ forms.competitor.recent_move }}</div>
+    <div class="field-group"><label>ترتیب نمایش</label>{{ forms.competitor.order }}</div>
+  </div>
+  <div id="tpl-vehicle_loan">
+    <div class="field-group"><label>دوره</label>{{ forms.vehicle_loan.period_label }}</div>
+    <div class="field-group"><label>نرخ سود وام خودرو (٪)</label>{{ forms.vehicle_loan.interest_rate }}</div>
+    <div class="field-group"><label>حداکثر مبلغ وام (ریال)</label>{{ forms.vehicle_loan.max_loan_amount }}</div>
+    <div class="field-group"><label>پیش‌پرداخت اجباری (٪)</label>{{ forms.vehicle_loan.mandatory_down_payment_pct }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.vehicle_loan.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.vehicle_loan.analyst_note }}</div>
+  </div>
+  <div id="tpl-parts_trade">
+    <div class="field-group"><label>دوره</label>{{ forms.parts_trade.period_label }}</div>
+    <div class="field-group"><label>تعداد خودروی وارداتی</label>{{ forms.parts_trade.imported_vehicle_count }}</div>
+    <div class="field-group"><label>ارزش واردات قطعات (دلار)</label>{{ forms.parts_trade.parts_import_value }}</div>
+    <div class="field-group"><label>ارزش صادرات قطعات (دلار)</label>{{ forms.parts_trade.parts_export_value }}</div>
+    <div class="field-group"><label>کشور مبدأ/مقصد عمده</label>{{ forms.parts_trade.origin_destination }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.parts_trade.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.parts_trade.analyst_note }}</div>
+  </div>
+  <div id="tpl-electronic_part">
+    <div class="field-group"><label>نام قطعه</label>{{ forms.electronic_part.part_name }}</div>
+    <div class="field-group"><label>وضعیت موجودی انبار جهانی</label>{{ forms.electronic_part.global_inventory_note }}</div>
+    <div class="field-group"><label>زمان تحویل (روز)</label>{{ forms.electronic_part.delivery_time_days }}</div>
+    <div class="field-group"><label>قیمت (دلار)</label>{{ forms.electronic_part.price_usd }}</div>
+    <div class="field-group"><label>وضعیت</label>{{ forms.electronic_part.status }}</div>
+    <div class="field-group"><label>منبع</label>{{ forms.electronic_part.source_name }}</div>
+    <div class="field-group"><label>تحلیل/برداشت کارشناس (اختیاری)</label>{{ forms.electronic_part.analyst_note }}</div>
+  </div>
+  <div id="tpl-report">
+    <div class="field-group"><label>عنوان گزارش</label>{{ forms.report.title }}</div>
+    <div class="field-group"><label>دوره</label>{{ forms.report.period_label }}</div>
+    <div class="field-group"><label>تاریخ تهیه‌ی گزارش</label>{{ forms.report.report_date }}</div>
+    <div class="field-group"><label>خلاصه‌ی اجرایی</label>{{ forms.report.summary }}</div>
+    <div class="field-group"><label>متن کامل تحلیل</label>{{ forms.report.content }}</div>
+    <div class="field-group"><label>ریسک‌های کلیدی این دوره (اختیاری)</label>{{ forms.report.key_risks }}</div>
+    <div class="field-group"><label>فرصت‌های کلیدی این دوره (اختیاری)</label>{{ forms.report.key_opportunities }}</div>
+    <div class="field-group"><label>اقدامات پیشنهادی (اختیاری)</label>{{ forms.report.recommended_actions }}</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ---- کلیک روی ردیف: نمایش تحلیل توی باکس چپ ----
+  function showDetail(title, note){
+    const box = document.getElementById('miDetailBox');
+    if (!note || !note.trim()) {
+      box.innerHTML = '<div class="mi-detail-title">' + title + '</div>' +
+        '<div class="mi-detail-body"><div class="mi-detail-note" style="color:var(--ink-faint);">برای این مورد هنوز تحلیلی ثبت نشده — با دکمه‌ی ویرایش می‌توانید اضافه کنید.</div></div>';
+      return;
+    }
+    box.innerHTML = '<div class="mi-detail-title">' + title + '</div><div class="mi-detail-body"><div class="mi-detail-note"></div></div>';
+    box.querySelector('.mi-detail-note').textContent = note; // جلوگیری از XSS با textContent
+  }
+
+  function rowClick(e, title, note){
+    if (e.target.closest('button') || e.target.closest('form')) return;
+    showDetail(title, note);
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.mi-table tbody tr[data-title]').forEach(function(tr){
+      tr.addEventListener('click', function(e){
+        rowClick(e, tr.dataset.title, tr.dataset.note || '');
+      });
+    });
+  });
+
+  // ---- تعویض تب‌ها ----
+  let currentPanel = 'exchange_rate';
+
+  function activatePanel(panelKey){
+    const tabBtn = document.querySelector('.mi-tab[data-panel="' + panelKey + '"]');
+    const panelEl = document.getElementById('panel-' + panelKey);
+    if (!tabBtn || !panelEl) return;
+    document.querySelectorAll('.mi-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.mi-panel').forEach(p => p.classList.remove('active'));
+    tabBtn.classList.add('active');
+    panelEl.classList.add('active');
+    currentPanel = panelKey;
+  }
+
+  document.getElementById('miTabs').addEventListener('click', function(e){
+    const btn = e.target.closest('.mi-tab');
+    if (!btn) return;
+    activatePanel(btn.dataset.panel);
+  });
+
+  // بازگشت به همون تبی که کاربر آخرین‌بار روش بود (بعد از ذخیره/حذف/ویرایش)
+  document.addEventListener('DOMContentLoaded', function(){
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) activatePanel(tab);
+  });
+
+  // ---- مودال مشترک افزودن/ویرایش ----
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  function loadTemplate(kind){
+    const tpl = document.getElementById('tpl-' + kind);
+    document.getElementById('formFieldsHost').innerHTML = tpl.innerHTML;
+  }
+
+  function openAdd(kind, title, panelOverride){
+    const panel = panelOverride || currentPanel;
+    document.getElementById('form_kind').value = kind;
+    document.getElementById('obj_id').value = '';
+    document.getElementById('active_panel').value = panel;
+    loadTemplate(kind);
+    document.getElementById('modalTitle').textContent = title;
+    // برای تأمین‌کننده، نوع (داخلی/بین‌المللی) رو بر اساس تبی که ازش باز شده پیش‌فرض می‌ذاریم
+    if (kind === 'supplier') {
+      const typeField = document.getElementById('id_supplier_supplier_type');
+      if (typeField) typeField.value = (panel === 'supplier_domestic') ? 'domestic' : 'international';
+    }
+    openModal();
+  }
+
+  function openEdit(kind, title, id, data, panelOverride){
+    const panel = panelOverride || currentPanel;
+    document.getElementById('form_kind').value = kind;
+    document.getElementById('obj_id').value = id;
+    document.getElementById('active_panel').value = panel;
+    loadTemplate(kind);
+    document.getElementById('modalTitle').textContent = title;
+    // پرکردن فیلدها بر اساس شناسه‌ی مخصوص همین دسته (id_<kind>_<fieldname>) —
+    // چون چند فرم فیلد هم‌نام دارن (مثلاً «دوره»)، هر فرم پیشوند شناسه‌ی خودش رو داره
+    Object.keys(data).forEach(function(fieldName){
+      const el = document.getElementById('id_' + kind + '_' + fieldName);
+      if (el) el.value = data[fieldName];
+    });
+    openModal();
+  }
+</script>
 {% endblock %}
