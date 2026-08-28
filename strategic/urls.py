@@ -31,7 +31,9 @@ urlpatterns = [
     path("roadmap/bsc-sync/", views.bsc_sync, name="bsc_sync"),
 
     path("market-intel/", views.market_intel, name="market_intel"),
-    path("market-intel/fetch/", views.market_intel_fetch, name="market_intel_fetch"),
+    path("market-intel/export/", views.market_intel_export, name="market_intel_export"),
+    path("market-intel/import/", views.market_intel_import, name="market_intel_import"),
+    path("market-intel/delete/<str:model_key>/<int:pk>/", views.market_intel_delete, name="market_intel_delete"),
     path("users/", views.user_list, name="user_list"),
     path("users/add/", views.user_edit, name="user_add"),
     path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),

@@ -4,6 +4,9 @@ from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
     OperationalKPI, ScenarioResponseStrategy,
+    ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
+    SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
+    VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -266,6 +269,140 @@ class CompetitorForm(forms.ModelForm):
         }
 
 
+class ExchangeRateForm(forms.ModelForm):
+    period_date = JalaliDateField(label="تاریخ نرخ")
+
+    class Meta:
+        model = ExchangeRate
+        fields = ["currency_name", "value_rial", "period_date", "source_name", "note", "analyst_note"]
+        widgets = {
+            "currency_name": forms.TextInput(attrs={"placeholder": "مثلاً: دلار آزاد، یورو"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "مثلاً: TGJU.org، بانک مرکزی"}),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class LegalTradeRequirementForm(forms.ModelForm):
+    announce_date = JalaliDateField(label="تاریخ ابلاغ", required=False)
+    effective_date = JalaliDateField(label="تاریخ اجرا/مهلت", required=False)
+
+    class Meta:
+        model = LegalTradeRequirement
+        fields = ["title", "item_type", "announce_date", "effective_date", "organization", "impact_level", "description", "analyst_note"]
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "مثلاً: افزایش تعرفه واردات قطعه X"}),
+            "organization": forms.TextInput(attrs={"placeholder": "مثلاً: گمرک، وزارت صمت"}),
+            "description": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class VehicleMarketStatForm(forms.ModelForm):
+    class Meta:
+        model = VehicleMarketStat
+        fields = ["period_label", "total_production", "total_sales", "brand_breakdown", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "brand_breakdown": forms.Textarea(attrs={"rows": 3, "placeholder": "مثلاً: سایپا ۴۰۰۰۰، ایران‌خودرو ۵۵۰۰۰"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "مثلاً: وزارت صمت، ایکو"}),
+        }
+
+
+class EVTrendForm(forms.ModelForm):
+    class Meta:
+        model = EVTrend
+        fields = ["period_label", "ev_count", "incentive_policies", "charging_infrastructure", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: سال ۱۴۰۵"}),
+            "incentive_policies": forms.Textarea(attrs={"rows": 2}),
+            "charging_infrastructure": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class CustomerSatisfactionBenchmarkForm(forms.ModelForm):
+    class Meta:
+        model = CustomerSatisfactionBenchmark
+        fields = ["period_label", "industry_avg_satisfaction", "source_name", "note", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: تابستان ۱۴۰۵"}),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class SupplierConditionForm(forms.ModelForm):
+    class Meta:
+        model = SupplierCondition
+        fields = ["supplier_type", "country", "status", "delivery_time_days", "local_currency_rate", "description", "analyst_note"]
+        widgets = {
+            "country": forms.TextInput(attrs={"placeholder": "مثلاً: چین، کره جنوبی، ترکیه / یا استان تهران، اصفهان"}),
+            "local_currency_rate": forms.TextInput(attrs={"placeholder": "اختیاری"}),
+            "description": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class InterestInflationRateForm(forms.ModelForm):
+    class Meta:
+        model = InterestInflationRate
+        fields = ["period_label", "inflation_rate", "bank_interest_rate", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "بانک مرکزی"}),
+        }
+
+
+class LaborMarketStatForm(forms.ModelForm):
+    class Meta:
+        model = LaborMarketStat
+        fields = ["period_label", "job_role", "avg_industry_salary", "turnover_rate", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "job_role": forms.TextInput(attrs={"placeholder": "مثلاً: کارشناس فروش قطعات"}),
+        }
+
+
+class DomesticRawMaterialForm(forms.ModelForm):
+    class Meta:
+        model = DomesticRawMaterial
+        fields = ["material_name", "usage_type", "price", "unit", "monthly_fluctuation_pct", "period_label", "source_name", "analyst_note"]
+        widgets = {
+            "material_name": forms.TextInput(attrs={"placeholder": "مثلاً: فولاد، پلاستیک ABS، لاستیک خام"}),
+            "usage_type": forms.TextInput(attrs={"placeholder": "مثلاً: ورق بدنه، ورق موتوری، پلیمر، رنگ"}),
+            "unit": forms.TextInput(attrs={"placeholder": "کیلوگرم / تن"}),
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "مثلاً: بورس کالا، اتحادیه"}),
+        }
+
+
+class VehicleLoanRateForm(forms.ModelForm):
+    class Meta:
+        model = VehicleLoanRate
+        fields = ["period_label", "interest_rate", "max_loan_amount", "mandatory_down_payment_pct", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "مثلاً: بانک مرکزی، ایران‌خودرو/سایپا"}),
+        }
+
+
+class VehiclePartsTradeStatForm(forms.ModelForm):
+    class Meta:
+        model = VehiclePartsTradeStat
+        fields = ["period_label", "imported_vehicle_count", "parts_import_value", "parts_export_value", "origin_destination", "source_name", "analyst_note"]
+        widgets = {
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "origin_destination": forms.TextInput(attrs={"placeholder": "مثلاً: چین (مبدأ عمده واردات)"}),
+            "source_name": forms.TextInput(attrs={"placeholder": "مثلاً: گمرک ایران"}),
+        }
+
+
+class StrategicElectronicPartForm(forms.ModelForm):
+    class Meta:
+        model = StrategicElectronicPart
+        fields = ["part_name", "global_inventory_note", "delivery_time_days", "price_usd", "status", "source_name", "analyst_note"]
+        widgets = {
+            "part_name": forms.TextInput(attrs={"placeholder": "مثلاً: ECU موتور، چیپ کنترلی"}),
+            "global_inventory_note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
 class PestelFactorForm(forms.ModelForm):
     class Meta:
         model = PestelFactor
@@ -470,6 +607,23 @@ class OperationalKPIForm(forms.ModelForm):
 
     def clean_progress_1405(self):
         return clean_number_string(self.cleaned_data.get("progress_1405"))
+
+
+class MarketIntelReportForm(forms.ModelForm):
+    report_date = JalaliDateField(label="تاریخ تهیه‌ی گزارش")
+
+    class Meta:
+        model = MarketIntelReport
+        fields = ["title", "period_label", "report_date", "summary", "content", "key_risks", "key_opportunities", "recommended_actions"]
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "مثلاً: گزارش تحلیلی هوش بازار — مرداد ۱۴۰۵"}),
+            "period_label": forms.TextInput(attrs={"placeholder": "مثلاً: مرداد ۱۴۰۵"}),
+            "summary": forms.Textarea(attrs={"rows": 3, "placeholder": "خلاصه‌ی ۲-۳ خطی برای مدیران"}),
+            "content": forms.Textarea(attrs={"rows": 8, "placeholder": "تحلیل کامل: روند نرخ ارز، وضعیت رقبا، ریسک‌های زنجیره‌ی تأمین و..."}),
+            "key_risks": forms.Textarea(attrs={"rows": 3}),
+            "key_opportunities": forms.Textarea(attrs={"rows": 3}),
+            "recommended_actions": forms.Textarea(attrs={"rows": 3}),
+        }
 
 
 class DocumentForm(forms.ModelForm):

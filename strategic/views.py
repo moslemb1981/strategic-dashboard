@@ -19,13 +19,19 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor, MarketIntelRecord,
+    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
+    ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
+    SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
+    VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
     StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm, ScenarioResponseStrategyForm,
+    ExchangeRateForm, LegalTradeRequirementForm, VehicleMarketStatForm, EVTrendForm, CustomerSatisfactionBenchmarkForm,
+    SupplierConditionForm, InterestInflationRateForm, LaborMarketStatForm, DomesticRawMaterialForm,
+    VehicleLoanRateForm, VehiclePartsTradeStatForm, StrategicElectronicPartForm, MarketIntelReportForm,
     clean_number_string,
 )
 
@@ -639,88 +645,249 @@ def initiative_delete(request, pk):
 
 # ---------------- Market / competitive intelligence ----------------
 
+def _compute_trends(items, value_attr, group_attr=None):
+    """برای هر آیتم توی یه لیست مرتب‌شده (جدید به قدیم — همون ordering پیش‌فرض هر مدل)،
+    درصد تغییر نسبت به آخرین رکورد قبلی (قدیمی‌تر) با همون group_attr رو محاسبه و
+    به‌عنوان attribute موقت `trend_pct` روی خودِ آبجکت می‌ذاره. اگه group_attr داده نشه،
+    کل لیست به‌عنوان یه سری زمانی واحد در نظر گرفته می‌شه (مثلاً برای شاخص‌هایی که
+    خودشون تکراری نیستن، فقط دوره‌به‌دوره ثبت می‌شن)."""
+    items = list(items)
+    groups = {}
+    for item in items:
+        key = getattr(item, group_attr) if group_attr else "_all_"
+        groups.setdefault(key, []).append(item)
+    for group_items in groups.values():
+        for i, item in enumerate(group_items):
+            item.trend_pct = None
+            if i + 1 < len(group_items):
+                current = getattr(item, value_attr)
+                previous = getattr(group_items[i + 1], value_attr)
+                if current is not None and previous not in (None, 0):
+                    try:
+                        item.trend_pct = round((float(current) - float(previous)) / float(previous) * 100, 1)
+                    except (TypeError, ValueError, ZeroDivisionError):
+                        item.trend_pct = None
+    return items
+
+
+def market_intel_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:market_intel")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from .market_intel_sheets import get_sheet_specs
+
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+
+    total_rows = 0
+    for spec in get_sheet_specs():
+        ws = wb.create_sheet(title=spec["sheet_name"][:31])  # اکسل اسم شیت رو حداکثر ۳۱ کاراکتر قبول می‌کنه
+        ws.sheet_view.rightToLeft = True
+        for col, col_def in enumerate(spec["columns"], start=1):
+            cell = ws.cell(row=1, column=col, value=col_def[0])
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        for row_i, obj in enumerate(spec["model"].objects.all(), start=2):
+            for col, col_def in enumerate(spec["columns"], start=1):
+                label, field, ftype = col_def[0], col_def[1], col_def[2]
+                raw = getattr(obj, field)
+                if ftype == "jalali_date":
+                    val = gregorian_to_jalali_str(raw) if raw else ""
+                elif ftype == "choice":
+                    choices_map = col_def[3]
+                    val = choices_map.get(raw, raw)
+                else:
+                    val = raw if raw is not None else ""
+                ws.cell(row=row_i, column=col, value=val)
+            total_rows += 1
+
+        for col in range(1, len(spec["columns"]) + 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 26
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT MarketIntel Excel", f"{total_rows} ردیف در {len(get_sheet_specs())} شیت")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="hoosh-bazar.xlsx"'
+    return response
+
+
+def market_intel_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:market_intel")
+    if request.method != "POST" or "excel_file" not in request.FILES:
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:market_intel")
+
+    import openpyxl
+    from .market_intel_sheets import get_sheet_specs
+
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+    except Exception as e:
+        messages.error(request, f"فایل اکسل قابل‌خواندن نیست: {e}")
+        return redirect("strategic:market_intel")
+
+    def _s(v):
+        return str(v).strip() if v is not None else ""
+
+    total_created, total_updated, total_skipped = 0, 0, 0
+    sheet_errors = []
+
+    for spec in get_sheet_specs():
+        sheet_title = spec["sheet_name"][:31]
+        if sheet_title not in wb.sheetnames:
+            continue
+        ws = wb[sheet_title]
+        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        for row in rows:
+            if not any(row):
+                continue
+            values = {}
+            valid_row = True
+            for col_idx, col_def in enumerate(spec["columns"]):
+                label, field, ftype = col_def[0], col_def[1], col_def[2]
+                raw = row[col_idx] if col_idx < len(row) else None
+                if ftype == "jalali_date":
+                    try:
+                        values[field] = jalali_str_to_gregorian(_s(raw)) if _s(raw) else None
+                    except Exception:
+                        values[field] = None
+                elif ftype == "choice":
+                    choices_map = col_def[3]
+                    reverse_map = {v: k for k, v in choices_map.items()}
+                    values[field] = reverse_map.get(_s(raw), list(choices_map.keys())[0] if raw is None else _s(raw))
+                elif ftype in ("number", "decimal"):
+                    try:
+                        values[field] = raw if raw not in (None, "") else None
+                    except Exception:
+                        values[field] = None
+                else:
+                    values[field] = _s(raw)
+
+            key_filter = {k: values.get(k) for k in spec["natural_key"]}
+            if not all(key_filter.values()):
+                total_skipped += 1
+                continue
+            try:
+                existing = spec["model"].objects.filter(**key_filter).first()
+                if existing:
+                    for k, v in values.items():
+                        setattr(existing, k, v)
+                    existing.save()
+                    total_updated += 1
+                else:
+                    spec["model"].objects.create(**values)
+                    total_created += 1
+            except Exception as e:
+                sheet_errors.append(f"{spec['sheet_name']}: {e}")
+                total_skipped += 1
+
+    _log_action(request, "IMPORT MarketIntel Excel", f"{total_created} جدید، {total_updated} به‌روزشده، {total_skipped} ردشده")
+    msg = f"وارد کردن انجام شد: {total_created} رکورد جدید، {total_updated} به‌روزرسانی‌شده."
+    if total_skipped:
+        msg += f" ({total_skipped} ردیف رد شد)"
+    messages.success(request, msg)
+    if sheet_errors:
+        messages.warning(request, "برخی خطاها: " + " | ".join(sheet_errors[:5]))
+    return redirect("strategic:market_intel")
+
+
 def market_intel(request):
-    records = list(MarketIntelRecord.objects.all()[:200])
-    grouped = {}
-    for r in records:
-        grouped.setdefault(r.category, []).append(r)
-    category_labels = dict(MarketIntelRecord.CATEGORY_CHOICES)
-    latest_fetch = records[0].fetched_at if records else None
+    # نگاشت هر «نوع فرم» به (مدل، فرم، مجوز پایه‌ی نام مدل جنگو)
+    FORM_MAP = {
+        "exchange_rate": (ExchangeRate, ExchangeRateForm),
+        "legal_trade": (LegalTradeRequirement, LegalTradeRequirementForm),
+        "vehicle_market": (VehicleMarketStat, VehicleMarketStatForm),
+        "ev_trend": (EVTrend, EVTrendForm),
+        "csat_benchmark": (CustomerSatisfactionBenchmark, CustomerSatisfactionBenchmarkForm),
+        "supplier": (SupplierCondition, SupplierConditionForm),
+        "interest_inflation": (InterestInflationRate, InterestInflationRateForm),
+        "labor_market": (LaborMarketStat, LaborMarketStatForm),
+        "raw_material": (DomesticRawMaterial, DomesticRawMaterialForm),
+        "vehicle_loan": (VehicleLoanRate, VehicleLoanRateForm),
+        "parts_trade": (VehiclePartsTradeStat, VehiclePartsTradeStatForm),
+        "electronic_part": (StrategicElectronicPart, StrategicElectronicPartForm),
+        "report": (MarketIntelReport, MarketIntelReportForm),
+        "competitor": (Competitor, CompetitorForm),
+    }
+
+    forms_ctx = {}
+    active_panel = "exchange_rate"
+    if request.method == "POST":
+        form_kind = request.POST.get("form_kind")
+        active_panel = request.POST.get("active_panel") or form_kind or "exchange_rate"
+        if form_kind in FORM_MAP:
+            model_cls, form_cls = FORM_MAP[form_kind]
+            model_name = model_cls._meta.model_name
+            obj_id = request.POST.get("obj_id")
+            perm = f"strategic.change_{model_name}" if obj_id else f"strategic.add_{model_name}"
+            if _has_perm(request, perm):
+                instance = get_object_or_404(model_cls, pk=obj_id) if obj_id else None
+                bound_form = form_cls(request.POST, instance=instance, auto_id=f"id_{form_kind}_%s")
+                if bound_form.is_valid():
+                    bound_form.save()
+                    _log_action(request, "UPDATE" if obj_id else "CREATE", f"{form_kind}: {bound_form.instance}")
+                    return redirect(f"{reverse('strategic:market_intel')}?tab={active_panel}")
+                forms_ctx[form_kind] = bound_form
+
+    for key, (model_cls, form_cls) in FORM_MAP.items():
+        if key not in forms_ctx:
+            forms_ctx[key] = form_cls(auto_id=f"id_{key}_%s")
 
     return render(request, "strategic/market_intel.html", {
-        "active_page": "market_intel", "grouped": grouped, "category_labels": category_labels,
-        "categories": MarketIntelRecord.CATEGORY_CHOICES, "latest_fetch": latest_fetch,
-        "total_count": len(records),
+        "active_page": "market_intel",
+        "exchange_rates": _compute_trends(ExchangeRate.objects.all()[:30], "value_rial", "currency_name"),
+        "legal_trade_items": LegalTradeRequirement.objects.all()[:50],
+        "vehicle_stats": _compute_trends(VehicleMarketStat.objects.all()[:30], "total_production"),
+        "ev_trends": EVTrend.objects.all()[:30],
+        "csat_benchmarks": CustomerSatisfactionBenchmark.objects.all()[:30],
+        "suppliers_domestic": SupplierCondition.objects.filter(supplier_type="domestic"),
+        "suppliers_intl": SupplierCondition.objects.filter(supplier_type="international"),
+        "interest_inflation": _compute_trends(InterestInflationRate.objects.all()[:30], "inflation_rate"),
+        "labor_stats": _compute_trends(LaborMarketStat.objects.all()[:30], "avg_industry_salary", "job_role"),
+        "raw_materials": _compute_trends(DomesticRawMaterial.objects.all()[:50], "price", "material_name"),
+        "vehicle_loans": _compute_trends(VehicleLoanRate.objects.all()[:30], "interest_rate"),
+        "parts_trades": VehiclePartsTradeStat.objects.all()[:30],
+        "electronic_parts": _compute_trends(StrategicElectronicPart.objects.all()[:50], "price_usd", "part_name"),
+        "competitors": Competitor.objects.all(),
+        "reports": MarketIntelReport.objects.all()[:30],
+        "forms": forms_ctx,
     })
 
 
-@login_required
-def market_intel_fetch(request):
-    if request.method != "POST" or not request.user.is_superuser:
-        messages.error(request, "این عملیات فقط برای مدیر سیستم و از طریق دکمه‌ی مربوطه مجاز است.")
-        return redirect("strategic:market_intel")
-
-    created, errors = [], []
-
-    # --- نمونه‌ی اول: نرخ برابری چند ارز اصلی (منبع: Frankfurter/ECB، عمومی و بدون نیاز به کلید) ---
-    # ⚠️ این یک نمونه‌ی عمومی است، نه نرخ ریال ایران — چون منابع استاندارد بین‌المللی نرخ ریال را
-    # به‌دلیل تحریم‌ها ندارند. برای نرخ دلار/ریال باید یک منبع اختصاصی ایرانی انتخاب و بعداً اضافه شود.
-    try:
-        resp = requests.get("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP", timeout=8)
-        resp.raise_for_status()
-        data = resp.json()
-        rate_date = data.get("date", "")
-        for currency, rate in data.get("rates", {}).items():
-            rec = MarketIntelRecord.objects.create(
-                category="exchange_rate",
-                title=f"نرخ برابری USD به {currency}",
-                value=str(rate),
-                unit=currency,
-                source_name="Frankfurter (ECB)",
-                source_url="https://www.frankfurter.app/",
-                fetched_by=request.user,
-            )
-            created.append(rec.title)
-    except Exception as e:
-        errors.append(f"نرخ ارز: {e}")
-
-    # --- نمونه‌ی دوم: نرخ دلار به ریال (منبع: TGJU.org — چون منابع بین‌المللی استاندارد،
-    # نرخ ریال ایران رو به‌خاطر تحریم‌ها ندارن) ---
-    # روش کار: توی هر صفحه‌ی TGJU، یه نوار «قیمت لحظه‌ای» هست که شامل «دلار NUMBER (درصد%)»
-    # می‌شه — این الگو رو با regex پیدا می‌کنیم، نه صفحه‌بندی خاصی که ممکنه عوض بشه.
-    try:
-        resp = requests.get(
-            "https://www.tgju.org/profile/price_dollar_rl",
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        m = re.search(r"دلار[^\d]{0,40}([\d,]{6,12})", resp.text)
-        if not m:
-            raise ValueError("الگوی قیمت دلار توی صفحه پیدا نشد (شاید ساختار سایت عوض شده)")
-        rial_value = m.group(1).replace(",", "")
-        rec = MarketIntelRecord.objects.create(
-            category="exchange_rate",
-            title="نرخ دلار آزاد به ریال",
-            value=rial_value,
-            unit="ریال",
-            source_name="TGJU.org",
-            source_url="https://www.tgju.org/profile/price_dollar_rl",
-            fetched_by=request.user,
-        )
-        created.append(rec.title)
-    except Exception as e:
-        errors.append(f"نرخ دلار (TGJU): {e}")
-
-    if created:
-        _log_action(request, "FETCH MarketIntel", f"{len(created)} رکورد: {', '.join(created)}")
-        messages.success(request, f"به‌روزرسانی انجام شد: {len(created)} رکورد جدید ثبت شد.")
-    if errors:
-        messages.error(request, "برخی موارد با خطا مواجه شدند: " + " | ".join(errors))
-    if not created and not errors:
-        messages.warning(request, "هیچ داده‌ی جدیدی دریافت نشد.")
-
-    return redirect("strategic:market_intel")
+def market_intel_delete(request, model_key, pk):
+    FORM_MAP = {
+        "exchange_rate": ExchangeRate, "legal_trade": LegalTradeRequirement,
+        "vehicle_market": VehicleMarketStat, "ev_trend": EVTrend,
+        "csat_benchmark": CustomerSatisfactionBenchmark, "supplier": SupplierCondition,
+        "interest_inflation": InterestInflationRate, "labor_market": LaborMarketStat,
+        "raw_material": DomesticRawMaterial, "competitor": Competitor,
+        "vehicle_loan": VehicleLoanRate, "parts_trade": VehiclePartsTradeStat,
+        "electronic_part": StrategicElectronicPart, "report": MarketIntelReport,
+    }
+    model_cls = FORM_MAP.get(model_key)
+    active_panel = request.POST.get("active_panel") or model_key
+    if model_cls and request.method == "POST":
+        model_name = model_cls._meta.model_name
+        if _has_perm(request, f"strategic.delete_{model_name}"):
+            _obj = get_object_or_404(model_cls, pk=pk)
+            _label = str(_obj)
+            _obj.delete()
+            _log_action(request, "DELETE", f"{model_key}: {_label}")
+    return redirect(f"{reverse('strategic:market_intel')}?tab={active_panel}")
 
 
 def market(request):
@@ -752,7 +919,7 @@ def competitor_delete(request, pk):
         _label = str(_obj)
         _obj.delete()
         _log_action(request, "DELETE Competitor", _label)
-    return redirect("strategic:market")
+    return redirect("strategic:market_intel")
 
 
 # ---------------- PESTEL ----------------

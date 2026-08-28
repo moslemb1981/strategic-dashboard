@@ -98,8 +98,8 @@
     <main class="main">
       {% if messages %}
         {% for message in messages %}
-        <div style="background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:11px 16px;margin-bottom:16px;font-size:12.5px;">
-          <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+        <div style="background:{% if message.tags == 'success' %}var(--success-soft, #EAF3EC){% elif message.tags == 'warning' %}var(--accent-soft, #FDF3E7){% else %}var(--danger-soft){% endif %};color:{% if message.tags == 'success' %}var(--success, #1E6B52){% elif message.tags == 'warning' %}#9A6A1E{% else %}var(--danger){% endif %};border-radius:9px;padding:11px 16px;margin-bottom:16px;font-size:12.5px;">
+          <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% elif message.tags == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-exclamation{% endif %}"></i> {{ message }}
         </div>
         {% endfor %}
       {% endif %}

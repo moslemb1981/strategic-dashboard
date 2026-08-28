@@ -1302,34 +1302,281 @@ def document_upload_path(instance, filename):
     return f"documents/{instance.category}/{slugify(instance.title) or 'doc'}{ext}"
 
 
-class MarketIntelRecord(models.Model):
-    """رکورد داده‌ی هوش بازار (نرخ ارز، مواد اولیه، رقبا و...) — با کلیک دستی ادمین از اینترنت
-    گرفته و اینجا ذخیره می‌شود. هر بار به‌روزرسانی، یک رکورد جدید اضافه می‌کند (نه جایگزینی)،
-    تا تاریخچه و روند هم حفظ شود."""
-    CATEGORY_CHOICES = [
-        ("exchange_rate", "نرخ ارز"),
-        ("raw_material", "مواد اولیه / قطعات وارداتی"),
-        ("competitor", "رقبا"),
-        ("other", "سایر"),
-    ]
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name="دسته‌بندی")
-    title = models.CharField(max_length=200, verbose_name="عنوان")
-    value = models.TextField(verbose_name="مقدار / توضیح")
-    unit = models.CharField(max_length=40, blank=True, verbose_name="واحد (اختیاری)")
-    source_name = models.CharField(max_length=150, blank=True, verbose_name="نام منبع")
-    source_url = models.URLField(max_length=500, blank=True, verbose_name="آدرس منبع")
-    fetched_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان دریافت")
-    fetched_by = models.ForeignKey(
-        "auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="دریافت‌شده توسط",
-    )
+class ExchangeRate(models.Model):
+    """نرخ ارز — ثبت دستی کارشناس."""
+    currency_name = models.CharField(max_length=60, verbose_name="نام ارز")
+    value_rial = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="نرخ (ریال)")
+    period_date = models.DateField(verbose_name="تاریخ نرخ")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    note = models.TextField(blank=True, verbose_name="توضیح (اختیاری)")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
 
     class Meta:
-        ordering = ["-fetched_at"]
-        verbose_name = "رکورد هوش بازار"
-        verbose_name_plural = "هوش بازار"
+        ordering = ["-period_date"]
+        verbose_name = "نرخ ارز"
+        verbose_name_plural = "نرخ‌های ارز"
 
     def __str__(self):
-        return f"{self.title} — {self.fetched_at:%Y-%m-%d %H:%M}"
+        return f"{self.currency_name} — {self.period_date}"
+
+
+class LegalTradeRequirement(models.Model):
+    """الزامات قانونی و تجاری (داخلی و بین‌المللی، شامل تحریم‌ها)."""
+    TYPE_CHOICES = [("domestic", "داخلی"), ("international", "بین‌المللی / تحریم")]
+    IMPACT_CHOICES = [("high", "بالا"), ("medium", "متوسط"), ("low", "پایین")]
+
+    title = models.CharField(max_length=250, verbose_name="عنوان الزام/محدودیت")
+    item_type = models.CharField(max_length=15, choices=TYPE_CHOICES, verbose_name="نوع")
+    announce_date = models.DateField(null=True, blank=True, verbose_name="تاریخ ابلاغ")
+    effective_date = models.DateField(null=True, blank=True, verbose_name="تاریخ اجرا/مهلت")
+    organization = models.CharField(max_length=150, blank=True, verbose_name="سازمان مربوطه")
+    impact_level = models.CharField(max_length=10, choices=IMPACT_CHOICES, default="medium", verbose_name="سطح اثر بر ما")
+    description = models.TextField(blank=True, verbose_name="توضیح اثر")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-effective_date", "-entered_at"]
+        verbose_name = "الزام قانونی/تجاری"
+        verbose_name_plural = "الزامات قانونی و تجاری"
+
+    def __str__(self):
+        return self.title
+
+
+class VehicleMarketStat(models.Model):
+    """آمار تولید/فروش خودرو کشور."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره (مثلاً مرداد ۱۴۰۵)")
+    total_production = models.PositiveIntegerField(null=True, blank=True, verbose_name="تعداد تولید کل کشور")
+    total_sales = models.PositiveIntegerField(null=True, blank=True, verbose_name="تعداد فروش کل کشور")
+    brand_breakdown = models.TextField(blank=True, verbose_name="تفکیک برند (اختیاری)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "آمار بازار خودرو کشور"
+        verbose_name_plural = "آمار تولید و فروش خودرو کشور"
+
+    def __str__(self):
+        return f"آمار خودرو کشور — {self.period_label}"
+
+
+class EVTrend(models.Model):
+    """روند خودروی برقی/هیبریدی در کشور."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    ev_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="تعداد خودروی برقی/هیبریدی ثبت‌شده")
+    incentive_policies = models.TextField(blank=True, verbose_name="سیاست‌های تشویقی دولت")
+    charging_infrastructure = models.TextField(blank=True, verbose_name="وضعیت زیرساخت شارژ")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "روند خودروی برقی/هیبریدی"
+        verbose_name_plural = "روند خودروهای برقی/هیبریدی"
+
+    def __str__(self):
+        return f"روند EV — {self.period_label}"
+
+
+class CustomerSatisfactionBenchmark(models.Model):
+    """بنچمارک رضایت مشتری صنعت (برای مقایسه با شاخص‌های داخلی رضایت مشتری)."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    industry_avg_satisfaction = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="میانگین رضایت صنعت (٪ یا امتیاز)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع بنچمارک")
+    note = models.TextField(blank=True, verbose_name="توضیح (اختیاری)")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "بنچمارک رضایت مشتری صنعت"
+        verbose_name_plural = "بنچمارک‌های رضایت مشتری صنعت"
+
+    def __str__(self):
+        return f"بنچمارک رضایت — {self.period_label}"
+
+
+class SupplierCondition(models.Model):
+    """شرایط تأمین‌کنندگان (داخلی و بین‌المللی)."""
+    SUPPLIER_TYPE_CHOICES = [("domestic", "داخلی"), ("international", "بین‌المللی")]
+    STATUS_CHOICES = [("stable", "باثبات"), ("risky", "پرریسک"), ("sanctioned", "تحریم/محدود")]
+
+    supplier_type = models.CharField(max_length=15, choices=SUPPLIER_TYPE_CHOICES, default="international", verbose_name="نوع تأمین‌کننده")
+    country = models.CharField(max_length=80, verbose_name="کشور/منطقه‌ی تأمین‌کننده")
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default="stable", verbose_name="وضعیت سیاسی/تجاری")
+    delivery_time_days = models.PositiveIntegerField(null=True, blank=True, verbose_name="زمان تحویل تخمینی (روز)")
+    local_currency_rate = models.CharField(max_length=100, blank=True, verbose_name="نرخ ارز محلی مرتبط (اختیاری)")
+    description = models.TextField(blank=True, verbose_name="توضیح")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["supplier_type", "country"]
+        verbose_name = "شرایط تأمین‌کننده"
+        verbose_name_plural = "شرایط تأمین‌کنندگان"
+
+    def __str__(self):
+        return self.country
+
+
+class InterestInflationRate(models.Model):
+    """نرخ سود بانکی و تورم."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    inflation_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="نرخ تورم نقطه‌به‌نقطه (٪)")
+    bank_interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="نرخ سود تسهیلات بانکی (٪)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "نرخ سود و تورم"
+        verbose_name_plural = "نرخ‌های سود بانکی و تورم"
+
+    def __str__(self):
+        return f"سود/تورم — {self.period_label}"
+
+
+class LaborMarketStat(models.Model):
+    """بازار کار و دستمزد صنعت."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    job_role = models.CharField(max_length=120, verbose_name="رده‌ی شغلی")
+    avg_industry_salary = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True, verbose_name="میانگین حقوق صنعت (ریال)")
+    turnover_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="نرخ ترک شغل صنعت (٪ اختیاری)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "آمار بازار کار صنعت"
+        verbose_name_plural = "آمار بازار کار و دستمزد صنعت"
+
+    def __str__(self):
+        return f"{self.job_role} — {self.period_label}"
+
+
+class DomesticRawMaterial(models.Model):
+    """قیمت مواد اولیه‌ی داخلی و نهاده‌های تولید."""
+    material_name = models.CharField(max_length=100, verbose_name="نام ماده")
+    usage_type = models.CharField(max_length=100, blank=True, verbose_name="نوع کاربرد (اختیاری)")
+    price = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="قیمت داخلی (ریال)")
+    unit = models.CharField(max_length=30, verbose_name="واحد (کیلوگرم/تن/...)")
+    monthly_fluctuation_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="نرخ نوسان ماهانه (٪ اختیاری)")
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["material_name", "-entered_at"]
+        verbose_name = "قیمت ماده‌ی اولیه‌ی داخلی"
+        verbose_name_plural = "قیمت مواد اولیه‌ی داخلی"
+
+    def __str__(self):
+        return f"{self.material_name} — {self.period_label}"
+
+
+class VehicleLoanRate(models.Model):
+    """نرخ تسهیلات خرید خودرو."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="نرخ سود وام خودرو (٪)")
+    max_loan_amount = models.DecimalField(max_digits=16, decimal_places=0, null=True, blank=True, verbose_name="حداکثر مبلغ وام (ریال)")
+    mandatory_down_payment_pct = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="پیش‌پرداخت اجباری (٪)")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "نرخ تسهیلات خرید خودرو"
+        verbose_name_plural = "نرخ‌های تسهیلات خرید خودرو"
+
+    def __str__(self):
+        return f"تسهیلات خودرو — {self.period_label}"
+
+
+class VehiclePartsTradeStat(models.Model):
+    """آمار واردات/صادرات خودرو و قطعات."""
+    period_label = models.CharField(max_length=40, verbose_name="دوره")
+    imported_vehicle_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="تعداد خودروی وارداتی")
+    parts_import_value = models.DecimalField(max_digits=16, decimal_places=0, null=True, blank=True, verbose_name="ارزش واردات قطعات (دلار)")
+    parts_export_value = models.DecimalField(max_digits=16, decimal_places=0, null=True, blank=True, verbose_name="ارزش صادرات قطعات (دلار)")
+    origin_destination = models.CharField(max_length=150, blank=True, verbose_name="کشور مبدأ/مقصد عمده")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "آمار واردات/صادرات قطعات و خودرو"
+        verbose_name_plural = "آمار واردات/صادرات قطعات و خودرو"
+
+    def __str__(self):
+        return f"واردات/صادرات — {self.period_label}"
+
+
+class StrategicElectronicPart(models.Model):
+    """وضعیت قطعات راهبردی و الکترونیک (چیپ، ECU و مشابه) — حساس برای خدمات پس از فروش."""
+    STATUS_CHOICES = [("normal", "عادی"), ("limited", "محدود"), ("critical", "بحرانی")]
+
+    part_name = models.CharField(max_length=150, verbose_name="نام قطعه")
+    global_inventory_note = models.TextField(blank=True, verbose_name="وضعیت موجودی انبار جهانی")
+    delivery_time_days = models.PositiveIntegerField(null=True, blank=True, verbose_name="زمان تحویل (روز)")
+    price_usd = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="قیمت (دلار)")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="normal", verbose_name="وضعیت")
+    source_name = models.CharField(max_length=150, blank=True, verbose_name="منبع")
+    analyst_note = models.TextField(blank=True, verbose_name="تحلیل/برداشت کارشناس")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="ثبت‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-entered_at"]
+        verbose_name = "وضعیت قطعه‌ی راهبردی/الکترونیک"
+        verbose_name_plural = "قطعات راهبردی و الکترونیک"
+
+    def __str__(self):
+        return self.part_name
+
+
+class MarketIntelReport(models.Model):
+    """گزارش تحلیلی دوره‌ای هوش بازار — یه روایت واحد که همه‌ی دسته‌های هوش بازار
+    (نرخ ارز، الزامات قانونی، رقبا، مواد اولیه و...) رو کنار هم می‌ذاره و تفسیر
+    می‌کنه؛ برخلاف رکوردهای دیگه که هرکدوم فقط یه عدد/رویداد تنها هستن."""
+    title = models.CharField(max_length=250, verbose_name="عنوان گزارش")
+    period_label = models.CharField(max_length=40, verbose_name="دوره (مثلاً مرداد ۱۴۰۵)")
+    report_date = models.DateField(verbose_name="تاریخ تهیه‌ی گزارش")
+    summary = models.TextField(verbose_name="خلاصه‌ی اجرایی")
+    content = models.TextField(verbose_name="متن کامل تحلیل")
+    key_risks = models.TextField(blank=True, verbose_name="ریسک‌های کلیدی این دوره (اختیاری)")
+    key_opportunities = models.TextField(blank=True, verbose_name="فرصت‌های کلیدی این دوره (اختیاری)")
+    recommended_actions = models.TextField(blank=True, verbose_name="اقدامات پیشنهادی (اختیاری)")
+    entered_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="تهیه‌شده توسط")
+    entered_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ثبت")
+
+    class Meta:
+        ordering = ["-report_date"]
+        verbose_name = "گزارش تحلیلی دوره‌ای"
+        verbose_name_plural = "گزارش‌های تحلیلی دوره‌ای"
+
+    def __str__(self):
+        return f"{self.title} — {self.period_label}"
 
 
 class Document(models.Model):
