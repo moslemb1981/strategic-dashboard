@@ -136,14 +136,14 @@
 <div class="overlay" id="efImportOverlay">
   <div class="modal-card">
     <h3>ورود بانک عوامل محیطی از اکسل</h3>
-    <form method="post" action="{% url 'strategic:environmental_factor_import' %}" enctype="multipart/form-data" onsubmit="return confirm('این کار کل بانک فعلی عوامل محیطی را پاک و با محتوای این فایل جایگزین می‌کند. ادامه می‌دهید؟');">
+    <form method="post" action="{% url 'strategic:environmental_factor_import' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="field-group">
         <label>فایل اکسل (باید دقیقاً مطابق ستون‌های خروجی اکسل همین صفحه باشد)</label>
         <input type="file" name="excel_file" accept=".xlsx" required>
       </div>
       <p style="font-size:11px;color:#B0413E;line-height:1.7;font-weight:600;">
-        ⚠ توجه: این عملیات کل بانک فعلی را پاک و با محتوای این فایل جایگزین می‌کند (نه افزودن).
+        ✅ توجه: تطبیق بر پایه‌ی ستون «شناسه» (اولین ستون، دست‌نزنید) انجام می‌شه — اگه پر بود، دقیقاً همون عامل به‌روزرسانی می‌شه (ارتباط با PESTEL/Porter موجود دست‌نخورده می‌مونه)؛ اگه خالی بود، عامل جدید ساخته می‌شه. همیشه از همین «خروجی اکسل» شروع کنید تا ستون شناسه رو داشته باشید.
       </p>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('efImportOverlay').classList.remove('open')">انصراف</button>
