@@ -2592,7 +2592,7 @@ def cross_impact_matrix_import(request):
 # ---------------- ورود/خروجی اکسل کامل مخزن ذینفعان ----------------
 
 _STAKEHOLDER_EXCEL_HEADERS = [
-    "واحد/مدیریت", "نام ذینفع", "درون سازمانی (بله/خیر)", "برون سازمانی (بله/خیر)", "کانال ارتباطی",
+    "شناسه (دست‌نزنید)", "واحد/مدیریت", "نام ذینفع", "درون سازمانی (بله/خیر)", "برون سازمانی (بله/خیر)", "کانال ارتباطی",
     "نیاز/انتظار ذینفع", "نوع: نیاز (بله/خیر)", "نوع: انتظار (بله/خیر)",
     "ریسک", "احتمال وقوع ریسک", "شدت ریسک", "قابلیت تشخیص ریسک", "عدد ریسک",
     "فرصت", "امتیاز اهمیت فرصت", "امتیاز تأثیر فرصت", "عدد فرصت",
@@ -2621,7 +2621,7 @@ def stakeholder_export(request):
     status_fa = dict(Stakeholder.STATUS_CHOICES)
     for row_i, s in enumerate(Stakeholder.objects.all(), start=2):
         values = [
-            s.department, s.name, "بله" if s.is_internal else "", "بله" if s.is_external else "", s.channel, s.need,
+            s.pk, s.department, s.name, "بله" if s.is_internal else "", "بله" if s.is_external else "", s.channel, s.need,
             "بله" if s.need_flag else "", "بله" if s.expectation_flag else "",
             s.risk_text, s.risk_occurrence, s.risk_severity, s.risk_detection, s.risk_score,
             s.opportunity_text, s.opportunity_importance, s.opportunity_impact, s.opportunity_score,
@@ -2630,7 +2630,7 @@ def stakeholder_export(request):
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [22, 26, 14, 14, 20, 30, 10, 10, 26, 10, 10, 10, 10, 30, 10, 10, 10, 30, 16, 14]
+    widths = [12, 22, 26, 14, 14, 20, 30, 10, 10, 26, 10, 10, 10, 10, 30, 10, 10, 10, 30, 16, 14]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -2675,38 +2675,50 @@ def stakeholder_import(request):
         except (TypeError, ValueError):
             return None
 
-    Stakeholder.objects.all().delete()
-    created, skipped = 0, 0
+    created, updated, skipped = 0, 0, 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not (row[1] if len(row) > 1 else None):
+        if not row or not (row[2] if len(row) > 2 else None):
             skipped += 1
             continue
-        Stakeholder.objects.create(
-            department=_s(row[0]),
-            name=_s(row[1]),
-            is_internal=_s(row[2]).startswith("بل") if len(row) > 2 else False,
-            is_external=_s(row[3]).startswith("بل") if len(row) > 3 else False,
-            channel=_s(row[4]) if len(row) > 4 else "",
-            need=_s(row[5]) if len(row) > 5 else "",
-            need_flag=_s(row[6]).startswith("بل") if len(row) > 6 else False,
-            expectation_flag=_s(row[7]).startswith("بل") if len(row) > 7 else False,
-            risk_text=_s(row[8]) if len(row) > 8 else "",
-            risk_occurrence=_i(row[9]) if len(row) > 9 else None,
-            risk_severity=_i(row[10]) if len(row) > 10 else None,
-            risk_detection=_i(row[11]) if len(row) > 11 else None,
-            risk_score=_i(row[12]) if len(row) > 12 else None,
-            opportunity_text=_s(row[13]) if len(row) > 13 else "",
-            opportunity_importance=_i(row[14]) if len(row) > 14 else None,
-            opportunity_impact=_i(row[15]) if len(row) > 15 else None,
-            opportunity_score=_i(row[16]) if len(row) > 16 else None,
-            action=_s(row[17]) if len(row) > 17 else "",
-            domain=_s(row[18]) if len(row) > 18 else "",
-            status=status_by_fa.get(_s(row[19]), "open") if len(row) > 19 else "open",
+        record_id = _i(row[0]) if len(row) > 0 else None
+        department = _s(row[1])
+        name = _s(row[2])
+        defaults = dict(
+            department=department, name=name,
+            is_internal=_s(row[3]).startswith("بل") if len(row) > 3 else False,
+            is_external=_s(row[4]).startswith("بل") if len(row) > 4 else False,
+            channel=_s(row[5]) if len(row) > 5 else "",
+            need=_s(row[6]) if len(row) > 6 else "",
+            need_flag=_s(row[7]).startswith("بل") if len(row) > 7 else False,
+            expectation_flag=_s(row[8]).startswith("بل") if len(row) > 8 else False,
+            risk_text=_s(row[9]) if len(row) > 9 else "",
+            risk_occurrence=_i(row[10]) if len(row) > 10 else None,
+            risk_severity=_i(row[11]) if len(row) > 11 else None,
+            risk_detection=_i(row[12]) if len(row) > 12 else None,
+            risk_score=_i(row[13]) if len(row) > 13 else None,
+            opportunity_text=_s(row[14]) if len(row) > 14 else "",
+            opportunity_importance=_i(row[15]) if len(row) > 15 else None,
+            opportunity_impact=_i(row[16]) if len(row) > 16 else None,
+            opportunity_score=_i(row[17]) if len(row) > 17 else None,
+            action=_s(row[18]) if len(row) > 18 else "",
+            domain=_s(row[19]) if len(row) > 19 else "",
+            status=status_by_fa.get(_s(row[20]), "open") if len(row) > 20 else "open",
         )
-        created += 1
+        # شناسه‌ی صریح (ستون اول) — قطعی‌ترین راه تطبیق: اگه پر بود، همون رکورد
+        # دقیق به‌روزرسانی می‌شه (ارتباطات دست‌نخورده)؛ اگه خالی بود، یعنی ردیف
+        # جدیده و رکورد تازه ساخته می‌شه (حتی اگه نام/واحدش با رکورد دیگه‌ای یکی باشه)
+        existing = Stakeholder.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            Stakeholder.objects.create(**defaults)
+            created += 1
 
-    _log_action(request, "IMPORT Stakeholder Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
-    messages.success(request, f"جایگزینی انجام شد: مخزن قبلی پاک شد و {created} ذینفع از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    _log_action(request, "IMPORT Stakeholder Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} ذینفع جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد. ارتباطات موجود (پروژه، Porter و...) دست‌نخورده باقی ماندند.")
     return redirect("strategic:stakeholders")
 
 
@@ -2784,7 +2796,7 @@ def legal_requirement_delete(request, pk):
 
 
 _LEGAL_EXCEL_HEADERS = [
-    "الزامات قانونی و سازمانی", "مأخذ الزام", "قانونی (بله/خیر)", "سازمانی (بله/خیر)",
+    "شناسه (دست‌نزنید)", "الزامات قانونی و سازمانی", "مأخذ الزام", "قانونی (بله/خیر)", "سازمانی (بله/خیر)",
     "درون سازمانی (بله/خیر)", "برون سازمانی (بله/خیر)", "تاریخ ویرایش الزام",
     "مستندات داخلی مرتبط", "محل کاربرد", "ریسک", "فرصت", "توضیحات", "نام مدیریت/معاونت",
 ]
@@ -2810,7 +2822,7 @@ def legal_requirement_export(request):
 
     for row_i, r in enumerate(LegalRequirement.objects.all(), start=2):
         values = [
-            r.title, r.source, "بله" if r.is_legal else "", "بله" if r.is_organizational else "",
+            r.pk, r.title, r.source, "بله" if r.is_legal else "", "بله" if r.is_organizational else "",
             "بله" if r.is_internal else "", "بله" if r.is_external else "",
             r.revision_date, r.related_documents, r.scope, r.risk_text, r.opportunity_text,
             r.notes, r.department,
@@ -2818,7 +2830,7 @@ def legal_requirement_export(request):
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [34, 20, 12, 12, 14, 14, 16, 28, 20, 28, 28, 24, 22]
+    widths = [12, 34, 20, 12, 12, 14, 14, 16, 28, 20, 28, 28, 24, 22]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -2856,31 +2868,48 @@ def legal_requirement_import(request):
         v = "" if v is None else str(v).strip()
         return "" if v == "-" else v
 
-    LegalRequirement.objects.all().delete()
-    created, skipped = 0, 0
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    created, updated, skipped = 0, 0, 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not (row[0] if len(row) > 0 else None):
+        if not row or not (row[1] if len(row) > 1 else None):
             skipped += 1
             continue
-        LegalRequirement.objects.create(
-            title=_s(row[0]),
-            source=_s(row[1]) if len(row) > 1 else "",
-            is_legal=_s(row[2]).startswith("بل") if len(row) > 2 else False,
-            is_organizational=_s(row[3]).startswith("بل") if len(row) > 3 else False,
-            is_internal=_s(row[4]).startswith("بل") if len(row) > 4 else False,
-            is_external=_s(row[5]).startswith("بل") if len(row) > 5 else False,
-            revision_date=_s(row[6]) if len(row) > 6 else "",
-            related_documents=_s(row[7]) if len(row) > 7 else "",
-            scope=_s(row[8]) if len(row) > 8 else "",
-            risk_text=_s(row[9]) if len(row) > 9 else "",
-            opportunity_text=_s(row[10]) if len(row) > 10 else "",
-            notes=_s(row[11]) if len(row) > 11 else "",
-            department=_s(row[12]) if len(row) > 12 else "",
+        record_id = _i(row[0]) if len(row) > 0 else None
+        title = _s(row[1])
+        source = _s(row[2]) if len(row) > 2 else ""
+        defaults = dict(
+            title=title, source=source,
+            is_legal=_s(row[3]).startswith("بل") if len(row) > 3 else False,
+            is_organizational=_s(row[4]).startswith("بل") if len(row) > 4 else False,
+            is_internal=_s(row[5]).startswith("بل") if len(row) > 5 else False,
+            is_external=_s(row[6]).startswith("بل") if len(row) > 6 else False,
+            revision_date=_s(row[7]) if len(row) > 7 else "",
+            related_documents=_s(row[8]) if len(row) > 8 else "",
+            scope=_s(row[9]) if len(row) > 9 else "",
+            risk_text=_s(row[10]) if len(row) > 10 else "",
+            opportunity_text=_s(row[11]) if len(row) > 11 else "",
+            notes=_s(row[12]) if len(row) > 12 else "",
+            department=_s(row[13]) if len(row) > 13 else "",
         )
-        created += 1
+        # شناسه‌ی صریح (ستون اول) — قطعی‌ترین راه تطبیق: اگه پر بود، همون رکورد
+        # دقیق به‌روزرسانی می‌شه (ارتباط با PESTEL دست‌نخورده)؛ اگه خالی بود، جدید ساخته می‌شه
+        existing = LegalRequirement.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            LegalRequirement.objects.create(**defaults)
+            created += 1
 
-    _log_action(request, "IMPORT LegalRequirement Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
-    messages.success(request, f"جایگزینی انجام شد: بانک قبلی پاک شد و {created} الزام از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    _log_action(request, "IMPORT LegalRequirement Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} الزام جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد. ارتباط با عوامل PESTEL موجود دست‌نخورده باقی ماند.")
     return redirect("strategic:legal_requirements")
 
 
@@ -2942,7 +2971,7 @@ def environmental_factor_delete(request, pk):
 
 
 _ENV_FACTOR_EXCEL_HEADERS = [
-    "ردیف", "دسته‌بندی محیط", "شرح عامل تأثیرگذار", "توضیح تفصیلی", "نوع اثر", "راهنمای امتیازدهی",
+    "شناسه (دست‌نزنید)", "ردیف", "دسته‌بندی محیط", "شرح عامل تأثیرگذار", "توضیح تفصیلی", "نوع اثر", "راهنمای امتیازدهی",
     "میانگین امتیاز", "فراوانی اثر بالا (۷-۸)", "فراوانی اثر بسیار بالا (۹-۱۰)", "جمع فراوانی اثرهای بالا",
 ]
 
@@ -2967,14 +2996,14 @@ def environmental_factor_export(request):
 
     for row_i, r in enumerate(EnvironmentalFactor.objects.all().order_by("-avg_score", "order"), start=2):
         values = [
-            r.order, r.category, r.factor_text, r.detail, r.effect_type, r.scoring_guide,
+            r.pk, r.order, r.category, r.factor_text, r.detail, r.effect_type, r.scoring_guide,
             float(r.avg_score) if r.avg_score is not None else None,
             r.freq_high, r.freq_very_high, r.freq_total,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [8, 22, 34, 40, 14, 26, 12, 12, 14, 14]
+    widths = [12, 8, 22, 34, 40, 14, 26, 12, 12, 14, 14]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -3023,28 +3052,38 @@ def environmental_factor_import(request):
         except (TypeError, ValueError):
             return None
 
-    EnvironmentalFactor.objects.all().delete()
-    created, skipped = 0, 0
+    created, updated, skipped = 0, 0, 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not (row[2] if len(row) > 2 else None):
+        if not row or not (row[3] if len(row) > 3 else None):
             skipped += 1
             continue
-        EnvironmentalFactor.objects.create(
-            order=_i(row[0]) or 0,
-            category=_s(row[1]) if len(row) > 1 else "",
-            factor_text=_s(row[2]),
-            detail=_s(row[3]) if len(row) > 3 else "",
-            effect_type=_s(row[4]) if len(row) > 4 else "",
-            scoring_guide=_s(row[5]) if len(row) > 5 else "",
-            avg_score=_f(row[6]) if len(row) > 6 else None,
-            freq_high=_i(row[7]) if len(row) > 7 else None,
-            freq_very_high=_i(row[8]) if len(row) > 8 else None,
-            freq_total=_i(row[9]) if len(row) > 9 else None,
+        record_id = _i(row[0]) if len(row) > 0 else None
+        defaults = dict(
+            order=_i(row[1]) or 0,
+            category=_s(row[2]) if len(row) > 2 else "",
+            factor_text=_s(row[3]),
+            detail=_s(row[4]) if len(row) > 4 else "",
+            effect_type=_s(row[5]) if len(row) > 5 else "",
+            scoring_guide=_s(row[6]) if len(row) > 6 else "",
+            avg_score=_f(row[7]) if len(row) > 7 else None,
+            freq_high=_i(row[8]) if len(row) > 8 else None,
+            freq_very_high=_i(row[9]) if len(row) > 9 else None,
+            freq_total=_i(row[10]) if len(row) > 10 else None,
         )
-        created += 1
+        # شناسه‌ی صریح (ستون اول) — قطعی‌ترین راه تطبیق: اگه پر بود، همون رکورد
+        # دقیق به‌روزرسانی می‌شه (ارتباط با PESTEL/Porter دست‌نخورده)؛ اگه خالی بود، جدید ساخته می‌شه
+        existing = EnvironmentalFactor.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            EnvironmentalFactor.objects.create(**defaults)
+            created += 1
 
-    _log_action(request, "IMPORT EnvironmentalFactor Excel (replace-all)", f"{created} ردیف جدید، {skipped} رد‌شده")
-    messages.success(request, f"جایگزینی انجام شد: بانک قبلی پاک شد و {created} عامل از فایل جدید ثبت شد. {skipped} ردیف نامعتبر رد شد.")
+    _log_action(request, "IMPORT EnvironmentalFactor Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} عامل جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد. ارتباط با عوامل PESTEL/Porter موجود دست‌نخورده باقی ماند.")
     return redirect("strategic:environmental_factors")
 
 

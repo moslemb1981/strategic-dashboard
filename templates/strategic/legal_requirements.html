@@ -187,14 +187,14 @@
 <div class="overlay" id="lgImportOverlay">
   <div class="modal-card">
     <h3>ورود بانک الزامات از اکسل</h3>
-    <form method="post" action="{% url 'strategic:legal_requirement_import' %}" enctype="multipart/form-data" onsubmit="return confirm('این کار کل بانک فعلی الزامات را پاک و با محتوای این فایل جایگزین می‌کند. ادامه می‌دهید؟');">
+    <form method="post" action="{% url 'strategic:legal_requirement_import' %}" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="field-group">
         <label>فایل اکسل (باید دقیقاً مطابق ستون‌های خروجی اکسل همین صفحه باشد)</label>
         <input type="file" name="excel_file" accept=".xlsx" required>
       </div>
       <p style="font-size:11px;color:#B0413E;line-height:1.7;font-weight:600;">
-        ⚠ توجه: این عملیات کل بانک فعلی الزامات را پاک و با محتوای این فایل جایگزین می‌کند (نه افزودن). قبل از ادامه، اگه لازمه، از داده‌ی فعلی خروجی اکسل بگیرید.
+        ✅ توجه: تطبیق بر پایه‌ی ستون «شناسه» (اولین ستون، دست‌نزنید) انجام می‌شه — اگه پر بود، دقیقاً همون الزام به‌روزرسانی می‌شه (ارتباط با PESTEL موجود دست‌نخورده می‌مونه)؛ اگه خالی بود، الزام جدید ساخته می‌شه. همیشه از همین «خروجی اکسل» شروع کنید تا ستون شناسه رو داشته باشید.
       </p>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('lgImportOverlay').classList.remove('open')">انصراف</button>
