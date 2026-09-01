@@ -29,8 +29,19 @@
 {% endblock %}
 
 {% block content %}
-<div class="rfa-title">آرشیو عوامل شناسایی‌شده اولیه</div>
-<div class="rfa-sub">فهرست کامل عواملی که در ابتدای کار، توسط معاونت‌های مختلف سازمان شناسایی و جمع‌آوری شدند</div>
+<div class="rfa-title-row" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+  <div>
+    <div class="rfa-title">آرشیو عوامل شناسایی‌شده اولیه</div>
+    <div class="rfa-sub">فهرست کامل عواملی که در ابتدای کار، توسط معاونت‌های مختلف سازمان شناسایی و جمع‌آوری شدند</div>
+  </div>
+  {% if user.is_superuser %}
+  <div style="display:flex;gap:8px;">
+    <button type="button" class="btn accent" onclick="document.getElementById('obj_id').value='';document.getElementById('rfaForm').reset();document.getElementById('rfaModalTitle').textContent='افزودن عامل';document.getElementById('rfaOverlay').classList.add('open');"><i class="fa-solid fa-plus"></i> افزودن عامل</button>
+    <a href="{% url 'strategic:raw_factors_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+    <button type="button" class="btn ghost" onclick="document.getElementById('rfaImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+  </div>
+  {% endif %}
+</div>
 
 <div class="rfa-note"><i class="fa-solid fa-circle-info"></i>
   این صفحه یک <b>آرشیو تاریخی و صرفاً مرجع</b> است — نسخه‌ی خام و پیش از پالایش. عوامل نهاییِ پالایش‌شده و امتیازدهی‌شده
@@ -45,16 +56,17 @@
 
 <div class="rfa-table-wrap">
 <table class="rfa-table">
-  <colgroup><col style="width:8%;"><col style="width:16%;"><col style="width:22%;"><col style="width:54%;"></colgroup>
+  <colgroup><col style="width:8%;"><col style="width:15%;"><col style="width:20%;"><col style="width:47%;"><col style="width:50px;"></colgroup>
   <thead>
     <tr>
-      <th>نوع</th><th>معاونت/واحد</th><th>دسته‌بندی</th><th>شرح عامل</th>
+      <th>نوع</th><th>معاونت/واحد</th><th>دسته‌بندی</th><th>شرح عامل</th><th></th>
     </tr>
     <tr class="rfa-livesearch-row">
       <th><input type="text" id="liveType" class="rfa-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveDept" class="rfa-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveCat" class="rfa-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveText" class="rfa-live-input" placeholder="جستجو..."></th>
+      <th></th>
     </tr>
   </thead>
   <tbody id="rfaBody">
@@ -64,17 +76,78 @@
       <td>{{ it.department|default:"—" }}</td>
       <td>{{ it.category|default:"—" }}</td>
       <td>{{ it.text }}</td>
+      <td style="white-space:nowrap;">
+        {% if perms.strategic.change_rawidentifiedfactor %}
+        <button type="button" onclick='rfaEdit({{ it.pk }},"{{ it.source_type }}","{{ it.department|escapejs }}","{{ it.category|escapejs }}","{{ it.text|escapejs }}",{{ it.row_number }})' style="border:none;background:none;color:var(--ink-faint);cursor:pointer;padding:2px;"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_rawidentifiedfactor %}
+        <form method="post" action="{% url 'strategic:raw_factor_delete' it.pk %}" style="display:inline;" onsubmit="return confirm('این عامل حذف شود؟');">
+          {% csrf_token %}
+          <button type="submit" style="border:none;background:none;color:#B0413E;opacity:.75;cursor:pointer;padding:2px;"><i class="fa-solid fa-trash"></i></button>
+        </form>
+        {% endif %}
+      </td>
     </tr>
     {% empty %}
-    <tr><td colspan="4" class="rfa-empty">هنوز عاملی بارگذاری نشده.</td></tr>
+    <tr><td colspan="5" class="rfa-empty">هنوز عاملی بارگذاری نشده.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
+
+<div class="overlay" id="rfaOverlay">
+  <div class="modal-card">
+    <h3 id="rfaModalTitle">افزودن عامل</h3>
+    <form method="post" id="rfaForm">
+      {% csrf_token %}
+      <input type="hidden" name="form_kind" value="raw_factor">
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>نوع</label>{{ form.source_type }}</div>
+      <div class="field-group"><label>معاونت/واحد پیشنهاددهنده</label>{{ form.department }}</div>
+      <div class="field-group"><label>دسته‌بندی</label>{{ form.category }}</div>
+      <div class="field-group"><label>شرح عامل</label>{{ form.text }}</div>
+      <div class="field-group"><label>ردیف اصلی در فایل مرجع (اختیاری)</label>{{ form.row_number }}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('rfaOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ثبت</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="rfaImportOverlay">
+  <div class="modal-card">
+    <h3>ورود داده از اکسل</h3>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.9;">
+      فایل باید دقیقاً با ساختار «خروجی اکسل» همین صفحه باشد. تطبیق بر پایه‌ی ستون «شناسه» (اولین ستون، دست‌نزنید)
+      انجام می‌شه — اگه پر بود، همون عامل به‌روزرسانی می‌شه؛ اگه خالی بود، عامل جدید ساخته می‌شه.
+      همیشه از همین «خروجی اکسل» شروع کنید.
+    </p>
+    <form method="post" action="{% url 'strategic:raw_factors_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group"><label>فایل اکسل</label><input type="file" name="excel_file" accept=".xlsx" required></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('rfaImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">وارد کردن</button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  function rfaEdit(id, sourceType, department, category, text, rowNumber){
+    document.getElementById('obj_id').value = id;
+    document.getElementById('id_source_type').value = sourceType;
+    document.getElementById('id_department').value = department;
+    document.getElementById('id_category').value = category;
+    document.getElementById('id_text').value = text;
+    document.getElementById('id_row_number').value = rowNumber;
+    document.getElementById('rfaModalTitle').textContent = 'ویرایش عامل';
+    document.getElementById('rfaOverlay').classList.add('open');
+  }
+
   (function(){
     const inputs = {
       type: document.getElementById('liveType'),

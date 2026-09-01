@@ -3,7 +3,7 @@ from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    OperationalKPI, ScenarioResponseStrategy,
+    OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
@@ -666,6 +666,17 @@ class LegalRequirementForm(forms.ModelForm):
             "risk_text": forms.Textarea(attrs={"rows": 2}),
             "opportunity_text": forms.Textarea(attrs={"rows": 2}),
             "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class RawIdentifiedFactorForm(forms.ModelForm):
+    class Meta:
+        model = RawIdentifiedFactor
+        fields = ["source_type", "department", "category", "text", "row_number"]
+        widgets = {
+            "department": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت برنامه‌ریزی"}),
+            "category": forms.TextInput(attrs={"placeholder": "مثلاً: عوامل اقتصادی"}),
+            "text": forms.Textarea(attrs={"rows": 3, "placeholder": "شرح خام عامل شناسایی‌شده"}),
         }
 
 
