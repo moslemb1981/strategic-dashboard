@@ -43,6 +43,9 @@ urlpatterns = [
 
     path("environmental-factors/", views.environmental_factors, name="environmental_factors"),
     path("raw-factors-archive/", views.raw_factors_archive, name="raw_factors_archive"),
+    path("raw-factors-archive/delete/<int:pk>/", views.raw_factor_delete, name="raw_factor_delete"),
+    path("raw-factors-archive/export/", views.raw_factors_export, name="raw_factors_export"),
+    path("raw-factors-archive/import/", views.raw_factors_import, name="raw_factors_import"),
     path("environmental-factors/delete/<int:pk>/", views.environmental_factor_delete, name="environmental_factor_delete"),
     path("environmental-factors/export/", views.environmental_factor_export, name="environmental_factor_export"),
     path("environmental-factors/import/", views.environmental_factor_import, name="environmental_factor_import"),

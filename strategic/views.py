@@ -29,6 +29,7 @@ from .forms import (
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
     StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm, ScenarioResponseStrategyForm,
+    RawIdentifiedFactorForm,
     ExchangeRateForm, LegalTradeRequirementForm, VehicleMarketStatForm, EVTrendForm, CustomerSatisfactionBenchmarkForm,
     SupplierConditionForm, InterestInflationRateForm, LaborMarketStatForm, DomesticRawMaterialForm,
     VehicleLoanRateForm, VehiclePartsTradeStatForm, StrategicElectronicPartForm, MarketIntelReportForm,
@@ -2317,12 +2318,139 @@ _OPKPI_EXCEL_HEADERS = [
 
 
 def raw_factors_archive(request):
+    form = RawIdentifiedFactorForm()
+    if request.method == "POST" and request.POST.get("form_kind") == "raw_factor":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_rawidentifiedfactor" if obj_id else "strategic.add_rawidentifiedfactor"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(RawIdentifiedFactor, pk=obj_id) if obj_id else None
+            bound_form = RawIdentifiedFactorForm(request.POST, instance=instance)
+            if bound_form.is_valid():
+                bound_form.save()
+                _log_action(request, "UPDATE RawIdentifiedFactor" if obj_id else "CREATE RawIdentifiedFactor", str(bound_form.instance))
+                return redirect("strategic:raw_factors_archive")
+            form = bound_form
+
     items = list(RawIdentifiedFactor.objects.all())
     return render(request, "strategic/raw_factors_archive.html", {
         "active_page": "raw_factors_archive", "items": items, "total": len(items),
         "pestel_count": sum(1 for i in items if i.source_type == "pestel"),
         "porter_count": sum(1 for i in items if i.source_type == "porter"),
+        "form": form,
     })
+
+
+def raw_factor_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_rawidentifiedfactor"):
+        obj = get_object_or_404(RawIdentifiedFactor, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE RawIdentifiedFactor", label)
+    return redirect("strategic:raw_factors_archive")
+
+
+_RAW_FACTOR_EXCEL_HEADERS = [
+    "شناسه (دست‌نزنید)", "نوع (PESTEL/Porter)", "معاونت/واحد پیشنهاددهنده", "دسته‌بندی", "شرح عامل", "ردیف اصلی در فایل مرجع",
+]
+
+
+def raw_factors_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:raw_factors_archive")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "آرشیو عوامل اولیه"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_RAW_FACTOR_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    source_fa = dict(RawIdentifiedFactor.SOURCE_CHOICES)
+    for row_i, r in enumerate(RawIdentifiedFactor.objects.all(), start=2):
+        values = [r.pk, source_fa.get(r.source_type, r.source_type), r.department, r.category, r.text, r.row_number]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [12, 16, 26, 24, 60, 16]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT RawIdentifiedFactor Excel", f"{RawIdentifiedFactor.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="arshiv-avamel-avalie.xlsx"'
+    return response
+
+
+def raw_factors_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:raw_factors_archive")
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:raw_factors_archive")
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:raw_factors_archive")
+
+    source_by_fa = {v: k for k, v in RawIdentifiedFactor.SOURCE_CHOICES}
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[4] if len(row) > 4 else None):
+            skipped += 1
+            continue
+        record_id = _i(row[0]) if len(row) > 0 else None
+        defaults = dict(
+            source_type=source_by_fa.get(_s(row[1]), "pestel") if len(row) > 1 else "pestel",
+            department=_s(row[2]) if len(row) > 2 else "",
+            category=_s(row[3]) if len(row) > 3 else "",
+            text=_s(row[4]),
+            row_number=_i(row[5]) or 0 if len(row) > 5 else 0,
+        )
+        # شناسه‌ی صریح (ستون اول) — همون الگوی مطمئنی که برای ذینفعان/الزامات/عوامل
+        # محیطی استفاده کردیم: پر بود = به‌روزرسانی دقیق، خالی بود = رکورد جدید
+        existing = RawIdentifiedFactor.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            RawIdentifiedFactor.objects.create(**defaults)
+            created += 1
+
+    _log_action(request, "IMPORT RawIdentifiedFactor Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} عامل جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:raw_factors_archive")
 
 
 def operational_kpis(request):
