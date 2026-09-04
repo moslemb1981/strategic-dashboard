@@ -13,6 +13,7 @@
       {% csrf_token %}
       <button type="submit" class="bsc-sync-btn"><i class="fa-solid fa-rotate"></i> به‌روزرسانی از سیستم BSC</button>
     </form>
+    <a href="{% url 'strategic:initiative_relationships_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-diagram-project"></i> خروجی ارتباطات</button></a>
     <a href="{% url 'strategic:initiative_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
     <button type="button" class="btn ghost" onclick="document.getElementById('initImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
     {% endif %}

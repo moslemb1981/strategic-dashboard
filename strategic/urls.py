@@ -27,6 +27,7 @@ urlpatterns = [
     path("roadmap/", views.roadmap, name="roadmap"),
     path("roadmap/delete/<int:pk>/", views.initiative_delete, name="initiative_delete"),
     path("roadmap/export/", views.initiative_export, name="initiative_export"),
+    path("roadmap/export-relationships/", views.initiative_relationships_export, name="initiative_relationships_export"),
     path("roadmap/import/", views.initiative_import, name="initiative_import"),
     path("roadmap/bsc-sync/", views.bsc_sync, name="bsc_sync"),
 

@@ -555,6 +555,103 @@ def initiative_export(request):
     return response
 
 
+def initiative_relationships_export(request):
+    """خروجی اکسل «ارتباطات پروژه‌ها» — برای هر پروژه، فهرست کامل هر ۴ نوع ارتباطی که
+    توی کارت/ردیف پروژه نشون داده می‌شه: شاخص‌ها (کلان+عملیاتی)، راهبردهای TOWS، ریسک‌ها،
+    و ردیابی خودکار منشأ. کد و نام پروژه برای هر گروه ادغام (merge) می‌شن تا خواناتر باشه."""
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:roadmap")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ارتباطات پروژه‌ها"
+    ws.sheet_view.rightToLeft = True
+
+    headers = ["کد پروژه", "نام پروژه", "نوع ارتباط", "نام آیتم مرتبط", "جزئیات تکمیلی"]
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    thin = Side(style="thin", color="D9D3C4")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for col, title in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border
+
+    TYPE_FILL = {
+        "شاخص کلان/عملیاتی": "EAF1F7",
+        "راهبرد TOWS": "FDF3E7",
+        "ریسک": "FBEAEA",
+        "ردیابی خودکار منشأ": "ECE8F5",
+    }
+
+    row_i = 2
+    qs = Initiative.objects.all().prefetch_related(
+        "source_kpi", "source_operational_kpi", "source_tows", "source_risk", "source_tows__source_items",
+    )
+    for init in qs:
+        rel_rows = []
+        for k in init.source_kpi.all():
+            rel_rows.append(("شاخص کلان/عملیاتی", f"{k.code} — {k.name}", ""))
+        for k in init.source_operational_kpi.all():
+            rel_rows.append(("شاخص کلان/عملیاتی", f"{k.code} — {k.title}", ""))
+        for t in init.source_tows.all():
+            rel_rows.append(("راهبرد TOWS", f"{t.get_category_display()} — {t.text}", ""))
+        for r in init.source_risk.all():
+            rel_rows.append(("ریسک", r.title, ""))
+        for o in init.traced_origins:
+            rel_rows.append(("ردیابی خودکار منشأ", o["source_detail"], f"از طریق راهبرد: {o['tows'].get_category_display()}"))
+
+        if not rel_rows:
+            rel_rows = [("—", "بدون ارتباط ثبت‌شده", "")]
+
+        start_row = row_i
+        for rtype, item, detail in rel_rows:
+            ws.cell(row=row_i, column=1, value=init.code or "—")
+            ws.cell(row=row_i, column=2, value=init.title)
+            ws.cell(row=row_i, column=3, value=rtype)
+            ws.cell(row=row_i, column=4, value=item)
+            ws.cell(row=row_i, column=5, value=detail)
+            fill_color = TYPE_FILL.get(rtype)
+            for col in range(1, 6):
+                cell = ws.cell(row=row_i, column=col)
+                cell.alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+                cell.border = border
+                if col == 3 and fill_color:
+                    cell.fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+            row_i += 1
+
+        end_row = row_i - 1
+        if end_row > start_row:
+            ws.merge_cells(start_row=start_row, start_column=1, end_row=end_row, end_column=1)
+            ws.merge_cells(start_row=start_row, start_column=2, end_row=end_row, end_column=2)
+        ws.cell(row=start_row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+        ws.cell(row=start_row, column=2).alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        ws.cell(row=start_row, column=1).font = Font(bold=True)
+        ws.cell(row=start_row, column=2).font = Font(bold=True)
+
+    widths = [14, 34, 20, 46, 30]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT Initiative Relationships Excel", f"{qs.count()} پروژه")
+    response = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="ertebatat-projeh-ha.xlsx"'
+    return response
+
+
 @login_required
 def initiative_import(request):
     if not request.user.is_superuser:
