@@ -89,7 +89,7 @@ class InitiativeForm(forms.ModelForm):
             "work_group": forms.TextInput(attrs={"placeholder": "مثلاً: کارگروه تحول دیجیتال"}),
             "division": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت طرح و برنامه"}),
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
-            "objectives": forms.SelectMultiple(attrs={"size": 8}),
+            "objectives": forms.CheckboxSelectMultiple(),
             "source_kpi": forms.CheckboxSelectMultiple(),
             "source_operational_kpi": forms.CheckboxSelectMultiple(),
             "source_tows": forms.CheckboxSelectMultiple(),
@@ -99,9 +99,21 @@ class InitiativeForm(forms.ModelForm):
     def __init__(self, *args, business_unit=None, **kwargs):
         super().__init__(*args, **kwargs)
         bu = business_unit or (self.instance.business_unit if self.instance and self.instance.pk else None)
-        self.fields["objectives"].queryset = (
-            StrategicObjective.objects.filter(business_unit=bu) if bu else StrategicObjective.objects.none()
-        )
+        import re as _re
+        from django.db.models import Case, When
+
+        def _natural_key(o):
+            m = _re.match(r"^([A-Za-z]*)(\d*)", o.code or "")
+            prefix, num = m.group(1), m.group(2)
+            return (prefix, int(num) if num else 0)
+
+        if bu:
+            unsorted_qs = StrategicObjective.objects.filter(business_unit=bu)
+            sorted_pks = [o.pk for o in sorted(unsorted_qs, key=_natural_key)]
+            preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(sorted_pks)])
+            self.fields["objectives"].queryset = StrategicObjective.objects.filter(pk__in=sorted_pks).order_by(preserved)
+        else:
+            self.fields["objectives"].queryset = StrategicObjective.objects.none()
         self.fields["objectives"].required = False
 
         self.fields["source_kpi"].required = False
@@ -150,7 +162,10 @@ class RiskForm(forms.ModelForm):
         self.fields["linked_objective"].required = False
         self.fields["linked_objective"].empty_label = "— بدون ارتباط —"
         self.fields["related_swot_items"].required = False
-        self.fields["related_swot_items"].queryset = SWOTItem.objects.filter(category__in=["t", "w"])
+        self.fields["related_swot_items"].queryset = SWOTItem.objects.filter(category__in=["t", "w"]).select_related("business_unit")
+        self.fields["related_swot_items"].label_from_instance = (
+            lambda o: f"[{o.business_unit.name.replace('کسب و کار ', '') if o.business_unit else '—'}] {o.text}"
+        )
         self.fields["related_scenario"].required = False
 
 
