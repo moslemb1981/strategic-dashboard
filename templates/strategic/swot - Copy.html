@@ -14,8 +14,8 @@
   .stw .grid{display:grid;grid-template-columns:1.65fr 1fr;gap:1rem;align-items:start;margin-bottom:1.1rem;}
   @media(max-width:980px){.stw .grid{grid-template-columns:1fr;}}
 
-  .stw .swot{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:.5rem;}
-  .stw .quad{border-radius:14px;padding:.75rem .85rem;color:#fff;position:relative;cursor:pointer;
+  .stw .swot{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:.7rem;}
+  .stw .quad{border-radius:14px;padding:1rem 1.05rem;color:#fff;position:relative;cursor:pointer;
     box-shadow:0 14px 34px -18px rgba(13,27,46,.5);transition:transform .18s,opacity .2s;min-height:190px;}
   .stw .quad:hover{transform:translateY(-3px);}
   .stw .quad.dim{opacity:.35;}
@@ -24,24 +24,24 @@
   .stw .quad.w{background:linear-gradient(150deg,#e0a437,#a9701a);}
   .stw .quad.o{background:linear-gradient(150deg,#2a9de0,#0d6aa6);}
   .stw .quad.t{background:linear-gradient(150deg,#e5563f,#a82f22);}
-  .stw .q-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;}
+  .stw .q-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;}
   .stw .q-letter{font-size:1.7rem;font-weight:900;line-height:1;opacity:.9;}
   .stw .q-name{font-size:.9rem;font-weight:800;}
   .stw .q-tag{font-size:.58rem;font-weight:500;opacity:.85;margin-top:.1rem;}
   .stw .q-score{background:rgba(255,255,255,.2);border-radius:7px;padding:.28rem .5rem;text-align:center;}
   .stw .q-score b{font-size:1rem;font-weight:900;display:block;line-height:1;}
   .stw .q-score small{font-size:.52rem;opacity:.85;}
-  .stw .factor{display:flex;align-items:flex-start;gap:.4rem;font-size:.66rem;font-weight:500;padding:.2rem 0;border-top:1px solid rgba(255,255,255,.14);line-height:1.25;}
+  .stw .factor{display:flex;align-items:flex-start;gap:.45rem;font-size:.74rem;font-weight:500;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.14);line-height:1.4;}
   .stw .factor:first-of-type{border-top:none;}
-  .stw .f-code{font-size:.54rem;font-weight:800;opacity:.8;flex-shrink:0;margin-top:.1rem;}
+  .stw .f-code{font-size:.58rem;font-weight:800;opacity:.8;flex-shrink:0;margin-top:.15rem;}
   .stw .fdots{display:flex;gap:2px;margin-top:.3rem;flex-shrink:0;}
   .stw .fdots i{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);}
   .stw .fdots i.on{background:#fff;}
   .stw .fdel{border:none;background:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.7rem;flex-shrink:0;}
   .stw .fedit{border:none;background:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.68rem;flex-shrink:0;}
   .stw .fedit:hover,.stw .fdel:hover{color:#fff;}
-  .stw .src-badge{display:inline-flex;align-items:center;gap:3px;font-size:.5rem;font-weight:700;
-    background:rgba(255,255,255,.18);border-radius:5px;padding:0px 4px;margin-inline-start:5px;
+  .stw .src-badge{display:inline-flex;align-items:center;gap:3px;font-size:.56rem;font-weight:700;
+    background:rgba(255,255,255,.18);border-radius:5px;padding:1px 5px;margin-inline-start:5px;
     max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;cursor:help;}
   .stw .fdel:hover{color:#fff;}
   .stw .addrow{display:flex;gap:5px;margin-top:.5rem;}
@@ -82,7 +82,6 @@
   .stw .strat{transition:.15s;}
   .stw .strat .badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.64rem;font-weight:800;padding:.2rem .55rem;border-radius:6px;color:#fff;margin-bottom:.5rem;}
   .stw .strat ul{list-style:none;display:flex;flex-direction:column;gap:.4rem;margin:0;padding:0;}
-  .stw .tows-desc{display:inline-block;margin-top:.3rem;color:var(--muted);font-weight:400;font-size:.95em;}
   .stw .strat li{font-size:.75rem;line-height:1.5;padding-right:.85rem;position:relative;display:flex;justify-content:space-between;gap:6px;}
   .stw .strat li::before{content:"";position:absolute;right:0;top:.5em;width:5px;height:5px;border-radius:50%;background:var(--bc);}
   .stw .strat.so{--bc:var(--s);} .stw .strat.st{--bc:var(--w);} .stw .strat.wo{--bc:var(--o);} .stw .strat.wt{--bc:var(--t);}
@@ -362,7 +361,7 @@
         <span class="badge" style="background:var(--s)">SO · راهبرد تهاجمی</span>
         <ul>
           {% for st in tows.so %}
-          <li><span>{{ st.text|tows_split }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="so" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -379,7 +378,7 @@
         <span class="badge" style="background:var(--o)">WO · راهبرد بازنگری</span>
         <ul>
           {% for st in tows.wo %}
-          <li><span>{{ st.text|tows_split }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wo" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -398,7 +397,7 @@
         <span class="badge" style="background:var(--w)">ST · راهبرد تنوع</span>
         <ul>
           {% for st in tows.st %}
-          <li><span>{{ st.text|tows_split }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="st" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
@@ -415,7 +414,7 @@
         <span class="badge" style="background:var(--t)">WT · راهبرد تدافعی</span>
         <ul>
           {% for st in tows.wt %}
-          <li><span>{{ st.text|tows_split }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
+          <li><span>{{ st.text }}<span class="src-badge tows-src-badge" style="display:none;" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"></span>{% if st.objectives.all %}<span class="src-badge" title="{% for o in st.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if o.theme %} — محور: {{ o.theme.name }}{% endif %}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ st.objectives.all|length }} هدف</span>{% endif %}</span>
             <span style="display:flex;gap:4px;flex-shrink:0;">
             {% if perms.strategic.change_towsstrategy %}<button type="button" onclick="editTows(this)" data-id="{{ st.pk }}" data-category="wt" data-text="{{ st.text }}" data-order="{{ st.order }}" data-sources="{% for si in st.source_items.all %}{{ si.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"><i class="fa-solid fa-pen"></i></button>{% endif %}
             {% if perms.strategic.delete_towsstrategy %}<form method="post" action="{% url 'strategic:tows_delete' st.pk %}" style="margin:0;">{% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}

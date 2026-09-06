@@ -40,3 +40,23 @@ def get_item(d, key):
     if not d:
         return None
     return d.get(key)
+
+
+from django.utils.html import escape, mark_safe
+
+
+@register.filter
+def tows_split(value):
+    """جداکردن نمایشی عنوان راهبرد TOWS از شرح آن — بدون تغییر خودِ داده‌ی
+    ذخیره‌شده. هرجا کلمه‌ی «شرح:» توی متن پیدا بشه، از همون‌جا یه خط جدید و
+    استایل کمی متفاوت (رنگ کم‌رنگ‌تر) برای بخش شرح اعمال می‌شه.
+    استفاده: {{ st.text|tows_split }} (خروجی از قبل escape شده، با |safe نیاز نیست دوباره escape بشه)."""
+    if not value:
+        return ""
+    text = str(value)
+    idx = text.find("شرح:")
+    if idx == -1:
+        return escape(text)
+    title_part = escape(text[:idx].strip())
+    desc_part = escape(text[idx:].strip())
+    return mark_safe(f'{title_part}<br><span class="tows-desc">{desc_part}</span>')
