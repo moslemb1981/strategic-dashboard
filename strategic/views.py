@@ -19,7 +19,7 @@ from .models import (
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
+    ScenarioHighlight, OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor, AuditFinding,
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
@@ -29,7 +29,7 @@ from .forms import (
     CompetitorForm, PestelFactorForm, StrategyThemeForm, PorterForceForm, McKinsey7SForm, ValueChainActivityForm,
     StakeholderForm, CrossImpactFactorForm, ScenarioForm, ScenarioAxesForm, CompanyObjectiveForm, CompanyKPIForm, DocumentForm,
     StrategicKPIForm, LegalRequirementForm, EnvironmentalFactorForm, OperationalKPIForm, ScenarioResponseStrategyForm,
-    RawIdentifiedFactorForm,
+    RawIdentifiedFactorForm, AuditFindingForm,
     ExchangeRateForm, LegalTradeRequirementForm, VehicleMarketStatForm, EVTrendForm, CustomerSatisfactionBenchmarkForm,
     SupplierConditionForm, InterestInflationRateForm, LaborMarketStatForm, DomesticRawMaterialForm,
     VehicleLoanRateForm, VehiclePartsTradeStatForm, StrategicElectronicPartForm, MarketIntelReportForm,
@@ -1597,7 +1597,6 @@ def business_unit_add(request):
 
 # ---------------- SWOT ----------------
 
-@login_required
 def swot(request):
     business_units = list(BusinessUnit.objects.all())
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
@@ -1703,7 +1702,6 @@ def swot(request):
     })
 
 
-@login_required
 def swot_print(request):
     business_units = list(BusinessUnit.objects.all())
     bu_id = request.GET.get("bu")
@@ -1759,7 +1757,6 @@ def tows_delete(request, pk):
 
 # ---------------- Risk register ----------------
 
-@login_required
 def risk(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -2229,7 +2226,6 @@ def company_kpi_delete(request, pk):
 
 # ---------------- اسناد و دستورالعمل‌ها ----------------
 
-@login_required
 def documents(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -2255,7 +2251,6 @@ def documents(request):
     })
 
 
-@login_required
 def document_download(request, pk):
     doc = get_object_or_404(Document, pk=pk)
     try:
@@ -3781,3 +3776,194 @@ def user_toggle_active(request, pk):
     _log_action(request, "TOGGLE User active", f"{user_obj.username} -> {user_obj.is_active}")
     messages.success(request, f"وضعیت کاربر «{user_obj.username}» تغییر کرد.")
     return redirect("strategic:user_list")
+
+
+# ---------------- نتایج ممیزی‌ها ----------------
+
+def audit_findings(request):
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_auditfinding" if obj_id else "strategic.add_auditfinding"
+        if _has_perm(request, perm):
+            instance = get_object_or_404(AuditFinding, pk=obj_id) if obj_id else None
+            form = AuditFindingForm(request.POST, instance=instance)
+            if form.is_valid():
+                form.save()
+                _log_action(request, "UPDATE AuditFinding" if obj_id else "CREATE AuditFinding", str(form.instance))
+                return redirect("strategic:audit_findings")
+        else:
+            form = AuditFindingForm()
+    else:
+        form = AuditFindingForm()
+
+    items = AuditFinding.objects.all()
+    q = request.GET.get("q", "").strip()
+    ftype = request.GET.get("type", "").strip()
+    if q:
+        items = items.filter(
+            Q(description__icontains=q) | Q(standard__icontains=q) | Q(owner__icontains=q) | Q(corrective_action__icontains=q)
+        )
+    if ftype:
+        items = items.filter(finding_type=ftype)
+
+    all_items = list(AuditFinding.objects.all())
+    total = len(all_items)
+    strength_n = sum(1 for i in all_items if i.finding_type == "strength")
+    nonconf_n = sum(1 for i in all_items if i.finding_type == "nonconformity")
+    improve_n = sum(1 for i in all_items if i.finding_type == "improvement")
+    with_action_n = sum(1 for i in all_items if i.corrective_action)
+    standards_n = len({i.standard for i in all_items if i.standard})
+
+    def pct(part, whole):
+        return round(part / whole * 100) if whole else 0
+
+    summary = {
+        "total": total,
+        "strength": strength_n, "strength_pct": pct(strength_n, total),
+        "nonconformity": nonconf_n, "nonconformity_pct": pct(nonconf_n, total),
+        "improvement": improve_n, "improvement_pct": pct(improve_n, total),
+        "with_action": with_action_n, "with_action_pct": pct(with_action_n, total),
+        "standards": standards_n,
+    }
+
+    return render(request, "strategic/audit_findings.html", {
+        "active_page": "audit_findings", "items": items, "form": form, "q": q, "ftype": ftype,
+        "total_count": total, "summary": summary,
+    })
+
+
+def audit_finding_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_auditfinding"):
+        obj = get_object_or_404(AuditFinding, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE AuditFinding", label)
+    return redirect("strategic:audit_findings")
+
+
+_AUDIT_FINDING_EXCEL_HEADERS = [
+    "شناسه (دست‌نزنید)", "شرح", "نوع (نقاط قوت/عدم انطباق/توصیه بهبود)", "استاندارد مرتبط", "مالک",
+    "سال", "دوره ممیزی (ماه شمسی)", "اقدام اصلاحی",
+]
+
+
+def audit_findings_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:audit_findings")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "نتایج ممیزی‌ها"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_AUDIT_FINDING_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    type_fa = dict(AuditFinding.TYPE_CHOICES)
+    period_fa = dict(AuditFinding.MONTH_CHOICES)
+    for row_i, a in enumerate(AuditFinding.objects.all(), start=2):
+        values = [
+            a.pk, a.description, type_fa.get(a.finding_type, a.finding_type), a.standard, a.owner,
+            a.year, period_fa.get(a.audit_period, a.audit_period), a.corrective_action,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [12, 42, 16, 26, 20, 10, 14, 34]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+    ws.freeze_panes = "A2"
+
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    type_list = ",".join(v for _, v in AuditFinding.TYPE_CHOICES)
+    dv_type = DataValidation(type="list", formula1=f'"{type_list}"', allow_blank=True, showDropDown=False)
+    dv_type.error = "لطفاً فقط یکی از سه گزینه‌ی موجود در فهرست را انتخاب کنید."
+    dv_type.errorTitle = "مقدار نامعتبر"
+    ws.add_data_validation(dv_type)
+    dv_type.add("C2:C1000")
+
+    period_list = ",".join(v for _, v in AuditFinding.MONTH_CHOICES)
+    dv_period = DataValidation(type="list", formula1=f'"{period_list}"', allow_blank=True, showDropDown=False)
+    dv_period.error = "لطفاً فقط یکی از ماه‌های شمسی فهرست را انتخاب کنید."
+    dv_period.errorTitle = "مقدار نامعتبر"
+    ws.add_data_validation(dv_period)
+    dv_period.add("G2:G1000")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT AuditFinding Excel", f"{AuditFinding.objects.count()} ردیف")
+    response = HttpResponse(
+        buf.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="natayej-momayezi-ha.xlsx"'
+    return response
+
+
+def audit_findings_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:audit_findings")
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:audit_findings")
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:audit_findings")
+
+    type_by_fa = {v: k for k, v in AuditFinding.TYPE_CHOICES}
+    period_by_fa = {v: k for k, v in AuditFinding.MONTH_CHOICES}
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    def _i(v):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return None
+
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[1] if len(row) > 1 else None):
+            skipped += 1
+            continue
+        record_id = _i(row[0]) if len(row) > 0 else None
+        defaults = dict(
+            description=_s(row[1]),
+            finding_type=type_by_fa.get(_s(row[2]), "nonconformity") if len(row) > 2 else "nonconformity",
+            standard=_s(row[3]) if len(row) > 3 else "",
+            owner=_s(row[4]) if len(row) > 4 else "",
+            year=_s(row[5]) if len(row) > 5 else "",
+            audit_period=period_by_fa.get(_s(row[6]), "") if len(row) > 6 else "",
+            corrective_action=_s(row[7]) if len(row) > 7 else "",
+        )
+        # شناسه‌ی صریح (ستون اول) — پر بود = به‌روزرسانی دقیق، خالی بود = رکورد جدید
+        existing = AuditFinding.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            updated += 1
+        else:
+            AuditFinding.objects.create(**defaults)
+            created += 1
+
+    _log_action(request, "IMPORT AuditFinding Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(request, f"وارد کردن انجام شد: {created} نتیجه‌ی جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد.")
+    return redirect("strategic:audit_findings")

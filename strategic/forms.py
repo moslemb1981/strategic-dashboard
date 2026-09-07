@@ -3,7 +3,7 @@ from django import forms
 from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     StrategyTheme, BusinessUnit, PorterForce, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
-    OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor,
+    OperationalKPI, ScenarioResponseStrategy, RawIdentifiedFactor, AuditFinding,
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
@@ -682,6 +682,37 @@ class LegalRequirementForm(forms.ModelForm):
             "opportunity_text": forms.Textarea(attrs={"rows": 2}),
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
+
+
+class AuditFindingForm(forms.ModelForm):
+    class Meta:
+        model = AuditFinding
+        fields = [
+            "description", "finding_type", "standard", "owner", "year", "audit_period", "corrective_action",
+            "related_risk", "related_initiative", "related_swot_item", "related_legal_requirement",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "شرح یافته‌ی ممیزی"}),
+            "standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 9001:2015 - بند ۸.۵"}),
+            "owner": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت کیفیت"}),
+            "year": forms.TextInput(attrs={"placeholder": "مثلاً: ۱۴۰۵"}),
+            "corrective_action": forms.Textarea(attrs={"rows": 3, "placeholder": "اقدام اصلاحی تعریف‌شده"}),
+            "related_risk": forms.CheckboxSelectMultiple(),
+            "related_initiative": forms.CheckboxSelectMultiple(),
+            "related_swot_item": forms.CheckboxSelectMultiple(),
+            "related_legal_requirement": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for f in ["related_risk", "related_initiative", "related_swot_item", "related_legal_requirement"]:
+            self.fields[f].required = False
+        self.fields["related_risk"].label_from_instance = lambda o: o.title
+        self.fields["related_initiative"].label_from_instance = lambda o: f"{o.code + ' — ' if o.code else ''}{o.title}"
+        self.fields["related_swot_item"].label_from_instance = (
+            lambda o: f"[{o.business_unit.name.replace('کسب و کار ', '') if o.business_unit else '—'}] {o.text}"
+        )
+        self.fields["related_legal_requirement"].label_from_instance = lambda o: o.title
 
 
 class RawIdentifiedFactorForm(forms.ModelForm):

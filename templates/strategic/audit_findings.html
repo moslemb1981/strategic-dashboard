@@ -1,0 +1,432 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}نتایج ممیزی‌ها{% endblock %}
+{% block crumb %}نتایج ممیزی‌ها{% endblock %}
+
+{% block extra_css %}
+<style>
+  .af-summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:18px;}
+  @media(max-width:1100px){.af-summary{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:600px){.af-summary{grid-template-columns:repeat(2,1fr);}}
+
+  .af-sum-card{position:relative;display:flex;align-items:center;gap:10px;
+    background:linear-gradient(180deg,var(--surface),rgba(255,255,255,.4));
+    border:1px solid var(--border);border-radius:12px;padding:10px 12px;
+    box-shadow:0 6px 14px -6px rgba(27,36,48,.12),inset 0 1px 0 rgba(255,255,255,.6);
+    overflow:hidden;transition:transform .18s ease,box-shadow .18s ease;}
+  .af-sum-card:hover{transform:translateY(-2px);box-shadow:0 10px 20px -6px rgba(27,36,48,.18);}
+  .af-sum-card::before{content:"";position:absolute;top:0;right:0;bottom:0;width:3px;background:var(--card-accent,var(--primary));}
+
+  .af-sum-icon{flex:none;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb, var(--card-accent,var(--primary)) 14%, transparent);
+    color:var(--card-accent,var(--primary));font-size:13px;}
+
+  .af-sum-body{flex:1;min-width:0;}
+  .af-sum-value{font-size:16.5px;font-weight:800;color:var(--ink);line-height:1.15;}
+  .af-sum-label{display:block;margin-top:1px;font-size:8.5px;color:var(--ink-faint);line-height:1.3;font-weight:600;
+    white-space:normal;overflow:visible;}
+  .af-sum-pct{display:inline-block;margin-inline-start:4px;font-size:9px;font-weight:700;
+    color:var(--card-accent,var(--primary));background:color-mix(in srgb, var(--card-accent,var(--primary)) 12%, transparent);
+    border-radius:20px;padding:0 6px;}
+
+  .af-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .af-filters input,.af-filters select{border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;}
+  .af-count{font-size:11.5px;color:var(--ink-faint);align-self:center;margin-inline-start:auto;}
+
+  .af-table{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed;}
+  .af-table th{background:var(--bg);text-align:right;padding:8px 10px;font-size:11px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .af-livesearch-row th{padding:5px 8px 8px;border-bottom:2px solid var(--primary);}
+  .af-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;background:#fff;}
+  .af-live-input:focus{outline:none;border-color:var(--primary);}
+  .af-table tr.af-hidden{display:none;}
+  .af-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;white-space:normal;word-break:break-word;}
+  .af-table tr:hover td{background:var(--bg);}
+  .af-empty{padding:14px;text-align:center;color:var(--ink-faint);}
+  .af-tag{display:inline-block;font-size:9.5px;font-weight:700;border-radius:5px;padding:2px 7px;white-space:nowrap;}
+
+  .picker-box{max-height:160px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:#fff;}
+  .picker-box label{display:block;font-size:11.5px;line-height:1.6;padding:7px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+  .picker-box label:hover{background:var(--bg);}
+  .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
+  .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+  .picker-chips{display:none;flex-wrap:wrap;gap:5px;max-height:64px;overflow-y:auto;padding:6px 2px;margin-bottom:4px;}
+  .picker-chips.has-items{display:flex;}
+  .picker-chip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft,#FDF3E7);
+    border:1px solid rgba(201,124,44,.35);border-radius:20px;padding:3px 6px 3px 10px;font-size:10.5px;
+    font-weight:600;max-width:280px;}
+  .picker-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .picker-chip button{border:none;background:rgba(0,0,0,.08);color:var(--ink-faint);border-radius:50%;
+    width:16px;height:16px;flex:none;cursor:pointer;font-size:11px;line-height:1;display:flex;
+    align-items:center;justify-content:center;padding:0;}
+  .picker-chip button:hover{background:#B0413E;color:#fff;}
+  .picker-search{width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>نتایج ممیزی‌ها</h1><div class="sub">بانک نتایج ممیزی‌های داخلی/بیرونی انجام‌شده روی سامانه‌های مدیریتی</div></div>
+  <div style="display:flex;gap:8px;">
+    {% if perms.strategic.add_auditfinding %}
+    <button class="btn accent" onclick="newAudit()"><i class="fa-solid fa-plus"></i>افزودن نتیجه</button>
+    {% endif %}
+    <a href="{% url 'strategic:audit_findings_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+    {% if perms.strategic.add_auditfinding %}
+    <button type="button" class="btn ghost" onclick="document.getElementById('afImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="af-summary">
+  <div class="af-sum-card" style="--card-accent:var(--primary-dark);">
+    <div class="af-sum-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.total|fanum }}</div><span class="af-sum-label">کل نتایج ممیزی</span></div>
+  </div>
+
+  <div class="af-sum-card" style="--card-accent:#3E7A52;">
+    <div class="af-sum-icon"><i class="fa-solid fa-thumbs-up"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.strength|fanum }}<span class="af-sum-pct">{{ summary.strength_pct|fanum }}٪</span></div><span class="af-sum-label">نقاط قوت</span></div>
+  </div>
+
+  <div class="af-sum-card" style="--card-accent:#B0413E;">
+    <div class="af-sum-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.nonconformity|fanum }}<span class="af-sum-pct">{{ summary.nonconformity_pct|fanum }}٪</span></div><span class="af-sum-label">عدم انطباق</span></div>
+  </div>
+
+  <div class="af-sum-card" style="--card-accent:#C97A2B;">
+    <div class="af-sum-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.improvement|fanum }}<span class="af-sum-pct">{{ summary.improvement_pct|fanum }}٪</span></div><span class="af-sum-label">توصیه بهبود</span></div>
+  </div>
+
+  <div class="af-sum-card" style="--card-accent:#2E5C8A;">
+    <div class="af-sum-icon"><i class="fa-solid fa-list-check"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.with_action|fanum }}<span class="af-sum-pct">{{ summary.with_action_pct|fanum }}٪</span></div><span class="af-sum-label">دارای اقدام اصلاحی</span></div>
+  </div>
+
+  <div class="af-sum-card" style="--card-accent:#6C56A3;">
+    <div class="af-sum-icon"><i class="fa-solid fa-certificate"></i></div>
+    <div class="af-sum-body"><div class="af-sum-value">{{ summary.standards|fanum }}</div><span class="af-sum-label">استاندارد متفاوت</span></div>
+  </div>
+</div>
+
+<form method="get" class="af-filters">
+  <input type="text" name="q" value="{{ q }}" placeholder="جست‌وجو در شرح، استاندارد، مالک، اقدام اصلاحی..." style="width:300px;">
+  <select name="type" onchange="this.form.submit()">
+    <option value="">همه‌ی انواع</option>
+    <option value="strength" {% if ftype == "strength" %}selected{% endif %}>نقاط قوت</option>
+    <option value="nonconformity" {% if ftype == "nonconformity" %}selected{% endif %}>عدم انطباق</option>
+    <option value="improvement" {% if ftype == "improvement" %}selected{% endif %}>توصیه بهبود</option>
+  </select>
+  <button type="submit" class="btn ghost">اعمال فیلتر</button>
+  <span class="af-count">{{ items|length }} از {{ total_count }} نتیجه</span>
+</form>
+
+<div style="overflow-x:auto;">
+<table class="af-table">
+  <colgroup>
+    <col style="width:26%;"><col style="width:12%;"><col style="width:16%;">
+    <col style="width:14%;"><col style="width:8%;"><col style="width:10%;"><col style="width:22%;"><col style="width:50px;">
+  </colgroup>
+  <thead><tr>
+    <th>شرح</th><th>نوع</th><th>استاندارد مرتبط</th><th>مالک</th><th>سال</th><th>دوره ممیزی</th><th>اقدام اصلاحی</th><th></th>
+  </tr>
+  <tr class="af-livesearch-row">
+    <th><input type="text" id="liveDesc" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveType" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveStd" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveOwner" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveYear" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="livePeriod" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveAction" class="af-live-input" placeholder="جستجو..."></th>
+    <th style="font-size:10.5px;color:var(--ink-faint);font-weight:400;">
+      <span id="liveCount"></span>
+      <button type="button" id="liveClear" style="display:none;border:none;background:none;color:var(--primary);cursor:pointer;font-size:10.5px;margin-inline-start:8px;">پاک کردن</button>
+    </th>
+  </tr>
+  </thead>
+  <tbody id="auditBody">
+    {% for i in items %}
+    <tr>
+      <td>{{ i.description }}
+        <div style="margin-top:4px;">
+        {% if i.related_risk.all %}<span class="used-badge" style="background:#FCE7E7;color:#B0413E;" title="ریسک‌های مرتبط:&#10;{% for r in i.related_risk.all %}● {{ r.title }} — مسئول: {{ r.owner|default:'—' }} — دسته: {{ r.get_category_display }} — احتمال×شدت: {{ r.likelihood }}×{{ r.impact }} — راهبرد: {{ r.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> ({{ i.related_risk.all|length }})</span>{% endif %}
+        {% if i.related_swot_item.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="نقاط‌ضعف مرتبط:&#10;{% for s in i.related_swot_item.all %}● [{{ s.business_unit.name|default:'—' }}] {{ s.text }} — وزن اهمیت: {{ s.weight }} — سطح اثر: {{ s.get_impact_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> ({{ i.related_swot_item.all|length }})</span>{% endif %}
+        {% if i.related_legal_requirement.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="الزامات مرتبط:&#10;{% for l in i.related_legal_requirement.all %}● {{ l.title }} — مأخذ: {{ l.source|default:'—' }} — محل کاربرد: {{ l.scope|default:'—' }} — واحد: {{ l.department|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> ({{ i.related_legal_requirement.all|length }})</span>{% endif %}
+        </div>
+      </td>
+      <td>
+        {% if i.finding_type == "strength" %}<span class="af-tag" style="background:var(--success-soft);color:var(--success-dark);">نقاط قوت</span>
+        {% elif i.finding_type == "nonconformity" %}<span class="af-tag" style="background:#FCE7E7;color:#B0413E;">عدم انطباق</span>
+        {% else %}<span class="af-tag" style="background:var(--accent-soft);color:#7A4711;">توصیه بهبود</span>{% endif %}
+      </td>
+      <td>{{ i.standard|default:"—" }}</td>
+      <td>{{ i.owner|default:"—" }}</td>
+      <td>{{ i.year|default:"—"|fanum }}</td>
+      <td>{{ i.get_audit_period_display|default:"—" }}</td>
+      <td>{{ i.corrective_action|default:"—" }}
+        {% if i.related_initiative.all %}<div style="margin-top:4px;"><span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="پروژه‌های تحول متصل:&#10;{% for p in i.related_initiative.all %}● {{ p.title }}{% if p.code %} ({{ p.code }}){% endif %} — مسئول: {{ p.owner|default:'—' }} — وضعیت: {{ p.get_status_display }} — پیشرفت: {{ p.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> ({{ i.related_initiative.all|length }})</span></div>{% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        {% if perms.strategic.change_auditfinding %}
+        <button type="button" onclick="editAudit(this)"
+          data-id="{{ i.pk }}" data-description="{{ i.description }}" data-type="{{ i.finding_type }}"
+          data-standard="{{ i.standard }}" data-owner="{{ i.owner }}" data-year="{{ i.year }}"
+          data-period="{{ i.audit_period }}" data-action="{{ i.corrective_action }}"
+          data-risk="{% for r in i.related_risk.all %}{{ r.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          data-initiative="{% for p in i.related_initiative.all %}{{ p.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          data-swot="{% for s in i.related_swot_item.all %}{{ s.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          data-legal="{% for l in i.related_legal_requirement.all %}{{ l.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
+          style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+        {% endif %}
+        {% if perms.strategic.delete_auditfinding %}
+        <form method="post" action="{% url 'strategic:audit_finding_delete' i.pk %}" style="display:inline;" onsubmit="return confirm('حذف شود؟');">
+          {% csrf_token %}<button type="submit" style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="af-empty">نتیجه‌ی ممیزی یافت نشد</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if perms.strategic.add_auditfinding %}
+<div class="overlay" id="afImportOverlay">
+  <div class="modal-card">
+    <h3>ورود نتایج ممیزی از اکسل</h3>
+    <form method="post" action="{% url 'strategic:audit_findings_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (باید دقیقاً مطابق ستون‌های خروجی اکسل همین صفحه باشد)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:#B0413E;line-height:1.7;font-weight:600;">
+        ✅ توجه: تطبیق بر پایه‌ی ستون «شناسه» (اولین ستون، دست‌نزنید) انجام می‌شه — اگه پر بود، دقیقاً همون نتیجه به‌روزرسانی می‌شه؛ اگه خالی بود، نتیجه‌ی جدید ساخته می‌شه. همیشه از همین «خروجی اکسل» شروع کنید.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('afImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">جایگزینی و وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="overlay" id="overlay">
+  <div class="modal-card" style="max-width:520px;">
+    <h3 id="modalTitle">افزودن نتیجه ممیزی</h3>
+    <form method="post" id="afForm">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="obj_id" value="">
+      <div class="field-group"><label>شرح</label>{{ form.description }}</div>
+      <div class="field-group"><label>نوع</label>{{ form.finding_type }}</div>
+      <div class="field-group"><label>استاندارد مرتبط</label>{{ form.standard }}</div>
+      <div class="field-group"><label>مالک</label>{{ form.owner }}</div>
+      <div style="display:flex;gap:10px;">
+        <div class="field-group" style="flex:1;"><label>سال</label>{{ form.year }}</div>
+        <div class="field-group" style="flex:1;"><label>دوره ممیزی</label>{{ form.audit_period }}</div>
+      </div>
+      <div class="field-group"><label>اقدام اصلاحی</label>{{ form.corrective_action }}</div>
+      <div style="border-top:1px dashed var(--border);margin:10px 0;padding-top:10px;">
+        <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px;">ارتباطات (همه اختیاری)</div>
+
+        <div class="field-group">
+          <label>ریسک مرتبط</label>
+          <div class="picker-chips" id="chips-risk"></div>
+          <div class="picker-box" id="box-risk">{{ form.related_risk }}</div>
+        </div>
+
+        <div class="field-group">
+          <label>پروژه/اقدام اصلاحی مرتبط</label>
+          <div class="picker-chips" id="chips-initiative"></div>
+          <input type="text" id="searchInitiative" class="picker-search" placeholder="جستجو با کد یا عنوان پروژه...">
+          <div class="picker-box" id="box-initiative">{{ form.related_initiative }}</div>
+        </div>
+
+        <div class="field-group">
+          <label>نقطه‌ضعف SWOT مرتبط</label>
+          <div class="picker-chips" id="chips-swotitem"></div>
+          <input type="text" id="searchSwotitem" class="picker-search" placeholder="جستجو با متن یا نام کسب‌وکار...">
+          <div class="picker-box" id="box-swotitem">{{ form.related_swot_item }}</div>
+        </div>
+
+        <div class="field-group">
+          <label>الزام قانونی مرتبط</label>
+          <div class="picker-chips" id="chips-legal"></div>
+          <input type="text" id="searchLegal" class="picker-search" placeholder="جستجو با عنوان الزام...">
+          <div class="picker-box" id="box-legal">{{ form.related_legal_requirement }}</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="submitBtn">ثبت نتیجه</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(){ document.getElementById('overlay').classList.add('open'); }
+  function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+  const RADIO_BOXES = ['risk', 'initiative', 'swotitem', 'legal'];
+
+  function syncPickerBoxes(){
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
+      cb.closest('label').classList.toggle('picked', cb.checked);
+    });
+    RADIO_BOXES.forEach(updateChipSummary);
+  }
+
+  function updateChipSummary(key){
+    const box = document.getElementById('box-' + key);
+    const chipsBox = document.getElementById('chips-' + key);
+    if (!box || !chipsBox) return;
+    const checked = box.querySelectorAll('input[type="checkbox"]:checked');
+    chipsBox.innerHTML = '';
+    checked.forEach(function(cb){
+      const label = cb.closest('label');
+      const text = label ? label.textContent.trim() : '';
+      const chip = document.createElement('span');
+      chip.className = 'picker-chip';
+      const span = document.createElement('span');
+      span.textContent = text;
+      span.title = text;
+      chip.appendChild(span);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '×';
+      btn.title = 'حذف انتخاب';
+      btn.addEventListener('click', function(){
+        cb.checked = false;
+        syncPickerBoxes();
+      });
+      chip.appendChild(btn);
+      chipsBox.appendChild(chip);
+    });
+    chipsBox.classList.toggle('has-items', checked.length > 0);
+  }
+
+  function setupPickerSearch(inputId, boxId){
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.addEventListener('input', function(){
+      const q = this.value.trim().toLowerCase();
+      document.querySelectorAll('#' + boxId + ' label').forEach(function(lbl){
+        lbl.style.display = (!q || lbl.textContent.toLowerCase().includes(q)) ? '' : 'none';
+      });
+    });
+  }
+
+  (function(){
+    const descInput = document.getElementById('liveDesc');
+    const typeInput = document.getElementById('liveType');
+    const stdInput = document.getElementById('liveStd');
+    const ownerInput = document.getElementById('liveOwner');
+    const yearInput = document.getElementById('liveYear');
+    const periodInput = document.getElementById('livePeriod');
+    const actionInput = document.getElementById('liveAction');
+    const clearBtn = document.getElementById('liveClear');
+    const countEl = document.getElementById('liveCount');
+    const rows = Array.from(document.querySelectorAll('#auditBody tr'));
+    if (!descInput) return;
+
+    function applyLiveFilter(){
+      const d = descInput.value.trim().toLowerCase();
+      const t = typeInput.value.trim().toLowerCase();
+      const s = stdInput.value.trim().toLowerCase();
+      const o = ownerInput.value.trim().toLowerCase();
+      const y = yearInput.value.trim().toLowerCase();
+      const p = periodInput.value.trim().toLowerCase();
+      const a = actionInput.value.trim().toLowerCase();
+      const anyActive = d || t || s || o || y || p || a;
+      let visible = 0;
+      rows.forEach(function(row){
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 7){ return; }
+        const descTxt = cells[0].textContent.toLowerCase();
+        const typeTxt = cells[1].textContent.toLowerCase();
+        const stdTxt = cells[2].textContent.toLowerCase();
+        const ownerTxt = cells[3].textContent.toLowerCase();
+        const yearTxt = cells[4].textContent.toLowerCase();
+        const periodTxt = cells[5].textContent.toLowerCase();
+        const actionTxt = cells[6].textContent.toLowerCase();
+        const match = (!d || descTxt.includes(d)) && (!t || typeTxt.includes(t)) && (!s || stdTxt.includes(s))
+          && (!o || ownerTxt.includes(o)) && (!y || yearTxt.includes(y)) && (!p || periodTxt.includes(p)) && (!a || actionTxt.includes(a));
+        row.classList.toggle('af-hidden', !match);
+        if (match) visible++;
+      });
+      clearBtn.style.display = anyActive ? 'inline' : 'none';
+      countEl.textContent = anyActive ? ('یافت‌شده: ' + visible + ' مورد مشابه') : '';
+    }
+
+    [descInput, typeInput, stdInput, ownerInput, yearInput, periodInput, actionInput].forEach(function(inp){
+      inp.addEventListener('input', applyLiveFilter);
+    });
+    clearBtn.addEventListener('click', function(){
+      descInput.value = ''; typeInput.value = ''; stdInput.value = '';
+      ownerInput.value = ''; yearInput.value = ''; periodInput.value = ''; actionInput.value = '';
+      applyLiveFilter();
+    });
+  })();
+
+  function setCheckboxValues(name, csv){
+    const ids = (csv || '').split(',').filter(Boolean);
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(cb){
+      cb.checked = ids.includes(cb.value);
+    });
+  }
+
+  function newAudit(){
+    document.getElementById('afForm').reset();
+    document.getElementById('obj_id').value = '';
+    document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(cb => cb.checked = false);
+    syncPickerBoxes();
+    document.getElementById('modalTitle').textContent = 'افزودن نتیجه ممیزی';
+    document.getElementById('submitBtn').textContent = 'ثبت نتیجه';
+    openModal();
+  }
+
+  function editAudit(btn){
+    const d = btn.dataset;
+    document.getElementById('obj_id').value = d.id;
+    document.getElementById('id_description').value = d.description;
+    document.getElementById('id_finding_type').value = d.type;
+    document.getElementById('id_standard').value = d.standard;
+    document.getElementById('id_owner').value = d.owner;
+    document.getElementById('id_year').value = d.year;
+    document.getElementById('id_audit_period').value = d.period;
+    document.getElementById('id_corrective_action').value = d.action;
+    setCheckboxValues('related_risk', d.risk);
+    setCheckboxValues('related_initiative', d.initiative);
+    setCheckboxValues('related_swot_item', d.swot);
+    setCheckboxValues('related_legal_requirement', d.legal);
+    syncPickerBoxes();
+    document.getElementById('modalTitle').textContent = 'ویرایش نتیجه ممیزی';
+    document.getElementById('submitBtn').textContent = 'ذخیره تغییرات';
+    openModal();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.picker-box label').forEach(function(lbl){
+      const cb = lbl.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      lbl.addEventListener('click', function(e){
+        if (e.target === cb) return;
+        e.preventDefault();
+        cb.checked = !cb.checked;
+        syncPickerBoxes();
+      });
+    });
+    setupPickerSearch('searchInitiative', 'box-initiative');
+    setupPickerSearch('searchSwotitem', 'box-swotitem');
+    setupPickerSearch('searchLegal', 'box-legal');
+    syncPickerBoxes();
+  });
+</script>
+{% endblock %}

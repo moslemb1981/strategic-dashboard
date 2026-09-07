@@ -1798,3 +1798,47 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"پروفایل {self.user.get_full_name() or self.user.username}"
 
+
+class AuditFinding(models.Model):
+    """بانک نتایج ممیزی‌های انجام‌شده (داخلی/بیرونی) روی سامانه‌های مدیریتی سازمان."""
+    TYPE_CHOICES = [
+        ("strength", "نقاط قوت"),
+        ("nonconformity", "عدم انطباق"),
+        ("improvement", "توصیه بهبود"),
+    ]
+    MONTH_CHOICES = [
+        ("farvardin", "فروردین"), ("ordibehesht", "اردیبهشت"), ("khordad", "خرداد"),
+        ("tir", "تیر"), ("mordad", "مرداد"), ("shahrivar", "شهریور"),
+        ("mehr", "مهر"), ("aban", "آبان"), ("azar", "آذر"),
+        ("dey", "دی"), ("bahman", "بهمن"), ("esfand", "اسفند"),
+    ]
+
+    description = models.TextField(verbose_name="شرح")
+    finding_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="nonconformity", verbose_name="نوع")
+    standard = models.CharField(max_length=200, blank=True, verbose_name="استاندارد مرتبط")
+    owner = models.CharField(max_length=200, blank=True, verbose_name="مالک")
+    year = models.CharField(max_length=10, blank=True, verbose_name="سال")
+    audit_period = models.CharField(max_length=20, choices=MONTH_CHOICES, blank=True, verbose_name="دوره ممیزی")
+    corrective_action = models.TextField(blank=True, verbose_name="اقدام اصلاحی")
+    related_risk = models.ManyToManyField(
+        "Risk", blank=True, related_name="audit_findings", verbose_name="ریسک‌های مرتبط (اختیاری)",
+    )
+    related_initiative = models.ManyToManyField(
+        "Initiative", blank=True, related_name="audit_findings", verbose_name="پروژه‌ها/اقدامات اصلاحی مرتبط (اختیاری)",
+    )
+    related_swot_item = models.ManyToManyField(
+        "SWOTItem", blank=True, related_name="audit_findings", limit_choices_to={"category": "w"}, verbose_name="نقاط‌ضعف SWOT مرتبط (اختیاری)",
+    )
+    related_legal_requirement = models.ManyToManyField(
+        "LegalRequirement", blank=True, related_name="audit_findings", verbose_name="الزامات قانونی مرتبط (اختیاری)",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-year", "-created_at"]
+        verbose_name = "نتیجه ممیزی"
+        verbose_name_plural = "نتایج ممیزی‌ها"
+
+    def __str__(self):
+        return self.description[:60]
+
