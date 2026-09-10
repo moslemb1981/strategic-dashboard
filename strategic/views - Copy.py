@@ -1427,24 +1427,6 @@ def stratmap(request):
             return "#C97A2B"
         return "#3E7A52"
 
-    def _project_square(kpi_obj):
-        """برای یه شاخص (CompanyKPI یا OperationalKPI)، میانگین پیشرفت پروژه‌های
-        وصل‌شده به همون شاخص خاص را محاسبه می‌کند و اطلاعات کامل هاور را می‌سازد."""
-        inits = list(kpi_obj.initiatives.all())
-        if not inits:
-            return None
-        avg_progress = round(sum(i.progress for i in inits) / len(inits))
-        tooltip_lines = [
-            f"● {i.title}{f' ({i.code})' if i.code else ''} — مسئول: {i.owner or '—'} — وضعیت: {i.get_status_display()} — پیشرفت: {i.progress}٪"
-            for i in inits
-        ]
-        return {
-            "color": _pct_color(avg_progress),
-            "avg": avg_progress,
-            "count": len(inits),
-            "tooltip": "پروژه‌های وصل به این شاخص:\n" + "\n".join(tooltip_lines),
-        }
-
     kpis_by_objective = {}
     circles_by_objective = {}
     for k in StrategicKPI.objects.filter(objective__in=objectives).select_related("objective"):
@@ -1454,7 +1436,7 @@ def stratmap(request):
         })
         circles_by_objective.setdefault(k.objective_id, []).append({
             "name": k.name, "target": k.target, "actual": k.actual, "unit": k.unit,
-            "pct": k.progress_pct, "color": _pct_color(k.progress_pct), "project": None,
+            "pct": k.progress_pct, "color": _pct_color(k.progress_pct),
         })
 
     for o in objectives:
@@ -1466,7 +1448,7 @@ def stratmap(request):
             })
             circles_by_objective.setdefault(o.pk, []).append({
                 "name": f"{k.code} — {k.name}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
-                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
             })
         for k in o.linked_operational_kpis.all():
             kpis_by_objective.setdefault(o.pk, []).append({
@@ -1476,7 +1458,7 @@ def stratmap(request):
             })
             circles_by_objective.setdefault(o.pk, []).append({
                 "name": f"{k.code} — {k.title}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
-                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
             })
 
     for o in objectives:

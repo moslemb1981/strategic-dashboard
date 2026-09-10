@@ -118,7 +118,7 @@
       <p>از تحلیل محیط تا اجرا و پایش — مدل یکپارچه خلق ارزش سایپا یدک</p>
     </div>
     <div class="ip-top-stats">
-      <div class="ip-top-stat"><strong>{{ obj_score|fanum }}٪</strong><span>تحقق برنامه‌ها</span></div>
+      <div class="ip-top-stat"><strong>{{ obj_score|fanum }}٪</strong><span>وضعیت اهداف</span></div>
       <div class="ip-top-stat"><strong>{{ company_objective_count|fanum }}</strong><span>هدف کلان</span></div>
       <div class="ip-top-stat"><strong>{{ init_total|fanum }}</strong><span>پروژه فعال</span></div>
     </div>
@@ -258,7 +258,7 @@
     </div>
 
     <div class="ip-panel">
-      <div class="ip-panel-title">پیشرفت تحقق اهداف</div>
+      <div class="ip-panel-title">وضعیت اهداف استراتژیک</div>
       <div class="ip-donut-row">
         <div class="ip-donut" style="background:conic-gradient(#36d17d 0% {{ obj_status_pct.on }}%, #f4a51c {{ obj_status_pct.on }}% {{ obj_status_pct.on|add:obj_status_pct.watch }}%, #e85151 {{ obj_status_pct.on|add:obj_status_pct.watch }}% 100%);">
           <div class="ip-donut-val"><strong>{{ obj_score|fanum }}٪</strong><span>تحقق</span></div>

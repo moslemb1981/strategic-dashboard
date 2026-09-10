@@ -149,9 +149,7 @@
   .picker-chip button:hover{background:#B0413E;color:#fff;}
 
   .node-footer-row{margin-top:4px;display:flex;align-items:flex-end;gap:6px;}
-  .kpi-dots-area{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px;cursor:pointer;}
-  .kpi-unit{display:flex;flex-direction:column;align-items:center;gap:2px;}
-  .kpi-project-square{width:9px;height:9px;border-radius:2px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.1) inset;}
+  .kpi-dots-area{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px;cursor:pointer;}
   .node-badges-stack{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;}
   .kpi-circle{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.08) inset;}
   .kpi-circle-add{width:11px;height:11px;border-radius:50%;flex:none;border:1px dashed var(--sm-hair);
@@ -330,10 +328,7 @@
                 <div class="node-footer-row">
                   <div class="kpi-dots-area" onclick="event.stopPropagation(); openKpiModal('{{ n.pk }}', '{{ n.code }}');">
                   {% for c in n.kpi_circles %}
-                  <div class="kpi-unit">
-                    <span class="kpi-circle" style="background:{{ c.color }};" title="{{ c.name }} — هدف: {{ c.target|default:'—' }} / عملکرد: {{ c.actual|default:'—' }}{% if c.pct is not None %} ({{ c.pct }}٪){% endif %}"></span>
-                    {% if c.project %}<span class="kpi-project-square" style="background:{{ c.project.color }};" title="{{ c.project.tooltip }}"></span>{% endif %}
-                  </div>
+                  <span class="kpi-circle" style="background:{{ c.color }};" title="{{ c.name }} — هدف: {{ c.target|default:'—' }} / عملکرد: {{ c.actual|default:'—' }}{% if c.pct is not None %} ({{ c.pct }}٪){% endif %}"></span>
                   {% endfor %}
                   <span class="kpi-circle-add" title="مدیریت شاخص‌ها"><i class="fa-solid fa-plus"></i></span>
                   </div>
