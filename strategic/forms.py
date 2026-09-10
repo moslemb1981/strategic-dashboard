@@ -688,30 +688,25 @@ class AuditFindingForm(forms.ModelForm):
     class Meta:
         model = AuditFinding
         fields = [
-            "description", "finding_type", "standard", "owner", "year", "audit_period", "corrective_action",
-            "related_risk", "related_initiative", "related_swot_item", "related_legal_requirement",
+            "description", "finding_type", "standard", "owner", "executor", "year", "audit_period", "corrective_action",
+            "related_initiative", "related_legal_requirement",
         ]
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3, "placeholder": "شرح یافته‌ی ممیزی"}),
             "standard": forms.TextInput(attrs={"placeholder": "مثلاً: ISO 9001:2015 - بند ۸.۵"}),
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت کیفیت"}),
+            "executor": forms.TextInput(attrs={"placeholder": "مثلاً: کارشناس کنترل کیفیت"}),
             "year": forms.TextInput(attrs={"placeholder": "مثلاً: ۱۴۰۵"}),
             "corrective_action": forms.Textarea(attrs={"rows": 3, "placeholder": "اقدام اصلاحی تعریف‌شده"}),
-            "related_risk": forms.CheckboxSelectMultiple(),
             "related_initiative": forms.CheckboxSelectMultiple(),
-            "related_swot_item": forms.CheckboxSelectMultiple(),
             "related_legal_requirement": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for f in ["related_risk", "related_initiative", "related_swot_item", "related_legal_requirement"]:
+        for f in ["related_initiative", "related_legal_requirement"]:
             self.fields[f].required = False
-        self.fields["related_risk"].label_from_instance = lambda o: o.title
         self.fields["related_initiative"].label_from_instance = lambda o: f"{o.code + ' — ' if o.code else ''}{o.title}"
-        self.fields["related_swot_item"].label_from_instance = (
-            lambda o: f"[{o.business_unit.name.replace('کسب و کار ', '') if o.business_unit else '—'}] {o.text}"
-        )
         self.fields["related_legal_requirement"].label_from_instance = lambda o: o.title
 
 

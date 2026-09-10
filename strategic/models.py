@@ -1817,17 +1817,12 @@ class AuditFinding(models.Model):
     finding_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="nonconformity", verbose_name="نوع")
     standard = models.CharField(max_length=200, blank=True, verbose_name="استاندارد مرتبط")
     owner = models.CharField(max_length=200, blank=True, verbose_name="مالک")
+    executor = models.CharField(max_length=200, blank=True, verbose_name="مجری فرآیند")
     year = models.CharField(max_length=10, blank=True, verbose_name="سال")
     audit_period = models.CharField(max_length=20, choices=MONTH_CHOICES, blank=True, verbose_name="دوره ممیزی")
     corrective_action = models.TextField(blank=True, verbose_name="اقدام اصلاحی")
-    related_risk = models.ManyToManyField(
-        "Risk", blank=True, related_name="audit_findings", verbose_name="ریسک‌های مرتبط (اختیاری)",
-    )
     related_initiative = models.ManyToManyField(
         "Initiative", blank=True, related_name="audit_findings", verbose_name="پروژه‌ها/اقدامات اصلاحی مرتبط (اختیاری)",
-    )
-    related_swot_item = models.ManyToManyField(
-        "SWOTItem", blank=True, related_name="audit_findings", limit_choices_to={"category": "w"}, verbose_name="نقاط‌ضعف SWOT مرتبط (اختیاری)",
     )
     related_legal_requirement = models.ManyToManyField(
         "LegalRequirement", blank=True, related_name="audit_findings", verbose_name="الزامات قانونی مرتبط (اختیاری)",

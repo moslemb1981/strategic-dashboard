@@ -3843,7 +3843,7 @@ def audit_finding_delete(request, pk):
 
 _AUDIT_FINDING_EXCEL_HEADERS = [
     "شناسه (دست‌نزنید)", "شرح", "نوع (نقاط قوت/عدم انطباق/توصیه بهبود)", "استاندارد مرتبط", "مالک",
-    "سال", "دوره ممیزی (ماه شمسی)", "اقدام اصلاحی",
+    "مجری فرآیند", "سال", "دوره ممیزی (ماه شمسی)", "اقدام اصلاحی",
 ]
 
 
@@ -3873,12 +3873,12 @@ def audit_findings_export(request):
     for row_i, a in enumerate(AuditFinding.objects.all(), start=2):
         values = [
             a.pk, a.description, type_fa.get(a.finding_type, a.finding_type), a.standard, a.owner,
-            a.year, period_fa.get(a.audit_period, a.audit_period), a.corrective_action,
+            a.executor, a.year, period_fa.get(a.audit_period, a.audit_period), a.corrective_action,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [12, 42, 16, 26, 20, 10, 14, 34]
+    widths = [12, 42, 16, 26, 20, 20, 10, 14, 34]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
     ws.freeze_panes = "A2"
@@ -3897,7 +3897,7 @@ def audit_findings_export(request):
     dv_period.error = "لطفاً فقط یکی از ماه‌های شمسی فهرست را انتخاب کنید."
     dv_period.errorTitle = "مقدار نامعتبر"
     ws.add_data_validation(dv_period)
-    dv_period.add("G2:G1000")
+    dv_period.add("H2:H1000")
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -3949,9 +3949,10 @@ def audit_findings_import(request):
             finding_type=type_by_fa.get(_s(row[2]), "nonconformity") if len(row) > 2 else "nonconformity",
             standard=_s(row[3]) if len(row) > 3 else "",
             owner=_s(row[4]) if len(row) > 4 else "",
-            year=_s(row[5]) if len(row) > 5 else "",
-            audit_period=period_by_fa.get(_s(row[6]), "") if len(row) > 6 else "",
-            corrective_action=_s(row[7]) if len(row) > 7 else "",
+            executor=_s(row[5]) if len(row) > 5 else "",
+            year=_s(row[6]) if len(row) > 6 else "",
+            audit_period=period_by_fa.get(_s(row[7]), "") if len(row) > 7 else "",
+            corrective_action=_s(row[8]) if len(row) > 8 else "",
         )
         # شناسه‌ی صریح (ستون اول) — پر بود = به‌روزرسانی دقیق، خالی بود = رکورد جدید
         existing = AuditFinding.objects.filter(pk=record_id).first() if record_id else None

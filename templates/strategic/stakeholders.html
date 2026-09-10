@@ -75,6 +75,16 @@
   .picker-box label:hover{background:var(--bg);}
   .picker-box label.picked{background:var(--accent-soft,#FDF3E7);border-color:rgba(201,124,44,.35);font-weight:600;}
   .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+  .picker-chips{display:none;flex-wrap:wrap;gap:5px;max-height:64px;overflow-y:auto;padding:6px 2px;margin-bottom:4px;}
+  .picker-chips.has-items{display:flex;}
+  .picker-chip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft,#FDF3E7);
+    border:1px solid rgba(201,124,44,.35);border-radius:20px;padding:3px 6px 3px 10px;font-size:10.5px;
+    font-weight:600;max-width:260px;}
+  .picker-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .picker-chip button{border:none;background:rgba(0,0,0,.08);color:var(--ink-faint);border-radius:50%;
+    width:16px;height:16px;flex:none;cursor:pointer;font-size:11px;line-height:1;display:flex;
+    align-items:center;justify-content:center;padding:0;}
+  .picker-chip button:hover{background:#B0413E;color:#fff;}
 </style>
 {% endblock %}
 
@@ -262,7 +272,11 @@
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_internal }} درون سازمانی</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;">{{ form.is_external }} برون سازمانی</label>
       </div>
-      <div class="field-group"><label>عوامل Porter مرتبط (اختیاری، می‌تواند چند مورد باشد)</label><div class="picker-box">{{ form.related_porters }}</div></div>
+      <div class="field-group">
+        <label>عوامل Porter مرتبط (اختیاری، می‌تواند چند مورد باشد)</label>
+        <div class="picker-chips" id="chips-porters"></div>
+        <div class="picker-box" id="portersPickerBox">{{ form.related_porters }}</div>
+      </div>
       <div class="field-group"><label>کانال ارتباطی</label>{{ form.channel }}</div>
       <div class="field-group"><label>نیاز/انتظار</label>{{ form.need }}</div>
       <div style="display:flex;gap:16px;margin-bottom:10px;">
@@ -285,6 +299,7 @@
       <div class="field-group"><label>اقدام تعریف‌شده</label>{{ form.action }}</div>
       <div class="field-group">
         <label>پروژه‌های تحول مرتبط (اختیاری)</label>
+        <div class="picker-chips" id="chips-initiatives"></div>
         <input type="text" id="initPickerSearch" placeholder="جست‌وجو در عنوان پروژه..."
           style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
         <div class="picker-box" id="initiativesPickerBox">{{ form.related_initiatives }}</div>
@@ -365,6 +380,37 @@
     document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
       cb.closest('label').classList.toggle('picked', cb.checked);
     });
+    updatePickerChips('porters', 'portersPickerBox');
+    updatePickerChips('initiatives', 'initiativesPickerBox');
+  }
+
+  function updatePickerChips(key, boxId){
+    const box = document.getElementById(boxId);
+    const chipsBox = document.getElementById('chips-' + key);
+    if (!box || !chipsBox) return;
+    const checked = box.querySelectorAll('input[type="checkbox"]:checked');
+    chipsBox.innerHTML = '';
+    checked.forEach(function(cb){
+      const label = cb.closest('label');
+      const text = label ? label.textContent.trim() : '';
+      const chip = document.createElement('span');
+      chip.className = 'picker-chip';
+      const span = document.createElement('span');
+      span.textContent = text;
+      span.title = text;
+      chip.appendChild(span);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '×';
+      btn.title = 'حذف انتخاب';
+      btn.addEventListener('click', function(){
+        cb.checked = false;
+        syncPorterPicked();
+      });
+      chip.appendChild(btn);
+      chipsBox.appendChild(chip);
+    });
+    chipsBox.classList.toggle('has-items', checked.length > 0);
   }
 
   document.addEventListener('DOMContentLoaded', function(){

@@ -125,17 +125,18 @@
 <div style="overflow-x:auto;">
 <table class="af-table">
   <colgroup>
-    <col style="width:26%;"><col style="width:12%;"><col style="width:16%;">
-    <col style="width:14%;"><col style="width:8%;"><col style="width:10%;"><col style="width:22%;"><col style="width:50px;">
+    <col style="width:24%;"><col style="width:11%;"><col style="width:15%;">
+    <col style="width:12%;"><col style="width:12%;"><col style="width:7%;"><col style="width:9%;"><col style="width:20%;"><col style="width:50px;">
   </colgroup>
   <thead><tr>
-    <th>شرح</th><th>نوع</th><th>استاندارد مرتبط</th><th>مالک</th><th>سال</th><th>دوره ممیزی</th><th>اقدام اصلاحی</th><th></th>
+    <th>شرح</th><th>نوع</th><th>استاندارد مرتبط</th><th>مالک</th><th>مجری فرآیند</th><th>سال</th><th>دوره ممیزی</th><th>اقدام اصلاحی</th><th></th>
   </tr>
   <tr class="af-livesearch-row">
     <th><input type="text" id="liveDesc" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveType" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveStd" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveOwner" class="af-live-input" placeholder="جستجو..."></th>
+    <th><input type="text" id="liveExecutor" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveYear" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="livePeriod" class="af-live-input" placeholder="جستجو..."></th>
     <th><input type="text" id="liveAction" class="af-live-input" placeholder="جستجو..."></th>
@@ -148,20 +149,17 @@
   <tbody id="auditBody">
     {% for i in items %}
     <tr>
-      <td>{{ i.description }}
-        <div style="margin-top:4px;">
-        {% if i.related_risk.all %}<span class="used-badge" style="background:#FCE7E7;color:#B0413E;" title="ریسک‌های مرتبط:&#10;{% for r in i.related_risk.all %}● {{ r.title }} — مسئول: {{ r.owner|default:'—' }} — دسته: {{ r.get_category_display }} — احتمال×شدت: {{ r.likelihood }}×{{ r.impact }} — راهبرد: {{ r.get_response_strategy_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> ({{ i.related_risk.all|length }})</span>{% endif %}
-        {% if i.related_swot_item.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="نقاط‌ضعف مرتبط:&#10;{% for s in i.related_swot_item.all %}● [{{ s.business_unit.name|default:'—' }}] {{ s.text }} — وزن اهمیت: {{ s.weight }} — سطح اثر: {{ s.get_impact_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-table-cells"></i> ({{ i.related_swot_item.all|length }})</span>{% endif %}
-        {% if i.related_legal_requirement.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="الزامات مرتبط:&#10;{% for l in i.related_legal_requirement.all %}● {{ l.title }} — مأخذ: {{ l.source|default:'—' }} — محل کاربرد: {{ l.scope|default:'—' }} — واحد: {{ l.department|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> ({{ i.related_legal_requirement.all|length }})</span>{% endif %}
-        </div>
-      </td>
+      <td>{{ i.description }}</td>
       <td>
         {% if i.finding_type == "strength" %}<span class="af-tag" style="background:var(--success-soft);color:var(--success-dark);">نقاط قوت</span>
         {% elif i.finding_type == "nonconformity" %}<span class="af-tag" style="background:#FCE7E7;color:#B0413E;">عدم انطباق</span>
         {% else %}<span class="af-tag" style="background:var(--accent-soft);color:#7A4711;">توصیه بهبود</span>{% endif %}
       </td>
-      <td>{{ i.standard|default:"—" }}</td>
+      <td>{{ i.standard|default:"—" }}
+        {% if i.related_legal_requirement.all %}<div style="margin-top:4px;"><span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="الزامات مرتبط:&#10;{% for l in i.related_legal_requirement.all %}● {{ l.title }} — مأخذ: {{ l.source|default:'—' }} — محل کاربرد: {{ l.scope|default:'—' }} — واحد: {{ l.department|default:'—' }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-scale-balanced"></i> ({{ i.related_legal_requirement.all|length }})</span></div>{% endif %}
+      </td>
       <td>{{ i.owner|default:"—" }}</td>
+      <td>{{ i.executor|default:"—" }}</td>
       <td>{{ i.year|default:"—"|fanum }}</td>
       <td>{{ i.get_audit_period_display|default:"—" }}</td>
       <td>{{ i.corrective_action|default:"—" }}
@@ -171,11 +169,9 @@
         {% if perms.strategic.change_auditfinding %}
         <button type="button" onclick="editAudit(this)"
           data-id="{{ i.pk }}" data-description="{{ i.description }}" data-type="{{ i.finding_type }}"
-          data-standard="{{ i.standard }}" data-owner="{{ i.owner }}" data-year="{{ i.year }}"
+          data-standard="{{ i.standard }}" data-owner="{{ i.owner }}" data-executor="{{ i.executor }}" data-year="{{ i.year }}"
           data-period="{{ i.audit_period }}" data-action="{{ i.corrective_action }}"
-          data-risk="{% for r in i.related_risk.all %}{{ r.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
           data-initiative="{% for p in i.related_initiative.all %}{{ p.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
-          data-swot="{% for s in i.related_swot_item.all %}{{ s.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
           data-legal="{% for l in i.related_legal_requirement.all %}{{ l.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"
           style="border:none;background:none;color:var(--ink-faint);cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
         {% endif %}
@@ -224,7 +220,10 @@
       <div class="field-group"><label>شرح</label>{{ form.description }}</div>
       <div class="field-group"><label>نوع</label>{{ form.finding_type }}</div>
       <div class="field-group"><label>استاندارد مرتبط</label>{{ form.standard }}</div>
-      <div class="field-group"><label>مالک</label>{{ form.owner }}</div>
+      <div style="display:flex;gap:10px;">
+        <div class="field-group" style="flex:1;"><label>مالک</label>{{ form.owner }}</div>
+        <div class="field-group" style="flex:1;"><label>مجری فرآیند</label>{{ form.executor }}</div>
+      </div>
       <div style="display:flex;gap:10px;">
         <div class="field-group" style="flex:1;"><label>سال</label>{{ form.year }}</div>
         <div class="field-group" style="flex:1;"><label>دوره ممیزی</label>{{ form.audit_period }}</div>
@@ -234,23 +233,10 @@
         <div style="font-size:11px;color:var(--ink-faint);margin-bottom:8px;">ارتباطات (همه اختیاری)</div>
 
         <div class="field-group">
-          <label>ریسک مرتبط</label>
-          <div class="picker-chips" id="chips-risk"></div>
-          <div class="picker-box" id="box-risk">{{ form.related_risk }}</div>
-        </div>
-
-        <div class="field-group">
           <label>پروژه/اقدام اصلاحی مرتبط</label>
           <div class="picker-chips" id="chips-initiative"></div>
           <input type="text" id="searchInitiative" class="picker-search" placeholder="جستجو با کد یا عنوان پروژه...">
           <div class="picker-box" id="box-initiative">{{ form.related_initiative }}</div>
-        </div>
-
-        <div class="field-group">
-          <label>نقطه‌ضعف SWOT مرتبط</label>
-          <div class="picker-chips" id="chips-swotitem"></div>
-          <input type="text" id="searchSwotitem" class="picker-search" placeholder="جستجو با متن یا نام کسب‌وکار...">
-          <div class="picker-box" id="box-swotitem">{{ form.related_swot_item }}</div>
         </div>
 
         <div class="field-group">
@@ -274,7 +260,7 @@
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 
-  const RADIO_BOXES = ['risk', 'initiative', 'swotitem', 'legal'];
+  const RADIO_BOXES = ['initiative', 'legal'];
 
   function syncPickerBoxes(){
     document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(function(cb){
@@ -328,6 +314,7 @@
     const typeInput = document.getElementById('liveType');
     const stdInput = document.getElementById('liveStd');
     const ownerInput = document.getElementById('liveOwner');
+    const executorInput = document.getElementById('liveExecutor');
     const yearInput = document.getElementById('liveYear');
     const periodInput = document.getElementById('livePeriod');
     const actionInput = document.getElementById('liveAction');
@@ -341,23 +328,26 @@
       const t = typeInput.value.trim().toLowerCase();
       const s = stdInput.value.trim().toLowerCase();
       const o = ownerInput.value.trim().toLowerCase();
+      const ex = executorInput.value.trim().toLowerCase();
       const y = yearInput.value.trim().toLowerCase();
       const p = periodInput.value.trim().toLowerCase();
       const a = actionInput.value.trim().toLowerCase();
-      const anyActive = d || t || s || o || y || p || a;
+      const anyActive = d || t || s || o || ex || y || p || a;
       let visible = 0;
       rows.forEach(function(row){
         const cells = row.querySelectorAll('td');
-        if (cells.length < 7){ return; }
+        if (cells.length < 8){ return; }
         const descTxt = cells[0].textContent.toLowerCase();
         const typeTxt = cells[1].textContent.toLowerCase();
         const stdTxt = cells[2].textContent.toLowerCase();
         const ownerTxt = cells[3].textContent.toLowerCase();
-        const yearTxt = cells[4].textContent.toLowerCase();
-        const periodTxt = cells[5].textContent.toLowerCase();
-        const actionTxt = cells[6].textContent.toLowerCase();
+        const executorTxt = cells[4].textContent.toLowerCase();
+        const yearTxt = cells[5].textContent.toLowerCase();
+        const periodTxt = cells[6].textContent.toLowerCase();
+        const actionTxt = cells[7].textContent.toLowerCase();
         const match = (!d || descTxt.includes(d)) && (!t || typeTxt.includes(t)) && (!s || stdTxt.includes(s))
-          && (!o || ownerTxt.includes(o)) && (!y || yearTxt.includes(y)) && (!p || periodTxt.includes(p)) && (!a || actionTxt.includes(a));
+          && (!o || ownerTxt.includes(o)) && (!ex || executorTxt.includes(ex)) && (!y || yearTxt.includes(y))
+          && (!p || periodTxt.includes(p)) && (!a || actionTxt.includes(a));
         row.classList.toggle('af-hidden', !match);
         if (match) visible++;
       });
@@ -365,12 +355,12 @@
       countEl.textContent = anyActive ? ('یافت‌شده: ' + visible + ' مورد مشابه') : '';
     }
 
-    [descInput, typeInput, stdInput, ownerInput, yearInput, periodInput, actionInput].forEach(function(inp){
+    [descInput, typeInput, stdInput, ownerInput, executorInput, yearInput, periodInput, actionInput].forEach(function(inp){
       inp.addEventListener('input', applyLiveFilter);
     });
     clearBtn.addEventListener('click', function(){
       descInput.value = ''; typeInput.value = ''; stdInput.value = '';
-      ownerInput.value = ''; yearInput.value = ''; periodInput.value = ''; actionInput.value = '';
+      ownerInput.value = ''; executorInput.value = ''; yearInput.value = ''; periodInput.value = ''; actionInput.value = '';
       applyLiveFilter();
     });
   })();
@@ -399,12 +389,11 @@
     document.getElementById('id_finding_type').value = d.type;
     document.getElementById('id_standard').value = d.standard;
     document.getElementById('id_owner').value = d.owner;
+    document.getElementById('id_executor').value = d.executor;
     document.getElementById('id_year').value = d.year;
     document.getElementById('id_audit_period').value = d.period;
     document.getElementById('id_corrective_action').value = d.action;
-    setCheckboxValues('related_risk', d.risk);
     setCheckboxValues('related_initiative', d.initiative);
-    setCheckboxValues('related_swot_item', d.swot);
     setCheckboxValues('related_legal_requirement', d.legal);
     syncPickerBoxes();
     document.getElementById('modalTitle').textContent = 'ویرایش نتیجه ممیزی';
@@ -424,7 +413,6 @@
       });
     });
     setupPickerSearch('searchInitiative', 'box-initiative');
-    setupPickerSearch('searchSwotitem', 'box-swotitem');
     setupPickerSearch('searchLegal', 'box-legal');
     syncPickerBoxes();
   });
