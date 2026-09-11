@@ -1,0 +1,18 @@
+@echo off
+echo ============================================
+echo  Installing offline packages...
+echo ============================================
+cd /d D:\sysapp\strategic
+python -m pip install --no-index --find-links=D:\sysapp\strategic\wheels_offline1 -r requirements.txt
+echo.
+echo ============================================
+echo  Done. Testing imports...
+echo ============================================
+python -c "import flask, PIL, weasyprint; print('OK - all imports work')"
+pause
+
+
+-------- for install offline----------------
+cd D:\sysapp\strategic
+python -m pip install --upgrade pip
+pip download -r requirements.txt -d D:\sysapp\strategic\wheels_offline1
