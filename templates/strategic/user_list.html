@@ -24,8 +24,9 @@
       <td>{{ u.email|default:"—" }}</td>
       <td>
         {% if u.is_superuser %}<span class="usr-role role-admin">ادمین کامل</span>
-        {% elif u.profile.role == 'editor' %}<span class="usr-role role-editor">ویرایشگر</span>
-        {% else %}<span class="usr-role role-viewer">فقط مشاهده</span>{% endif %}
+        {% elif u.granted_sections %}
+          {% for sec in u.granted_sections %}<span class="usr-role role-editor">{{ sec }}</span>{% endfor %}
+        {% else %}<span class="usr-role role-viewer">بدون دسترسی ویرایش</span>{% endif %}
       </td>
       <td>{{ u.profile.business_unit.name|default:"—" }}</td>
       <td>{{ u.last_login|date:"Y/m/d H:i"|default:"هنوز وارد نشده" }}</td>

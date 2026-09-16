@@ -49,6 +49,20 @@ def _has_perm(request, perm):
     return False
 
 
+def _scoped_business_units(request):
+    """فهرست کسب‌وکارهایی که کاربر فعلی مجاز به دیدن آن‌هاست — برای بخش‌های
+    دارای محدودیت کسب‌وکار (SWOT، نقشه استراتژیک، پروژه‌های تحول).
+    ادمین کامل یا کاربر بدون کسب‌وکار اختصاصی، همه را می‌بیند."""
+    all_units = list(BusinessUnit.objects.all())
+    user = request.user
+    if not user.is_authenticated or user.is_superuser:
+        return all_units
+    profile = getattr(user, "profile", None)
+    if profile and profile.business_unit_id:
+        return [b for b in all_units if b.pk == profile.business_unit_id]
+    return all_units
+
+
 def _log_action(request, action, label):
     logger.info("%s: user=%s item=%r", action, request.user, label)
 
@@ -355,7 +369,7 @@ def study_delete(request, pk):
 # ---------------- Roadmap / initiatives ----------------
 
 def roadmap(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     group_mode = request.POST.get("group_mode") or request.GET.get("group_mode") or "bu"
     if group_mode not in ("bu", "division", "work_group"):
         group_mode = "bu"
@@ -367,15 +381,18 @@ def roadmap(request):
     if not current_bu and business_units:
         current_bu = business_units[0]
 
+    allowed_bu_ids = [b.pk for b in business_units]
+    scoped_initiatives_qs = Initiative.objects.filter(business_unit_id__in=allowed_bu_ids)
+
     group_field = {"division": "division", "work_group": "work_group"}.get(group_mode)
     group_tabs, current_group_key = [], None
     if group_field:
         distinct_values = sorted(set(
-            v.strip() for v in Initiative.objects.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
+            v.strip() for v in scoped_initiatives_qs.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
         ))
         counts = {}
         for v in distinct_values:
-            counts[v] = Initiative.objects.filter(**{group_field: v}).count()
+            counts[v] = scoped_initiatives_qs.filter(**{group_field: v}).count()
         group_tabs = [{"key": v, "count": counts[v]} for v in distinct_values]
         current_group_key = request.POST.get("g") or request.GET.get("g") or (distinct_values[0] if distinct_values else None)
 
@@ -394,8 +411,11 @@ def roadmap(request):
     if request.method == "POST" and request.POST.get("form_kind", "initiative") == "initiative":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
+        instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
+        if instance and instance.business_unit_id not in allowed_bu_ids:
+            messages.error(request, "شما مجاز به ویرایش پروژه‌های این کسب‌وکار نیستید.")
+            return redirect("strategic:roadmap")
         if _has_perm(request, perm):
-            instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
             form = InitiativeForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
                 obj = form.save(commit=False)
@@ -417,7 +437,7 @@ def roadmap(request):
                       "source_tows__source_items", "linked_stakeholders")
     if group_field:
         initiatives_qs = (
-            Initiative.objects.filter(**{group_field: current_group_key})
+            scoped_initiatives_qs.filter(**{group_field: current_group_key})
             .prefetch_related(*base_prefetch)
             if current_group_key else Initiative.objects.none()
         )
@@ -1361,7 +1381,7 @@ THEME_PALETTE = ["#0f8a6a", "#1183c9", "#7b5cd6", "#d08a1f", "#17a3a3", "#d6402f
 
 
 def stratmap(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
     current_bu = None
     if bu_id:
@@ -1378,8 +1398,11 @@ def stratmap(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_strategicobjective" if obj_id else "strategic.add_strategicobjective"
+        instance = get_object_or_404(StrategicObjective, pk=obj_id) if obj_id else None
+        if instance and instance.business_unit_id not in [b.pk for b in business_units]:
+            messages.error(request, "شما مجاز به ویرایش اهداف این کسب‌وکار نیستید.")
+            return redirect("strategic:stratmap")
         if _has_perm(request, perm):
-            instance = get_object_or_404(StrategicObjective, pk=obj_id) if obj_id else None
             form = StrategicObjectiveForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
                 obj = form.save(commit=False)
@@ -1636,7 +1659,7 @@ def business_unit_add(request):
 # ---------------- SWOT ----------------
 
 def swot(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
     current_bu = None
     if bu_id:
@@ -1650,8 +1673,11 @@ def swot(request):
         obj_id = request.POST.get("obj_id")
         if cat in ("s", "w", "o", "t"):
             perm = "strategic.change_swotitem" if obj_id else "strategic.add_swotitem"
+            instance = get_object_or_404(SWOTItem, pk=obj_id) if obj_id else None
+            if instance and instance.business_unit_id not in [b.pk for b in business_units]:
+                messages.error(request, "شما مجاز به ویرایش موارد این کسب‌وکار نیستید.")
+                return redirect("strategic:swot")
             if _has_perm(request, perm):
-                instance = get_object_or_404(SWOTItem, pk=obj_id) if obj_id else None
                 form = SWOTItemForm(request.POST, instance=instance)
                 if form.is_valid():
                     obj = form.save(commit=False)
@@ -1662,8 +1688,11 @@ def swot(request):
                     return redirect(reverse("strategic:swot") + bu_param)
         elif cat in ("so", "st", "wo", "wt"):
             perm = "strategic.change_towsstrategy" if obj_id else "strategic.add_towsstrategy"
+            t_instance = get_object_or_404(TOWSStrategy, pk=obj_id) if obj_id else None
+            if t_instance and t_instance.business_unit_id not in [b.pk for b in business_units]:
+                messages.error(request, "شما مجاز به ویرایش موارد این کسب‌وکار نیستید.")
+                return redirect("strategic:swot")
             if _has_perm(request, perm):
-                t_instance = get_object_or_404(TOWSStrategy, pk=obj_id) if obj_id else None
                 tform = TOWSStrategyForm(request.POST, instance=t_instance, business_unit=current_bu)
                 if tform.is_valid():
                     tobj = tform.save(commit=False)
@@ -3712,7 +3741,18 @@ def user_list(request):
         return redirect("strategic:home")
 
     from django.contrib.auth.models import User
+    from strategic.permission_sections import SECTIONS
+
     users = User.objects.all().select_related("profile").order_by("-date_joined")
+    for u in users:
+        if u.is_superuser:
+            u.granted_sections = ["ادمین کامل"]
+        else:
+            perm_codenames = set(u.user_permissions.values_list("codename", flat=True))
+            u.granted_sections = [
+                label for key, (label, models_, _) in SECTIONS.items()
+                if f"change_{models_[0].lower()}" in perm_codenames
+            ]
     return render(request, "strategic/user_list.html", {
         "active_page": "user_list", "users": users,
     })
@@ -3724,8 +3764,9 @@ def user_edit(request, pk=None):
         messages.error(request, "دسترسی به این بخش فقط برای مدیر سامانه مجاز است.")
         return redirect("strategic:home")
 
-    from django.contrib.auth.models import User, Group
+    from django.contrib.auth.models import User, Permission
     from strategic.models import UserProfile, BusinessUnit
+    from strategic.permission_sections import SECTIONS, permissions_for_section
 
     instance = get_object_or_404(User, pk=pk) if pk else None
 
@@ -3734,11 +3775,12 @@ def user_edit(request, pk=None):
         first_name = request.POST.get("first_name", "").strip()
         last_name = request.POST.get("last_name", "").strip()
         email = request.POST.get("email", "").strip()
-        role = request.POST.get("role", "viewer")
+        is_admin = request.POST.get("is_admin") == "on"
         bu_id = request.POST.get("business_unit") or None
         phone = request.POST.get("phone", "").strip()
         new_password = request.POST.get("new_password", "").strip()
         is_active = request.POST.get("is_active") == "on"
+        selected_sections = request.POST.getlist("sections")
 
         if not username:
             messages.error(request, "نام کاربری الزامی است.")
@@ -3764,36 +3806,56 @@ def user_edit(request, pk=None):
         user_obj.email = email
         user_obj.is_active = is_active
         user_obj.is_staff = True  # برای دسترسی به بخش‌های مدیریتی سامانه لازم است
-        user_obj.is_superuser = (role == "admin")
+        user_obj.is_superuser = is_admin
         if new_password:
             user_obj.set_password(new_password)
         user_obj.save()
 
-        # اعمال گروه بر اساس نقش
-        user_obj.groups.clear()
-        if role == "editor":
-            editor_group, _ = Group.objects.get_or_create(name="ویرایشگر")
-            user_obj.groups.add(editor_group)
-        elif role == "viewer":
-            viewer_group, _ = Group.objects.get_or_create(name="کارشناس (فقط مشاهده)")
-            user_obj.groups.add(viewer_group)
+        # اعمال دقیق مجوزها: فقط مجوزهای مربوط به بخش‌های تیک‌خورده
+        if is_admin:
+            user_obj.user_permissions.clear()
+        else:
+            all_codenames = []
+            for key in SECTIONS:
+                all_codenames.extend(permissions_for_section(key))
+            all_perm_ids = list(Permission.objects.filter(
+                content_type__app_label="strategic", codename__in=all_codenames
+            ).values_list("pk", flat=True))
+            user_obj.user_permissions.remove(*all_perm_ids)
+
+            selected_codenames = []
+            for key in selected_sections:
+                if key in SECTIONS:
+                    selected_codenames.extend(permissions_for_section(key))
+            selected_perms = Permission.objects.filter(
+                content_type__app_label="strategic", codename__in=selected_codenames
+            )
+            user_obj.user_permissions.add(*selected_perms)
 
         profile, _ = UserProfile.objects.get_or_create(user=user_obj)
-        profile.role = role
         profile.phone = phone
         profile.business_unit_id = bu_id
         profile.save()
 
         action = "UPDATE User" if instance else "CREATE User"
-        _log_action(request, action, f"{user_obj.username} — نقش: {role}")
+        _log_action(request, action, f"{user_obj.username} — بخش‌های مجاز: {', '.join(selected_sections) or ('ادمین کامل' if is_admin else 'هیچ‌کدام')}")
         messages.success(request, f"کاربر «{username}» با موفقیت ذخیره شد.")
         return redirect("strategic:user_list")
 
     profile = getattr(instance, "profile", None) if instance else None
+    current_perm_codenames = set(instance.user_permissions.values_list("codename", flat=True)) if instance else set()
+    sections_ui = []
+    for key, (label, model_names, bu_scoped) in SECTIONS.items():
+        change_codename = f"change_{model_names[0].lower()}"
+        sections_ui.append({
+            "key": key, "label": label, "bu_scoped": bu_scoped,
+            "checked": change_codename in current_perm_codenames,
+        })
+
     return render(request, "strategic/user_form.html", {
         "active_page": "user_list", "instance": instance, "profile": profile,
         "business_units": BusinessUnit.objects.all(),
-        "role_choices": UserProfile.ROLE_CHOICES,
+        "sections_ui": sections_ui,
     })
 
 

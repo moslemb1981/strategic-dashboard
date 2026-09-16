@@ -32,17 +32,9 @@
       <input type="text" name="phone" value="{{ profile.phone|default:'' }}">
     </div>
     <div class="field-group">
-      <label>نقش</label>
-      <select name="role">
-        {% for val, label in role_choices %}
-        <option value="{{ val }}" {% if profile.role == val or not instance and val == 'viewer' %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="field-group">
-      <label>کسب‌وکار مرتبط (اختیاری)</label>
+      <label>کسب‌وکار مرتبط (اختیاری — فقط برای ۳ بخش SWOT، نقشه استراتژیک، پروژه‌های تحول اثر دارد)</label>
       <select name="business_unit">
-        <option value="">— بدون محدودیت —</option>
+        <option value="">— بدون محدودیت (همه‌ی کسب‌وکارها) —</option>
         {% for bu in business_units %}
         <option value="{{ bu.pk }}" {% if profile.business_unit_id == bu.pk %}selected{% endif %}>{{ bu.name }}</option>
         {% endfor %}
@@ -58,15 +50,61 @@
     </div>
   </div>
 
+  <div class="usr-admin-row">
+    <input type="checkbox" name="is_admin" id="is_admin" {% if instance.is_superuser %}checked{% endif %}>
+    <label for="is_admin"><b>ادمین کامل سامانه</b> — دسترسی نامحدود به همه‌ی بخش‌ها (شامل مدیریت کاربران)</label>
+  </div>
+
+  <div class="usr-sections-box" id="sectionsBox">
+    <div class="usr-sections-title">دسترسی ویرایش به بخش‌های زیر (در صورتی که «ادمین کامل» نباشد)</div>
+    <div class="usr-sections-grid">
+      {% for s in sections_ui %}
+      <label class="usr-section-item">
+        <input type="checkbox" name="sections" value="{{ s.key }}" {% if s.checked %}checked{% endif %}>
+        <span>{{ s.label }}{% if s.bu_scoped %}<span class="usr-bu-tag">دارای محدودیت کسب‌وکار</span>{% endif %}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
   <button type="submit" class="btn primary" style="margin-top:20px;"><i class="fa-solid fa-check"></i> ذخیره</button>
 </form>
 
 <style>
-  .usr-form{background:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.06);max-width:760px;}
+  .usr-form{background:#fff;border-radius:12px;padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.06);max-width:900px;}
   .usr-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .usr-form .field-group label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
   .usr-form .field-group input, .usr-form .field-group select{width:100%;border:1px solid var(--border);border-radius:8px;
     padding:8px 10px;font-family:inherit;font-size:12.5px;box-sizing:border-box;}
   @media(max-width:700px){.usr-form-grid{grid-template-columns:1fr;}}
+
+  .usr-admin-row{display:flex;align-items:center;gap:10px;margin-top:22px;padding:12px 14px;
+    background:var(--accent-soft,#FDF3E7);border-radius:10px;border:1px solid rgba(201,124,44,.3);}
+  .usr-admin-row input{width:17px;height:17px;flex:none;}
+  .usr-admin-row label{font-size:12.5px;color:var(--ink);}
+
+  .usr-sections-box{margin-top:16px;}
+  .usr-sections-title{font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:10px;}
+  .usr-sections-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  @media(max-width:700px){.usr-sections-grid{grid-template-columns:1fr;}}
+  .usr-section-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);
+    border-radius:8px;font-size:12px;cursor:pointer;}
+  .usr-section-item:hover{background:var(--bg);}
+  .usr-section-item input{width:15px;height:15px;flex:none;}
+  .usr-bu-tag{display:inline-block;margin-inline-start:6px;font-size:9px;font-weight:700;color:#9A6A1E;
+    background:var(--accent-soft,#FDF3E7);border-radius:10px;padding:1px 6px;}
 </style>
+
+<script>
+  (function(){
+    const adminCb = document.getElementById('is_admin');
+    const sectionsBox = document.getElementById('sectionsBox');
+    function syncSectionsVisibility(){
+      sectionsBox.style.opacity = adminCb.checked ? '.4' : '1';
+      sectionsBox.style.pointerEvents = adminCb.checked ? 'none' : 'auto';
+    }
+    adminCb.addEventListener('change', syncSectionsVisibility);
+    syncSectionsVisibility();
+  })();
+</script>
 {% endblock %}
