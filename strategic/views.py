@@ -2471,8 +2471,9 @@ def company_kpi_import(request):
 # ---------------- بانک شاخص‌های عملیاتی (سطح دپارتمانی، جدا از شاخص‌های کلان شرکت) ----------------
 
 _OPKPI_EXCEL_HEADERS = [
-    "کد", "عنوان شاخص", "حوزه (Q/D/C/M)", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
-    "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "ترتیب نمایش",
+    "کد", "عنوان شاخص", "حوزه (Q/D/C/M)", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته (تجمعی)", "عملکرد سال گذشته (تجمعی)",
+    "هدف ماه جاری", "عملکرد ماه جاری",
+    "هدف سال جاری (تجمعی)", "عملکرد سال جاری (تجمعی)", "درصد تحقق", "محرمانه (بله/خالی)", "ترتیب نمایش",
 ]
 
 
@@ -2628,6 +2629,22 @@ def operational_kpis(request):
 
     items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis"))
 
+    # ماسک‌کردن هدف/عملکرد تجمعی سالانه برای کاربر مهمان (بدون لاگین) در شاخص‌های محرمانه.
+    # این مقدار واقعی هیچ‌وقت به HTML کاربر مهمان ارسال نمی‌شود؛ به‌جایش یک عدد
+    # ساختگی (ولی ثابت برای همان شاخص) تولید می‌شود تا با افکت تار نمایش داده شود.
+    import random
+    is_guest = not request.user.is_authenticated
+    for k in items:
+        if k.is_confidential and is_guest:
+            rnd = random.Random(k.code)
+            k.display_target_1405 = f"{rnd.randint(100, 999)},{rnd.randint(100, 999)}"
+            k.display_actual_1405 = f"{rnd.randint(100, 999)},{rnd.randint(100, 999)}"
+            k.is_masked = True
+        else:
+            k.display_target_1405 = k.target_1405
+            k.display_actual_1405 = k.actual_1405
+            k.is_masked = False
+
     return render(request, "strategic/operational_kpis.html", {
         "active_page": "operational_kpis", "items": items, "total": len(items),
         "form": OperationalKPIForm() if request.method == "POST" else form,
@@ -2669,12 +2686,13 @@ def operational_kpi_export(request):
     for row_i, k in enumerate(OperationalKPI.objects.all(), start=2):
         values = [
             k.code, k.title, k.domain, k.unit, k.department,
-            k.target_1404, k.actual_1404, k.target_1405, k.actual_1405, k.progress_1405, k.order,
+            k.target_1404, k.actual_1404, k.target_month, k.actual_month,
+            k.target_1405, k.actual_1405, k.progress_1405, ("بله" if k.is_confidential else ""), k.order,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [12, 42, 10, 12, 28, 12, 12, 12, 12, 12, 10]
+    widths = [12, 42, 10, 12, 28, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -2728,11 +2746,14 @@ def operational_kpi_import(request):
         department = _s(row[4]) if len(row) > 4 else ""
         target_1404 = clean_number_string(_s(row[5]) if len(row) > 5 else "")
         actual_1404 = clean_number_string(_s(row[6]) if len(row) > 6 else "")
-        target_1405 = clean_number_string(_s(row[7]) if len(row) > 7 else "")
-        actual_1405 = clean_number_string(_s(row[8]) if len(row) > 8 else "")
-        progress_1405 = clean_number_string(_s(row[9]) if len(row) > 9 else "")
+        target_month = clean_number_string(_s(row[7]) if len(row) > 7 else "")
+        actual_month = clean_number_string(_s(row[8]) if len(row) > 8 else "")
+        target_1405 = clean_number_string(_s(row[9]) if len(row) > 9 else "")
+        actual_1405 = clean_number_string(_s(row[10]) if len(row) > 10 else "")
+        progress_1405 = clean_number_string(_s(row[11]) if len(row) > 11 else "")
+        is_confidential = _s(row[12]).strip() in ("بله", "Yes", "yes", "true", "True", "1") if len(row) > 12 else False
         try:
-            order = int(row[10]) if len(row) > 10 and row[10] not in (None, "") else 0
+            order = int(row[13]) if len(row) > 13 and row[13] not in (None, "") else 0
         except (TypeError, ValueError):
             order = 0
 
@@ -2741,8 +2762,9 @@ def operational_kpi_import(request):
             defaults=dict(
                 title=title, domain=domain, unit=unit, department=department,
                 target_1404=target_1404, actual_1404=actual_1404,
+                target_month=target_month, actual_month=actual_month,
                 target_1405=target_1405, actual_1405=actual_1405,
-                progress_1405=progress_1405, order=order,
+                progress_1405=progress_1405, is_confidential=is_confidential, order=order,
             ),
         )
         created += 1 if was_created else 0
@@ -3387,7 +3409,7 @@ def _kpi_pct_color(pct):
 
 
 def _objective_kpi_entries(o):
-    """لیست شاخص‌های وصل به یک هدف (مشترک + اختصاصی) با کد/نام/هدف/عملکرد/درصد."""
+    """لیست شاخص‌های وصل به یک هدف (کلان + اختصاصی + عملیاتی) با کد/نام/هدف/عملکرد/درصد."""
     entries = []
     for k in o.linked_kpis.all():
         entries.append({
@@ -3398,6 +3420,11 @@ def _objective_kpi_entries(o):
         entries.append({
             "code": "", "name": k.name, "target": k.target, "actual": k.actual,
             "pct": k.progress_pct,
+        })
+    for k in o.linked_operational_kpis.all():
+        entries.append({
+            "code": k.code, "name": k.title, "target": k.target_1405, "actual": k.actual_1405,
+            "pct": k.manual_progress_value,
         })
     return entries
 
@@ -3432,7 +3459,7 @@ def stratmap_export_excel(request):
     objectives = list(
         StrategicObjective.objects.filter(business_unit=current_bu)
         .select_related("theme", "source_tows")
-        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "kpis", "source_tows__source_items")
+        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "linked_operational_kpis", "kpis", "source_tows__source_items")
     )
 
     HEADER_FILL = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
@@ -3647,13 +3674,17 @@ def stratmap_export_excel(request):
     style_header_row(ws4, 1, len(headers4))
     ws4.freeze_panes = "A2"
 
-    # جمع‌آوری منحصربه‌فرد شاخص‌های مشترک و اختصاصی مرتبط با اهداف این کسب‌وکار
+    # جمع‌آوری منحصربه‌فرد شاخص‌های مشترک، اختصاصی، و عملیاتی مرتبط با اهداف این کسب‌وکار
     shared_map = {}   # kpi_pk -> {"kpi": obj, "objectives": [o,...]}
+    operational_map = {}  # kpi_pk -> {"kpi": obj, "objectives": [o,...]}
     custom_list = []  # list of (StrategicKPI, objective)
     for o in objectives:
         for k in o.linked_kpis.all():
             shared_map.setdefault(k.pk, {"kpi": k, "objectives": []})
             shared_map[k.pk]["objectives"].append(o)
+        for k in o.linked_operational_kpis.all():
+            operational_map.setdefault(k.pk, {"kpi": k, "objectives": []})
+            operational_map[k.pk]["objectives"].append(o)
         for k in o.kpis.all():
             custom_list.append((k, o))
 
@@ -3673,6 +3704,34 @@ def stratmap_export_excel(request):
         ws4.cell(row=r, column=1, value=k.code)
         ws4.cell(row=r, column=2, value=k.name)
         ws4.cell(row=r, column=3, value="مشترک شرکت")
+        ws4.cell(row=r, column=4, value=k.target_1405 or "—")
+        ws4.cell(row=r, column=5, value=k.actual_1405 or "—")
+        ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))
+        ws4.cell(row=r, column=7, value=obj_cell)
+        ws4.cell(row=r, column=8, value=swot_cell)
+        if color:
+            ws4.cell(row=r, column=6).fill = PCT_FILL[color]
+        for c in range(1, 9):
+            cell = ws4.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        r += 1
+
+    for entry in operational_map.values():
+        k = entry["kpi"]
+        objs = entry["objectives"]
+        pct = k.manual_progress_value
+        color = _kpi_pct_color(pct)
+        obj_cell = "\n".join(f"{o.code} — {o.title}" for o in objs)
+        swot_lines = []
+        for o in objs:
+            for it in _objective_swot_items(o):
+                swot_lines.append(f"{it.category.upper()}: {it.text}")
+        swot_cell = "\n".join(dict.fromkeys(swot_lines)) if swot_lines else "—"
+
+        ws4.cell(row=r, column=1, value=k.code)
+        ws4.cell(row=r, column=2, value=k.title)
+        ws4.cell(row=r, column=3, value="عملیاتی")
         ws4.cell(row=r, column=4, value=k.target_1405 or "—")
         ws4.cell(row=r, column=5, value=k.actual_1405 or "—")
         ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))

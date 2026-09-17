@@ -14,7 +14,7 @@
 
   .opk-table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;}
   table.opk-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
-  .opk-table th{background:var(--bg);text-align:right;padding:8px 9px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .opk-table th{background:var(--bg);text-align:center;padding:8px 9px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
   .opk-livesearch-row th{padding:5px 7px 8px;border-bottom:2px solid var(--primary);}
   .opk-live-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-size:10.5px;font-family:inherit;background:#fff;box-sizing:border-box;}
   .opk-live-input:focus{outline:none;border-color:var(--primary);}
@@ -24,6 +24,7 @@
   .opk-domain-badge{display:inline-block;font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 9px;cursor:help;}
   .opk-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
   .opk-bar-fill{height:100%;border-radius:4px;}
+  .opk-blur-fake{filter:blur(4px);user-select:none;font-weight:700;color:#333;}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
     padding:1px 6px;cursor:help;background:var(--purple-soft,#ECE8F5);color:#6C56A3;}
   .opk-empty{padding:14px;text-align:center;color:var(--ink-faint);}
@@ -52,13 +53,13 @@
 <div class="opk-table-wrap">
 <table class="opk-table">
   <colgroup>
-    <col style="width:9%;"><col style="width:23%;"><col style="width:7%;"><col style="width:7%;"><col style="width:15%;">
-    <col style="width:8%;"><col style="width:8%;"><col style="width:11%;"><col style="width:50px;">
+    <col style="width:9%;"><col style="width:20%;"><col style="width:7%;"><col style="width:7%;"><col style="width:13%;">
+    <col style="width:11%;"><col style="width:8%;"><col style="width:8%;"><col style="width:11%;"><col style="width:50px;">
   </colgroup>
   <thead>
     <tr>
       <th>کد</th><th>عنوان شاخص</th><th>حوزه</th><th>واحد</th><th>دپارتمان مالک</th>
-      <th>هدف ۱۴۰۵</th><th>عملکرد ۱۴۰۵</th><th>تحقق</th><th></th>
+      <th>هدف/عملکرد ماه جاری</th><th>هدف ۱۴۰۵<br><small>(تجمعی)</small></th><th>عملکرد ۱۴۰۵<br><small>(تجمعی)</small></th><th>تحقق</th><th></th>
     </tr>
     <tr class="opk-livesearch-row">
       <th><input type="text" id="liveCode" class="opk-live-input" placeholder="جستجو..."></th>
@@ -66,6 +67,7 @@
       <th><input type="text" id="liveDomain" class="opk-live-input" placeholder="Q/D/C/M"></th>
       <th><input type="text" id="liveUnit" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveDept" class="opk-live-input" placeholder="جستجو..."></th>
+      <th></th>
       <th><input type="text" id="liveTarget" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveActual" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveProgress" class="opk-live-input" placeholder="جستجو..."></th>
@@ -83,8 +85,11 @@
       <td><span class="opk-domain-badge" style="background:{{ k.domain_color }};" title="{{ k.get_domain_display }}">{{ k.domain }}</span></td>
       <td>{{ k.unit|default:"—" }}</td>
       <td>{{ k.department|default:"—" }}</td>
-      <td>{{ k.target_1405|default:"—" }}</td>
-      <td>{{ k.actual_1405|default:"—" }}</td>
+      <td>{{ k.target_month|default:"—" }} / {{ k.actual_month|default:"—" }}
+        <div class="opk-bar-track"><div class="opk-bar-fill" style="width:{{ k.month_progress_pct|default:0 }}%;background:{{ k.month_progress_color }};"></div></div>
+      </td>
+      <td>{% if k.is_masked %}<span class="opk-blur-fake">{{ k.display_target_1405 }}</span> <i class="fa-solid fa-lock" style="font-size:9px;color:#B0413E;"></i>{% else %}{{ k.display_target_1405|default:"—" }}{% endif %}</td>
+      <td>{% if k.is_masked %}<span class="opk-blur-fake">{{ k.display_actual_1405 }}</span> <i class="fa-solid fa-lock" style="font-size:9px;color:#B0413E;"></i>{% else %}{{ k.display_actual_1405|default:"—" }}{% endif %}</td>
       <td>{{ k.progress_1405|default:"—" }}
         <div class="opk-bar-track"><div class="opk-bar-fill" style="width:{{ k.manual_progress_value|default:0 }}%;background:{{ k.progress_color }};"></div></div>
       </td>
@@ -93,7 +98,9 @@
         <button type="button" class="opk-actbtn" onclick="editOpk(this)"
           data-id="{{ k.pk }}" data-code="{{ k.code }}" data-title="{{ k.title }}" data-domain="{{ k.domain }}" data-unit="{{ k.unit }}"
           data-department="{{ k.department }}" data-t4="{{ k.target_1404 }}" data-a4="{{ k.actual_1404 }}"
-          data-t5="{{ k.target_1405 }}" data-a5="{{ k.actual_1405 }}" data-progress="{{ k.progress_1405 }}" data-order="{{ k.order }}">
+          data-tm="{{ k.target_month }}" data-am="{{ k.actual_month }}"
+          data-t5="{{ k.target_1405 }}" data-a5="{{ k.actual_1405 }}" data-progress="{{ k.progress_1405 }}"
+          data-confidential="{{ k.is_confidential|yesno:'1,0' }}" data-order="{{ k.order }}">
           <i class="fa-solid fa-pen"></i></button>
         {% endif %}
         {% if perms.strategic.delete_operationalkpi %}
@@ -124,14 +131,22 @@
       <div class="field-group"><label>عنوان شاخص</label>{{ form.title }}</div>
       <div class="field-group"><label>دپارتمان مالک</label>{{ form.department }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>هدف ۱۴۰۴</label>{{ form.target_1404 }}</div>
-        <div class="field-group"><label>عملکرد ۱۴۰۴</label>{{ form.actual_1404 }}</div>
+        <div class="field-group"><label>هدف ۱۴۰۴ (تجمعی)</label>{{ form.target_1404 }}</div>
+        <div class="field-group"><label>عملکرد ۱۴۰۴ (تجمعی)</label>{{ form.actual_1404 }}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>هدف ۱۴۰۵</label>{{ form.target_1405 }}</div>
-        <div class="field-group"><label>عملکرد ۱۴۰۵</label>{{ form.actual_1405 }}</div>
+        <div class="field-group"><label>هدف ماه جاری</label>{{ form.target_month }}</div>
+        <div class="field-group"><label>عملکرد ماه جاری</label>{{ form.actual_month }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>هدف ۱۴۰۵ (تجمعی)</label>{{ form.target_1405 }}</div>
+        <div class="field-group"><label>عملکرد ۱۴۰۵ (تجمعی)</label>{{ form.actual_1405 }}</div>
       </div>
       <div class="field-group"><label>درصد تحقق (دستی)</label>{{ form.progress_1405 }}</div>
+      <div class="field-group" style="display:flex;align-items:center;gap:8px;">
+        {{ form.is_confidential }}
+        <label for="id_is_confidential" style="margin:0;">محرمانه (هدف/عملکرد سالانه برای کاربر مهمان مخفی شود)</label>
+      </div>
       <div class="field-group"><label>ترتیب نمایش</label>{{ form.order }}</div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('opkOverlay').classList.remove('open')">انصراف</button>
@@ -191,9 +206,9 @@
           && (!vals.domain || cells[2].textContent.toLowerCase().includes(vals.domain))
           && (!vals.unit || cells[3].textContent.toLowerCase().includes(vals.unit))
           && (!vals.dept || cells[4].textContent.toLowerCase().includes(vals.dept))
-          && (!vals.target || cells[5].textContent.toLowerCase().includes(vals.target))
-          && (!vals.actual || cells[6].textContent.toLowerCase().includes(vals.actual))
-          && (!vals.progress || cells[7].textContent.toLowerCase().includes(vals.progress));
+          && (!vals.target || cells[6].textContent.toLowerCase().includes(vals.target))
+          && (!vals.actual || cells[7].textContent.toLowerCase().includes(vals.actual))
+          && (!vals.progress || cells[8].textContent.toLowerCase().includes(vals.progress));
         row.classList.toggle('opk-hidden', !match);
         if (match) visible++;
       });
@@ -223,9 +238,12 @@
     document.getElementById('id_department').value = d.department;
     document.getElementById('id_target_1404').value = d.t4;
     document.getElementById('id_actual_1404').value = d.a4;
+    document.getElementById('id_target_month').value = d.tm;
+    document.getElementById('id_actual_month').value = d.am;
     document.getElementById('id_target_1405').value = d.t5;
     document.getElementById('id_actual_1405').value = d.a5;
     document.getElementById('id_progress_1405').value = d.progress;
+    document.getElementById('id_is_confidential').checked = d.confidential === '1';
     document.getElementById('id_order').value = d.order;
     document.getElementById('opkModalTitle').textContent = 'ویرایش شاخص عملیاتی';
     document.getElementById('opkSubmitBtn').textContent = 'ذخیره تغییرات';

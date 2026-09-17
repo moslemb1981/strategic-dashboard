@@ -1225,11 +1225,14 @@ class OperationalKPI(models.Model):
     domain = models.CharField(max_length=1, choices=DOMAIN_CHOICES, default="Q", verbose_name="حوزه اثربخشی")
     unit = models.CharField(max_length=60, blank=True, verbose_name="واحد سنجش")
     department = models.CharField(max_length=150, blank=True, verbose_name="دپارتمان مالک")
-    target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴")
-    actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴")
-    target_1405 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۵")
-    actual_1405 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۵")
+    target_1404 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۴ (تجمعی)")
+    actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴ (تجمعی)")
+    target_month = models.CharField(max_length=60, blank=True, verbose_name="هدف ماه جاری")
+    actual_month = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ماه جاری")
+    target_1405 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۵ (تجمعی)")
+    actual_1405 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۵ (تجمعی)")
     progress_1405 = models.CharField(max_length=20, blank=True, verbose_name="درصد تحقق (دستی)")
+    is_confidential = models.BooleanField(default=False, verbose_name="محرمانه (هدف/عملکرد سالانه برای کاربر مهمان مخفی شود)")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
 
     class Meta:
@@ -1282,6 +1285,30 @@ class OperationalKPI(models.Model):
     @property
     def progress_color(self):
         p = self.manual_progress_value
+        if p is None:
+            return "#9aa3ac"
+        if p >= 90:
+            return "#3E7A52"
+        if p >= 60:
+            return "#C97A2B"
+        return "#B0413E"
+
+    @property
+    def month_progress_pct(self):
+        """درصد پیشرفت هدف/عملکرد ماه جاری، فقط اگر هردو مقدار عددی باشند."""
+        try:
+            t = float(self.target_month)
+            a = float(self.actual_month)
+            if t == 0:
+                return None
+            pct = round(a / t * 100)
+            return max(0, min(pct, 150))
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def month_progress_color(self):
+        p = self.month_progress_pct
         if p is None:
             return "#9aa3ac"
         if p >= 90:
