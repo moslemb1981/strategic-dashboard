@@ -476,10 +476,12 @@ class StrategicObjective(models.Model):
         related_name="objectives", verbose_name="راهبرد TOWS مبنا",
     )
     linked_kpis = models.ManyToManyField(
-        "CompanyKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
+        "CompanyKPI", blank=True, through="ObjectiveKPIWeight",
+        related_name="strategic_objectives", verbose_name="شاخص‌های استراتژیک مرتبط",
     )
     linked_operational_kpis = models.ManyToManyField(
-        "OperationalKPI", blank=True, related_name="strategic_objectives", verbose_name="شاخص‌های عملیاتی مرتبط",
+        "OperationalKPI", blank=True, through="ObjectiveOperationalKPIWeight",
+        related_name="strategic_objectives", verbose_name="شاخص‌های عملیاتی مرتبط",
     )
     business_unit = models.ForeignKey(
         BusinessUnit, null=True, blank=True, on_delete=models.SET_NULL,
@@ -494,6 +496,31 @@ class StrategicObjective(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.title}"
+
+
+class ObjectiveKPIWeight(models.Model):
+    """وزن هر شاخص کلان (CompanyKPI) در محاسبه‌ی وضعیت یک کارت هدف استراتژیک به‌خصوص.
+    یک شاخص می‌تواند در کارت‌های مختلف وزن‌های متفاوتی داشته باشد."""
+    objective = models.ForeignKey(StrategicObjective, on_delete=models.CASCADE)
+    kpi = models.ForeignKey("CompanyKPI", on_delete=models.CASCADE)
+    weight = models.PositiveIntegerField(default=100, verbose_name="وزن شاخص در این کارت (۱ تا ۱۰۰)")
+
+    class Meta:
+        unique_together = ("objective", "kpi")
+        verbose_name = "وزن شاخص کلان در کارت هدف"
+        verbose_name_plural = "وزن شاخص‌های کلان در کارت‌های هدف"
+
+
+class ObjectiveOperationalKPIWeight(models.Model):
+    """وزن هر شاخص عملیاتی (OperationalKPI) در محاسبه‌ی وضعیت یک کارت هدف استراتژیک به‌خصوص."""
+    objective = models.ForeignKey(StrategicObjective, on_delete=models.CASCADE)
+    kpi = models.ForeignKey("OperationalKPI", on_delete=models.CASCADE)
+    weight = models.PositiveIntegerField(default=100, verbose_name="وزن شاخص در این کارت (۱ تا ۱۰۰)")
+
+    class Meta:
+        unique_together = ("objective", "kpi")
+        verbose_name = "وزن شاخص عملیاتی در کارت هدف"
+        verbose_name_plural = "وزن شاخص‌های عملیاتی در کارت‌های هدف"
 
 
 class Competitor(models.Model):

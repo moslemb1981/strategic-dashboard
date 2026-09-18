@@ -172,6 +172,17 @@
   .picker-box label:hover{background:var(--sm-bg);}
   .picker-box label.picked{background:rgba(214,69,40,.12);border-color:rgba(214,69,40,.35);font-weight:600;}
   .picker-box input[type="checkbox"],.picker-box input[type="radio"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+  #linkedKpisBox label,#linkedOperationalKpisBox label{display:block;}
+  #linkedKpisBox label .picker-label-text,#linkedOperationalKpisBox label .picker-label-text{display:block;}
+  .kpi-weight-row{display:none;align-items:center;gap:6px;margin-top:5px;padding-top:5px;
+    border-top:1px dashed rgba(0,0,0,.08);width:100%;box-sizing:border-box;flex-wrap:nowrap;}
+  .picker-box label.picked .kpi-weight-row{display:flex;}
+  .kpi-weight-row .kpi-weight-tag{font-size:.68rem;color:var(--sm-muted);flex:none;white-space:nowrap;}
+  .picker-box .kpi-weight-row input.kpi-weight-input{
+    flex:0 0 auto !important;width:38px !important;max-width:38px !important;min-width:0 !important;
+    border:1px solid var(--sm-hair) !important;border-radius:6px !important;
+    padding:2px 3px !important;font-size:.72rem !important;text-align:center;font-family:inherit;
+    background:#fff;color:var(--sm-ink);box-sizing:border-box !important;height:auto !important;}
 </style>
 
 <style media="print">
@@ -405,14 +416,42 @@
       <div class="field-group">
         <label>شاخص‌های استراتژیک مرتبط (I1-I26)</label>
         <div class="picker-chips" id="chips-linkedKpis"></div>
-        <div class="picker-box" id="linkedKpisBox">{{ form.linked_kpis }}</div>
+        <div class="picker-box" id="linkedKpisBox">
+          {% for cb in form.linked_kpis %}
+            <label class="{% if cb.data.selected %}picked{% endif %}">
+              {{ cb.tag }}
+              <span class="picker-label-text">{{ cb.choice_label }}</span>
+              <span class="kpi-weight-row">
+                <span class="kpi-weight-tag">وزن شاخص در این کارت</span>
+                <input type="number" class="kpi-weight-input" name="kpi_weight_{{ cb.data.value }}"
+                  min="1" max="100" value="100"
+                  data-kpi-weight="{{ cb.data.value }}" title="وزن شاخص در این کارت (۱ تا ۱۰۰)"
+                  onclick="event.stopPropagation();">
+              </span>
+            </label>
+          {% endfor %}
+        </div>
       </div>
       <div class="field-group">
         <label>شاخص‌های عملیاتی مرتبط</label>
         <div class="picker-chips" id="chips-linkedOperationalKpis"></div>
         <input type="text" id="opkPickerSearch" placeholder="جستجو با کد یا عنوان شاخص..."
           style="width:100%;border:1px solid var(--sm-hair);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
-        <div class="picker-box" id="linkedOperationalKpisBox">{{ form.linked_operational_kpis }}</div>
+        <div class="picker-box" id="linkedOperationalKpisBox">
+          {% for cb in form.linked_operational_kpis %}
+            <label class="{% if cb.data.selected %}picked{% endif %}">
+              {{ cb.tag }}
+              <span class="picker-label-text">{{ cb.choice_label }}</span>
+              <span class="kpi-weight-row">
+                <span class="kpi-weight-tag">وزن شاخص در این کارت</span>
+                <input type="number" class="kpi-weight-input" name="opkpi_weight_{{ cb.data.value }}"
+                  min="1" max="100" value="100"
+                  data-opkpi-weight="{{ cb.data.value }}" title="وزن شاخص در این کارت (۱ تا ۱۰۰)"
+                  onclick="event.stopPropagation();">
+              </span>
+            </label>
+          {% endfor %}
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="closeModal()">انصراف</button>
@@ -446,6 +485,7 @@
 </div>
 
 {{ kpis_by_objective|json_script:"kpis-by-objective-data" }}
+{{ weights_by_objective|json_script:"weights-by-objective-data" }}
 
 <div class="overlay" id="kpiListOverlay">
   <div class="modal-card" style="max-width:520px;">
@@ -517,7 +557,8 @@
     chipsBox.innerHTML = '';
     checked.forEach(function(cb){
       const label = cb.closest('label');
-      const text = label ? label.textContent.trim() : '';
+      const labelTextEl = label ? label.querySelector('.picker-label-text') : null;
+      const text = labelTextEl ? labelTextEl.textContent.trim() : (label ? label.textContent.trim() : '');
       const chip = document.createElement('span');
       chip.className = 'picker-chip';
       const span = document.createElement('span');
@@ -544,7 +585,9 @@
       opkSearch.addEventListener('input', function(){
         const q = this.value.trim().toLowerCase();
         document.querySelectorAll('#linkedOperationalKpisBox label').forEach(function(lbl){
-          lbl.style.display = (!q || lbl.textContent.toLowerCase().includes(q)) ? '' : 'none';
+          const t = lbl.querySelector('.picker-label-text');
+          const hay = (t ? t.textContent : lbl.textContent).toLowerCase();
+          lbl.style.display = (!q || hay.includes(q)) ? '' : 'none';
         });
       });
     }
@@ -552,7 +595,7 @@
       const input = lbl.querySelector('input[type="checkbox"], input[type="radio"]');
       if (!input) return;
       lbl.addEventListener('click', function(e){
-        if (e.target === input) return; // خود ورودی کلیک شده، رفتار پیش‌فرض کافی است
+        if (e.target.tagName === 'INPUT') return; // خود ورودی (تیک یا وزن) کلیک شده، رفتار پیش‌فرض کافی است
         e.preventDefault();
         if (input.type === 'radio'){
           document.querySelectorAll('input[name="' + input.name + '"]').forEach(r => r.checked = false);
@@ -567,6 +610,7 @@
   });
 
   const KPIS_BY_OBJ = JSON.parse(document.getElementById('kpis-by-objective-data').textContent);
+  const WEIGHTS_BY_OBJ = JSON.parse(document.getElementById('weights-by-objective-data').textContent);
   const KPI_STATUS_COLOR = {on_track: '#3E7A52', at_risk: '#C97A2B', off_track: '#B0413E'};
   const KPI_TREND_ICON = {up: '▲', down: '▼', flat: '◂▸'};
   let currentKpiObjId = null;
@@ -655,6 +699,7 @@
     document.querySelectorAll('input[name="source_tows"]').forEach(rb => rb.checked = false);
     document.querySelectorAll('input[name="linked_kpis"]').forEach(cb => cb.checked = false);
     document.querySelectorAll('input[name="linked_operational_kpis"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.kpi-weight-input').forEach(inp => inp.value = 100);
     syncPickedClasses();
     document.getElementById('modalTitle').textContent = 'افزودن هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ثبت هدف';
@@ -678,6 +723,14 @@
     document.querySelectorAll('input[name="linked_kpis"]').forEach(cb => { cb.checked = kpiIds.includes(cb.value); });
     const opkpiIds = (d.opkpis || '').split(',').filter(Boolean);
     document.querySelectorAll('input[name="linked_operational_kpis"]').forEach(cb => { cb.checked = opkpiIds.includes(cb.value); });
+
+    const objWeights = WEIGHTS_BY_OBJ[d.id] || {};
+    document.querySelectorAll('.kpi-weight-input[data-kpi-weight]').forEach(inp => {
+      inp.value = objWeights['kpi-' + inp.dataset.kpiWeight] || 100;
+    });
+    document.querySelectorAll('.kpi-weight-input[data-opkpi-weight]').forEach(inp => {
+      inp.value = objWeights['opkpi-' + inp.dataset.opkpiWeight] || 100;
+    });
     syncPickedClasses();
     document.getElementById('modalTitle').textContent = 'ویرایش هدف استراتژیک';
     document.getElementById('objSubmitBtn').textContent = 'ذخیره تغییرات';

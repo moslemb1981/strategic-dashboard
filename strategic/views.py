@@ -23,6 +23,7 @@ from .models import (
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
+    ObjectiveKPIWeight, ObjectiveOperationalKPIWeight,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -83,16 +84,32 @@ def _swot_code_map():
 def home(request):
     objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis"))
 
+    kpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveKPIWeight.objects.all()}
+    opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.all()}
+
     def _objective_status(o):
-        """وضعیت هر هدف را از میانگین درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده محاسبه می‌کند.
+        """وضعیت هر هدف را از میانگین وزن‌دار درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده محاسبه می‌کند
+        (هر شاخص طبق وزنی که برای همین کارت دارد در میانگین سهیم می‌شود).
         اهدافی که هیچ شاخصی ندارند، None برمی‌گردانند (یعنی از محاسبه کنار گذاشته می‌شوند)."""
-        values = [v for v in (
-            [k.manual_progress_value for k in o.linked_kpis.all()]
-            + [k.manual_progress_value for k in o.linked_operational_kpis.all()]
-        ) if v is not None]
-        if not values:
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for k in o.linked_kpis.all():
+            v = k.manual_progress_value
+            if v is None:
+                continue
+            w = kpi_weight_map.get((o.pk, k.pk), 100)
+            weighted_sum += v * w
+            weight_total += w
+        for k in o.linked_operational_kpis.all():
+            v = k.manual_progress_value
+            if v is None:
+                continue
+            w = opkpi_weight_map.get((o.pk, k.pk), 100)
+            weighted_sum += v * w
+            weight_total += w
+        if weight_total <= 0:
             return None
-        avg = sum(values) / len(values)
+        avg = weighted_sum / weight_total
         if avg >= 90:
             return "on"
         if avg >= 80:
@@ -1380,6 +1397,29 @@ def value_chain(request):
 THEME_PALETTE = ["#0f8a6a", "#1183c9", "#7b5cd6", "#d08a1f", "#17a3a3", "#d6402f", "#8a5a44", "#5a6474"]
 
 
+def _save_objective_kpi_weights(request, obj):
+    """بعد از ذخیره‌ی شاخص‌های وصل‌شده به یک کارت هدف (form.save_m2m)، وزن هر شاخص را
+    از فیلدهای kpi_weight_<id> / opkpi_weight_<id> که در فرم پرشده، می‌خواند و ذخیره می‌کند.
+    اگر وزنی ارسال نشده یا نامعتبر باشد، مقدار پیش‌فرض ۱۰۰ (وزن مساوی) در نظر گرفته می‌شود."""
+    def _clean_weight(raw):
+        try:
+            w = int(raw)
+        except (TypeError, ValueError):
+            return 100
+        return max(1, min(w, 100))
+
+    for k in obj.linked_kpis.all():
+        raw = request.POST.get(f"kpi_weight_{k.pk}")
+        ObjectiveKPIWeight.objects.update_or_create(
+            objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
+        )
+    for k in obj.linked_operational_kpis.all():
+        raw = request.POST.get(f"opkpi_weight_{k.pk}")
+        ObjectiveOperationalKPIWeight.objects.update_or_create(
+            objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
+        )
+
+
 def stratmap(request):
     business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
@@ -1410,6 +1450,7 @@ def stratmap(request):
                     obj.business_unit = current_bu
                 obj.save()
                 form.save_m2m()
+                _save_objective_kpi_weights(request, obj)
                 _log_action(request, "UPDATE StrategicObjective" if obj_id else "CREATE StrategicObjective", str(obj))
                 bu_param = f"?bu={current_bu.pk}" if current_bu else ""
                 return redirect(reverse("strategic:stratmap") + bu_param)
@@ -1506,11 +1547,19 @@ def stratmap(request):
         o.kpi_count = len(kpis_by_objective.get(o.pk, []))
         o.kpi_circles = circles_by_objective.get(o.pk, [])
 
+    # وزن هر شاخص در هر کارت — برای پرشدن خودکار فیلد وزن هنگام ویرایش یک هدف
+    weights_by_objective = {}
+    for w in ObjectiveKPIWeight.objects.filter(objective__in=objectives):
+        weights_by_objective.setdefault(w.objective_id, {})[f"kpi-{w.kpi_id}"] = w.weight
+    for w in ObjectiveOperationalKPIWeight.objects.filter(objective__in=objectives):
+        weights_by_objective.setdefault(w.objective_id, {})[f"opkpi-{w.kpi_id}"] = w.weight
+
     return render(request, "strategic/stratmap.html", {
         "active_page": "stratmap", "bands": bands, "form": form,
         "links": links, "business_units": business_units, "current_bu": current_bu,
         "themes": themes, "theme_form": StrategyThemeForm(), "org_vision": org_identity.vision,
         "kpis_by_objective": kpis_by_objective, "kpi_form": StrategicKPIForm(),
+        "weights_by_objective": weights_by_objective,
     })
 
 
@@ -3409,29 +3458,40 @@ def _kpi_pct_color(pct):
 
 
 def _objective_kpi_entries(o):
-    """لیست شاخص‌های وصل به یک هدف (کلان + اختصاصی + عملیاتی) با کد/نام/هدف/عملکرد/درصد."""
+    """لیست شاخص‌های وصل به یک هدف (کلان + اختصاصی + عملیاتی) با کد/نام/هدف/عملکرد/درصد/وزن.
+    شاخص‌های اختصاصی (StrategicKPI) وزن ندارند و همیشه وزن ۱۰۰ در نظر گرفته می‌شوند."""
     entries = []
+    kpi_weights = {w.kpi_id: w.weight for w in ObjectiveKPIWeight.objects.filter(objective=o)}
+    opkpi_weights = {w.kpi_id: w.weight for w in ObjectiveOperationalKPIWeight.objects.filter(objective=o)}
     for k in o.linked_kpis.all():
         entries.append({
             "code": k.code, "name": k.name, "target": k.target_1405, "actual": k.actual_1405,
-            "pct": k.manual_progress_value,
+            "pct": k.manual_progress_value, "weight": kpi_weights.get(k.pk, 100),
         })
     for k in o.kpis.all():
         entries.append({
             "code": "", "name": k.name, "target": k.target, "actual": k.actual,
-            "pct": k.progress_pct,
+            "pct": k.progress_pct, "weight": 100,
         })
     for k in o.linked_operational_kpis.all():
         entries.append({
             "code": k.code, "name": k.title, "target": k.target_1405, "actual": k.actual_1405,
-            "pct": k.manual_progress_value,
+            "pct": k.manual_progress_value, "weight": opkpi_weights.get(k.pk, 100),
         })
     return entries
 
 
 def _objective_overall_pct(entries):
-    vals = [e["pct"] for e in entries if e["pct"] is not None]
-    return round(sum(vals) / len(vals)) if vals else None
+    """میانگین وزن‌دار درصد تحقق شاخص‌های یک هدف. اگر همه‌ی وزن‌ها صفر یا خالی باشند
+    (مورد نادر)، به میانگین ساده برمی‌گردد تا هیچ‌وقت تقسیم بر صفر رخ ندهد."""
+    scored = [e for e in entries if e["pct"] is not None]
+    if not scored:
+        return None
+    weight_total = sum(e.get("weight", 100) or 0 for e in scored)
+    if weight_total <= 0:
+        return round(sum(e["pct"] for e in scored) / len(scored))
+    weighted_sum = sum(e["pct"] * (e.get("weight", 100) or 0) for e in scored)
+    return round(weighted_sum / weight_total)
 
 
 def _objective_swot_items(o):
