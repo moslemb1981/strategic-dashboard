@@ -221,11 +221,10 @@ class TOWSStrategyForm(forms.ModelForm):
 class StrategicObjectiveForm(forms.ModelForm):
     class Meta:
         model = StrategicObjective
-        fields = ["code", "perspective", "theme", "title", "kpi", "status", "order", "feeds_into", "source_tows", "linked_kpis", "linked_operational_kpis"]
+        fields = ["code", "perspective", "theme", "title", "order", "feeds_into", "source_tows", "linked_kpis", "linked_operational_kpis"]
         widgets = {
             "code": forms.TextInput(attrs={"placeholder": "مثلاً: F1"}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان هدف استراتژیک"}),
-            "kpi": forms.TextInput(attrs={"placeholder": "مثلاً: رشد ۱۲٪ حاشیه سود ناخالص"}),
             "feeds_into": forms.CheckboxSelectMultiple(),
             "linked_kpis": forms.CheckboxSelectMultiple(),
             "linked_operational_kpis": forms.CheckboxSelectMultiple(),

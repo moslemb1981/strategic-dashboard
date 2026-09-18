@@ -81,6 +81,88 @@ def _swot_code_map():
     return code_map
 
 
+def _pct_color_hex(pct):
+    if pct is None:
+        return "#9aa1ab"
+    if pct < 80:
+        return "#B0413E"
+    if pct < 90:
+        return "#C97A2B"
+    return "#3E7A52"
+
+
+STATUS_LABEL_FA = {"on": "در مسیر", "watch": "نیازمند پیگیری", "risk": "در معرض ریسک"}
+
+
+def _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map):
+    """متن هاور برای خط وضعیت هر کارت: شفاف‌سازی اینکه عدد نهایی از کجا اومده —
+    تک‌تک شاخص‌های وصل‌شده با درصد تحقق و وزنشون، به‌علاوه جمع‌بندی نهایی."""
+    lines = []
+    for k in o.linked_kpis.all():
+        v = k.manual_progress_value
+        w = kpi_weight_map.get((o.pk, k.pk), 100)
+        pct_txt = f"{v}٪" if v is not None else "—"
+        lines.append(f"● {k.code} — {k.name} — تحقق: {pct_txt} — وزن: {w}")
+    for k in o.linked_operational_kpis.all():
+        v = k.manual_progress_value
+        w = opkpi_weight_map.get((o.pk, k.pk), 100)
+        pct_txt = f"{v}٪" if v is not None else "—"
+        lines.append(f"● {k.code} — {k.title} — تحقق: {pct_txt} — وزن: {w}")
+    if not lines:
+        return "هنوز هیچ شاخصی به این کارت وصل نشده است."
+    header = "شاخص‌های وصل‌شده به این کارت:"
+    footer = f"میانگین وزن‌دار نهایی: {pct}٪" if pct is not None else "میانگین وزن‌دار نهایی: —"
+    return header + "\n" + "\n".join(lines) + "\n\n" + footer
+
+
+def _attach_computed_objective_status(objectives):
+    """به هر هدف توی این لیست، وضعیت وزن‌دار محاسبه‌شده (درصد/وضعیت/رنگ/برچسب/هاور) رو اضافه می‌کنه.
+    برای اینکه توی همه‌ی نماهای نقشه‌ی استراتژیک (خود صفحه + خروجی‌های چاپی) یکسان باشه."""
+    kpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveKPIWeight.objects.filter(objective__in=objectives)}
+    opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.filter(objective__in=objectives)}
+    for o in objectives:
+        pct, status = _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map)
+        o.computed_pct = pct
+        o.computed_status = status
+        o.computed_status_color = _pct_color_hex(pct)
+        o.computed_status_label = STATUS_LABEL_FA.get(status, "")
+        o.computed_status_tooltip = _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map)
+
+
+def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
+    """میانگین وزن‌دار درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده به یک هدف را حساب می‌کند
+    (هر شاخص طبق وزنی که برای همین کارت دارد در میانگین سهیم می‌شود) و وضعیت متناظرش رو
+    برمی‌گردونه. این تابع مرکزی، هم توی صفحه‌ی خانه (برای وضعیت اهداف استراتژیک) و هم توی
+    خود نقشه‌ی استراتژیک (برای وضعیت هر کارت) استفاده می‌شه تا دو جا هیچ‌وقت با هم فرق نکنن.
+    اگر هدف هیچ شاخص معتبری نداشته باشه، (None, None) برمی‌گردونه."""
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for k in o.linked_kpis.all():
+        v = k.manual_progress_value
+        if v is None:
+            continue
+        w = kpi_weight_map.get((o.pk, k.pk), 100)
+        weighted_sum += v * w
+        weight_total += w
+    for k in o.linked_operational_kpis.all():
+        v = k.manual_progress_value
+        if v is None:
+            continue
+        w = opkpi_weight_map.get((o.pk, k.pk), 100)
+        weighted_sum += v * w
+        weight_total += w
+    if weight_total <= 0:
+        return None, None
+    avg = weighted_sum / weight_total
+    if avg >= 90:
+        status = "on"
+    elif avg >= 80:
+        status = "watch"
+    else:
+        status = "risk"
+    return round(avg), status
+
+
 def home(request):
     objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis"))
 
@@ -88,33 +170,8 @@ def home(request):
     opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.all()}
 
     def _objective_status(o):
-        """وضعیت هر هدف را از میانگین وزن‌دار درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده محاسبه می‌کند
-        (هر شاخص طبق وزنی که برای همین کارت دارد در میانگین سهیم می‌شود).
-        اهدافی که هیچ شاخصی ندارند، None برمی‌گردانند (یعنی از محاسبه کنار گذاشته می‌شوند)."""
-        weighted_sum = 0.0
-        weight_total = 0.0
-        for k in o.linked_kpis.all():
-            v = k.manual_progress_value
-            if v is None:
-                continue
-            w = kpi_weight_map.get((o.pk, k.pk), 100)
-            weighted_sum += v * w
-            weight_total += w
-        for k in o.linked_operational_kpis.all():
-            v = k.manual_progress_value
-            if v is None:
-                continue
-            w = opkpi_weight_map.get((o.pk, k.pk), 100)
-            weighted_sum += v * w
-            weight_total += w
-        if weight_total <= 0:
-            return None
-        avg = weighted_sum / weight_total
-        if avg >= 90:
-            return "on"
-        if avg >= 80:
-            return "watch"
-        return "risk"
+        _, status = _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map)
+        return status
 
     objectives_with_status = [(o, _objective_status(o)) for o in objectives]
     scored_objectives = [(o, s) for o, s in objectives_with_status if s is not None]
@@ -1546,6 +1603,7 @@ def stratmap(request):
     for o in objectives:
         o.kpi_count = len(kpis_by_objective.get(o.pk, []))
         o.kpi_circles = circles_by_objective.get(o.pk, [])
+    _attach_computed_objective_status(objectives)
 
     # وزن هر شاخص در هر کارت — برای پرشدن خودکار فیلد وزن هنگام ویرایش یک هدف
     weights_by_objective = {}
@@ -1603,7 +1661,8 @@ def stratmap_print(request):
         current_bu = business_units[0]
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -1613,6 +1672,7 @@ def stratmap_print(request):
         o.feeds_codes = [t.code for t in targets]
         for t in targets:
             links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+    _attach_computed_objective_status(objectives)
 
     bands = []
     PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
@@ -1634,7 +1694,8 @@ def stratmap_print_full(request):
         current_bu = business_units[0]
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -1644,6 +1705,7 @@ def stratmap_print_full(request):
         o.feeds_codes = [t.code for t in targets]
         for t in targets:
             links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+    _attach_computed_objective_status(objectives)
 
     bands = []
     PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}

@@ -87,7 +87,11 @@
         <div class="card" id="pcard-{{ n.pk }}">
           <div class="top"><span class="code">{{ n.code }}</span></div>
           <div class="ttl">{{ n.title }}</div>
-          {% if n.kpi %}<div class="kpi">{{ n.kpi }}</div>{% endif %}
+          {% if n.computed_status %}
+          <div class="kpi" style="color:{{ n.computed_status_color }};" title="{{ n.computed_status_tooltip }}">{{ n.computed_pct }}٪ — {{ n.computed_status_label }}</div>
+          {% else %}
+          <div class="kpi" style="color:#9aa1ab;" title="{{ n.computed_status_tooltip }}">بدون شاخص وصل‌شده</div>
+          {% endif %}
         </div>
         {% empty %}
         <div class="empty">هدفی در این منظر ثبت نشده</div>
