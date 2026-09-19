@@ -600,7 +600,7 @@ class OperationalKPIForm(forms.ModelForm):
         model = OperationalKPI
         fields = [
             "code", "title", "domain", "unit", "department",
-            "target_1404", "actual_1404", "target_month", "actual_month",
+            "target_1404", "actual_1404", "target_month", "actual_month", "progress_month",
             "target_1405", "actual_1405", "progress_1405", "is_confidential", "order",
         ]
         widgets = {
@@ -619,6 +619,9 @@ class OperationalKPIForm(forms.ModelForm):
 
     def clean_actual_month(self):
         return clean_number_string(self.cleaned_data.get("actual_month"))
+
+    def clean_progress_month(self):
+        return clean_number_string(self.cleaned_data.get("progress_month"))
 
     def clean_target_1405(self):
         return clean_number_string(self.cleaned_data.get("target_1405"))

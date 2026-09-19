@@ -3,6 +3,7 @@ from .models import (
     Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
     OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
+    OperationalKPI, OperationalKPITrendPoint,
 )
 
 
@@ -188,3 +189,33 @@ class EnvironmentalFactorAdmin(admin.ModelAdmin):
     list_filter = ("category", "effect_type")
     search_fields = ("factor_text", "detail")
     ordering = ("-avg_score",)
+
+
+class OperationalKPITrendPointInline(admin.TabularInline):
+    """داده‌های روند (ماهانه/سالانه) این شاخص — مستقیماً از همین‌جا قابل ویرایش
+    یا حذف است (مثلاً برای اصلاح یک مورد اشتباه که با فایل اکسل وارد شده)."""
+    model = OperationalKPITrendPoint
+    extra = 0
+    fields = ("year", "month", "target", "actual")
+    ordering = ("-year", "month")
+
+
+@admin.register(OperationalKPI)
+class OperationalKPIAdmin(admin.ModelAdmin):
+    list_display = ("code", "title", "domain", "department", "target_month", "actual_month", "target_1405", "actual_1405", "order")
+    list_filter = ("domain", "department", "is_confidential")
+    list_editable = ("order",)
+    search_fields = ("code", "title", "department")
+    ordering = ("department", "order", "code")
+    inlines = [OperationalKPITrendPointInline]
+
+
+@admin.register(OperationalKPITrendPoint)
+class OperationalKPITrendPointAdmin(admin.ModelAdmin):
+    """فهرست مستقل همه‌ی داده‌های روند — برای پیدا کردن سریع و حذف یک مورد
+    اشتباه بدون نیاز به باز کردن خودِ شاخص (با جست‌وجو یا فیلتر بر اساس سال)."""
+    list_display = ("kpi", "year", "month", "target", "actual")
+    list_filter = ("year", "month")
+    search_fields = ("kpi__code", "kpi__title")
+    autocomplete_fields = ("kpi",)
+    ordering = ("kpi", "-year", "month")

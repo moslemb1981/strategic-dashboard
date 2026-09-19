@@ -1256,6 +1256,7 @@ class OperationalKPI(models.Model):
     actual_1404 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۴ (تجمعی)")
     target_month = models.CharField(max_length=60, blank=True, verbose_name="هدف ماه جاری")
     actual_month = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ماه جاری")
+    progress_month = models.CharField(max_length=20, blank=True, verbose_name="درصد تحقق ماه جاری (دستی)")
     target_1405 = models.CharField(max_length=60, blank=True, verbose_name="هدف سال ۱۴۰۵ (تجمعی)")
     actual_1405 = models.CharField(max_length=60, blank=True, verbose_name="عملکرد ۱۴۰۵ (تجمعی)")
     progress_1405 = models.CharField(max_length=20, blank=True, verbose_name="درصد تحقق (دستی)")
@@ -1345,8 +1346,94 @@ class OperationalKPI(models.Model):
         return "#B0413E"
 
     @property
+    def manual_progress_month_value(self):
+        """درصد تحقق ماه جاری که کاربر به‌صورت دستی وارد کرده (مثل manual_progress_value
+        برای سال، ولی مخصوص ماه جاری)."""
+        import re
+        if not self.progress_month:
+            return None
+        text = self.progress_month
+        persian_digits = "۰۱۲۳۴۵۶۷۸۹"
+        for i, d in enumerate(persian_digits):
+            text = text.replace(d, str(i))
+        m = re.search(r"\d+(\.\d+)?", text)
+        if not m:
+            return None
+        try:
+            return round(float(m.group()))
+        except ValueError:
+            return None
+
+    @property
+    def progress_month_color(self):
+        p = self.manual_progress_month_value
+        if p is None:
+            return "#9aa3ac"
+        if p >= 90:
+            return "#3E7A52"
+        if p >= 60:
+            return "#C97A2B"
+        return "#B0413E"
+
+    @property
     def domain_color(self):
         return self.DOMAIN_COLOR.get(self.domain, "var(--ink-faint)")
+
+
+def _parse_persian_number(text):
+    """رشته‌ی عددی (احتمالاً با ارقام فارسی/جداکننده هزارگان) را به float تبدیل می‌کند؛
+    اگر عدد معتبری داخلش نبود None برمی‌گرداند. برای رسم نمودار (نیاز به عدد خالص)."""
+    if not text:
+        return None
+    s = str(text)
+    persian_digits = "۰۱۲۳۴۵۶۷۸۹"
+    for i, d in enumerate(persian_digits):
+        s = s.replace(d, str(i))
+    s = s.replace(",", "").replace("٬", "").strip()
+    m = re.search(r"-?\d+(\.\d+)?", s)
+    if not m:
+        return None
+    try:
+        return float(m.group())
+    except ValueError:
+        return None
+
+
+class OperationalKPITrendPoint(models.Model):
+    """داده‌ی روند ماهانه‌ی یک شاخص عملیاتی — کاملاً جدا از هدف/عملکرد ماه جاری یا
+    تجمعی سالانه؛ فقط برای رسم «نمودار روند» به‌کار می‌رود. هر رکورد یک ماه از یک
+    سال شمسی مشخص برای یک شاخص است (داده‌ها وابسته به سال نگه‌داری می‌شوند)."""
+    MONTH_CHOICES = [
+        (1, "فروردین"), (2, "اردیبهشت"), (3, "خرداد"), (4, "تیر"),
+        (5, "مرداد"), (6, "شهریور"), (7, "مهر"), (8, "آبان"),
+        (9, "آذر"), (10, "دی"), (11, "بهمن"), (12, "اسفند"),
+    ]
+
+    kpi = models.ForeignKey(
+        OperationalKPI, on_delete=models.CASCADE, related_name="trend_points",
+        verbose_name="شاخص عملیاتی",
+    )
+    year = models.CharField(max_length=4, verbose_name="سال (شمسی)")
+    month = models.PositiveSmallIntegerField(choices=MONTH_CHOICES, verbose_name="ماه")
+    target = models.CharField(max_length=60, blank=True, verbose_name="هدف")
+    actual = models.CharField(max_length=60, blank=True, verbose_name="عملکرد")
+
+    class Meta:
+        ordering = ["kpi", "year", "month"]
+        unique_together = ("kpi", "year", "month")
+        verbose_name = "داده روند شاخص عملیاتی"
+        verbose_name_plural = "داده‌های روند شاخص‌های عملیاتی"
+
+    def __str__(self):
+        return f"{self.kpi.code} — {self.year}/{self.get_month_display()}"
+
+    @property
+    def target_value(self):
+        return _parse_persian_number(self.target)
+
+    @property
+    def actual_value(self):
+        return _parse_persian_number(self.actual)
 
 
 def document_upload_path(instance, filename):

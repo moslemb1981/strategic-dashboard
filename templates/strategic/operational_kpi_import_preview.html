@@ -1,0 +1,133 @@
+{% extends "strategic/base.html" %}
+{% block title %}پیش‌نمایش ورود از اکسل{% endblock %}
+{% block crumb %}بانک شاخص‌های عملیاتی{% endblock %}
+
+{% block extra_css %}
+<style>
+  .opkp-title{font-size:18px;font-weight:900;margin-bottom:2px;}
+  .opkp-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:16px;}
+  .opkp-summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .opkp-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:12px;min-width:120px;}
+  .opkp-stat b{display:block;font-size:18px;margin-bottom:2px;}
+  .opkp-stat.new b{color:var(--success,#3E7A52);}
+  .opkp-stat.upd b{color:var(--accent,#C97A2B);}
+  .opkp-stat.unch b{color:var(--ink-faint);}
+  .opkp-stat.skip b{color:#B0413E;}
+  .opkp-section{margin-bottom:22px;}
+  .opkp-section h4{font-size:13.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .opkp-table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;}
+  table.opkp-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .opkp-table th{background:var(--bg);text-align:right;padding:7px 10px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);white-space:nowrap;}
+  .opkp-table td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .opkp-code{font-family:monospace;font-size:10px;color:var(--ink-faint);}
+  .opkp-changes{list-style:none;margin:0;padding:0;}
+  .opkp-changes li{padding:2px 0;}
+  .opkp-old{color:#B0413E;text-decoration:line-through;opacity:.8;}
+  .opkp-new{color:var(--success,#3E7A52);font-weight:700;}
+  .opkp-arrow{margin:0 4px;color:var(--ink-faint);}
+  .opkp-kpi-block{border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:8px;background:var(--surface);}
+  .opkp-kpi-block .hd{font-size:11.5px;margin-bottom:4px;}
+  .opkp-empty-hint{font-size:11.5px;color:var(--ink-faint);padding:10px 2px;}
+  .opkp-actions{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="opkp-title">پیش‌نمایش ورود از اکسل</div>
+<div class="opkp-sub">فایل: {{ original_filename }} — هنوز هیچ تغییری در سامانه اعمال نشده؛ فقط بعد از تأیید نهایی در پایین صفحه ذخیره می‌شود.</div>
+
+<div class="opkp-summary">
+  <div class="opkp-stat new"><b>{{ new_items|length }}</b>شاخص جدید</div>
+  <div class="opkp-stat upd"><b>{{ updated_items|length }}</b>شاخص به‌روزشونده</div>
+  <div class="opkp-stat unch"><b>{{ unchanged_count }}</b>بدون تغییر</div>
+  {% if skipped %}<div class="opkp-stat skip"><b>{{ skipped }}</b>ردیف نامعتبر رد شد</div>{% endif %}
+  {% if has_trend_sheet %}
+  <div class="opkp-stat new"><b>{{ trend_new|length }}</b>نقطه‌ی روند جدید</div>
+  <div class="opkp-stat upd"><b>{{ trend_updated|length }}</b>نقطه‌ی روند به‌روزشونده</div>
+  <div class="opkp-stat unch"><b>{{ trend_unchanged_count }}</b>نقطه‌ی روند بدون تغییر</div>
+  {% if trend_skipped %}<div class="opkp-stat skip"><b>{{ trend_skipped }}</b>ردیف روند نامعتبر/ناشناس</div>{% endif %}
+  {% endif %}
+</div>
+
+{% if new_items %}
+<div class="opkp-section">
+  <h4><i class="fa-solid fa-circle-plus" style="color:var(--success,#3E7A52);"></i> شاخص‌های جدید ({{ new_items|length }})</h4>
+  <div class="opkp-table-wrap">
+    <table class="opkp-table">
+      <thead><tr><th>کد</th><th>عنوان شاخص</th><th>حوزه</th><th>واحد</th><th>دپارتمان مالک</th></tr></thead>
+      <tbody>
+        {% for r in new_items %}
+        <tr><td class="opkp-code">{{ r.code }}</td><td>{{ r.title }}</td><td>{{ r.domain }}</td><td>{{ r.unit|default:"—" }}</td><td>{{ r.department|default:"—" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if updated_items %}
+<div class="opkp-section">
+  <h4><i class="fa-solid fa-pen" style="color:var(--accent,#C97A2B);"></i> شاخص‌های به‌روزشونده ({{ updated_items|length }})</h4>
+  {% for item in updated_items %}
+  <div class="opkp-kpi-block">
+    <div class="hd"><span class="opkp-code">{{ item.code }}</span> — {{ item.title }}</div>
+    <ul class="opkp-changes">
+      {% for label, old, new in item.changes %}
+      <li>{{ label }}: <span class="opkp-old">{{ old|default:"—" }}</span><span class="opkp-arrow">←</span><span class="opkp-new">{{ new|default:"—" }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if has_trend_sheet %}
+  {% if trend_new %}
+  <div class="opkp-section">
+    <h4><i class="fa-solid fa-circle-plus" style="color:var(--success,#3E7A52);"></i> داده‌ی روند — نقاط جدید ({{ trend_new|length }})</h4>
+    <div class="opkp-table-wrap">
+      <table class="opkp-table">
+        <thead><tr><th>کد</th><th>عنوان شاخص</th><th>سال</th><th>ماه</th><th>هدف</th><th>عملکرد</th></tr></thead>
+        <tbody>
+          {% for p in trend_new %}
+          <tr><td class="opkp-code">{{ p.code }}</td><td>{{ p.title }}</td><td>{{ p.year }}</td><td>{{ p.month_label }}</td><td>{{ p.target|default:"—" }}</td><td>{{ p.actual|default:"—" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if trend_updated %}
+  <div class="opkp-section">
+    <h4><i class="fa-solid fa-pen" style="color:var(--accent,#C97A2B);"></i> داده‌ی روند — نقاط به‌روزشونده ({{ trend_updated|length }})</h4>
+    <div class="opkp-table-wrap">
+      <table class="opkp-table">
+        <thead><tr><th>کد</th><th>عنوان شاخص</th><th>سال</th><th>ماه</th><th>هدف</th><th>عملکرد</th></tr></thead>
+        <tbody>
+          {% for p in trend_updated %}
+          <tr>
+            <td class="opkp-code">{{ p.code }}</td><td>{{ p.title }}</td><td>{{ p.year }}</td><td>{{ p.month_label }}</td>
+            <td><span class="opkp-old">{{ p.old_target|default:"—" }}</span><span class="opkp-arrow">←</span><span class="opkp-new">{{ p.new_target|default:"—" }}</span></td>
+            <td><span class="opkp-old">{{ p.old_actual|default:"—" }}</span><span class="opkp-arrow">←</span><span class="opkp-new">{{ p.new_actual|default:"—" }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+{% endif %}
+
+<div class="opkp-actions">
+  <form method="post" action="{% url 'strategic:operational_kpi_import_apply' %}">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit" class="btn accent"><i class="fa-solid fa-check"></i> تأیید و اعمال نهایی</button>
+  </form>
+  <form method="post" action="{% url 'strategic:operational_kpi_import_cancel' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn ghost">انصراف</button>
+  </form>
+</div>
+{% endblock %}

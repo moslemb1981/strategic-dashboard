@@ -23,12 +23,41 @@
   .opk-code{font-family:monospace;font-size:10px;color:var(--ink-faint);}
   .opk-domain-badge{display:inline-block;font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 9px;cursor:help;}
   .opk-bar-track{height:6px;border-radius:4px;background:var(--border);overflow:hidden;margin-top:4px;}
+  .opk-bar-track[title]{cursor:help;}
   .opk-bar-fill{height:100%;border-radius:4px;}
   .opk-blur-fake{filter:blur(4px);user-select:none;font-weight:700;color:#333;}
   .used-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;border-radius:5px;
     padding:1px 6px;cursor:help;background:var(--purple-soft,#ECE8F5);color:#6C56A3;}
   .opk-empty{padding:14px;text-align:center;color:var(--ink-faint);}
   .opk-actbtn{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:12px;padding:2px 4px;}
+  .opk-trend-btn{display:inline-flex;align-items:center;gap:4px;margin-top:5px;border:1px solid var(--border);
+    background:#fff;color:var(--primary);border-radius:6px;padding:2px 8px;font-size:9.5px;cursor:pointer;white-space:nowrap;}
+  .opk-trend-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+  #opkTrendChartWrap{position:relative;height:340px;margin-top:4px;}
+  .opk-trend-year-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .opk-trend-year-row select{border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:11.5px;font-family:inherit;background:#fff;}
+  #opkTrendEmpty{padding:40px 14px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
+  .opk-trend-manage-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;}
+  table.opk-trend-manage-table{width:100%;border-collapse:collapse;font-size:10.5px;}
+  .opk-trend-manage-table th{background:var(--bg);text-align:right;padding:5px 9px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .opk-trend-manage-table td{padding:4px 9px;border-bottom:1px solid var(--border);}
+  table.opk-trend-manage-table-transposed{table-layout:fixed;}
+  .opk-trend-manage-table-transposed th,
+  .opk-trend-manage-table-transposed td{text-align:center;white-space:nowrap;padding:5px 6px;font-size:10.5px;}
+  .opk-trend-manage-table-transposed th:first-child,
+  .opk-trend-manage-table-transposed td:first-child{
+    background:var(--bg);text-align:left;font-weight:700;color:var(--ink-soft);
+    width:70px;min-width:70px;border-right:1px solid var(--border);
+  }
+  .opk-trend-manage-table-transposed tr:last-child td{border-bottom:none;}
+  .opk-trend-mode-row{display:flex;gap:8px;margin-bottom:12px;}
+  .opk-trend-mode-row .btn{padding:4px 14px;font-size:11.5px;}
+  .opk-trend-multi-cols{display:flex;gap:20px;margin-bottom:8px;flex-wrap:wrap;}
+  .opk-trend-multi-col{flex:1;min-width:150px;}
+  .opk-trend-multi-col > b{font-size:11.5px;color:var(--ink-faint);font-weight:700;display:block;margin-bottom:6px;}
+  .opk-trend-multi-check{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 0;cursor:pointer;}
+  .opk-trend-swatch{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none;}
+  #opkTrendMultiWarning{font-size:11px;color:#B0413E;margin-bottom:8px;}
 </style>
 {% endblock %}
 
@@ -53,13 +82,13 @@
 <div class="opk-table-wrap">
 <table class="opk-table">
   <colgroup>
-    <col style="width:9%;"><col style="width:20%;"><col style="width:7%;"><col style="width:7%;"><col style="width:13%;">
-    <col style="width:11%;"><col style="width:8%;"><col style="width:8%;"><col style="width:11%;"><col style="width:50px;">
+    <col style="width:9%;"><col style="width:18%;"><col style="width:7%;"><col style="width:7%;"><col style="width:12%;">
+    <col style="width:10%;"><col style="width:9%;"><col style="width:8%;"><col style="width:8%;"><col style="width:9%;"><col style="width:50px;">
   </colgroup>
   <thead>
     <tr>
       <th>کد</th><th>عنوان شاخص</th><th>حوزه</th><th>واحد</th><th>دپارتمان مالک</th>
-      <th>هدف/عملکرد ماه جاری</th><th>هدف ۱۴۰۵<br><small>(تجمعی)</small></th><th>عملکرد ۱۴۰۵<br><small>(تجمعی)</small></th><th>تحقق</th><th></th>
+      <th>هدف/عملکرد<br><small>(ماه جاری)</small></th><th>تحقق<br><small>(ماه جاری)</small></th><th>هدف ۱۴۰۵<br><small>(تجمعی)</small></th><th>عملکرد ۱۴۰۵<br><small>(تجمعی)</small></th><th>تحقق<br><small>(تجمعی)</small></th><th></th>
     </tr>
     <tr class="opk-livesearch-row">
       <th><input type="text" id="liveCode" class="opk-live-input" placeholder="جستجو..."></th>
@@ -68,6 +97,7 @@
       <th><input type="text" id="liveUnit" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveDept" class="opk-live-input" placeholder="جستجو..."></th>
       <th></th>
+      <th><input type="text" id="liveMonthProgress" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveTarget" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveActual" class="opk-live-input" placeholder="جستجو..."></th>
       <th><input type="text" id="liveProgress" class="opk-live-input" placeholder="جستجو..."></th>
@@ -77,16 +107,22 @@
   <tbody id="opkBody">
     {% for k in items %}
     <tr class="opk-row">
-      <td class="opk-code">{{ k.code }}</td>
+      <td class="opk-code">{{ k.code }}<br>
+        <button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.pk }})" title="نمایش نمودار روند این شاخص">
+          <i class="fa-solid fa-chart-line"></i> نمودار
+        </button>
+      </td>
       <td>{{ k.title }}
+        {% if k.initiatives.all %}<span class="used-badge" style="background:#E8F3EC;color:#2F6844;" title="پروژه‌ها/اقدامات مرتبط:&#10;{% for ini in k.initiatives.all %}● {{ ini.code|default:'—' }} — {{ ini.title }} ({{ ini.get_item_type_display }}) — وضعیت: {{ ini.get_status_display }} — پیشرفت: {{ ini.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ k.initiatives.all|length }}</span>{% endif %}
         {% if k.strategic_objectives.all %}<span class="used-badge" title="کارت‌های نقشه استراتژیک مرتبط:&#10;{% for o in k.strategic_objectives.all %}● {{ o.code }}: {{ o.title }} — کسب‌وکار: {{ o.business_unit.name|default:'—' }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-map"></i> {{ k.strategic_objectives.all|length }}</span>{% endif %}
         {% if k.promoted_to_company_kpis.all %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="این شاخص عملیاتی به شاخص کلان شرکت هم ارتقا یافته:&#10;{% for ck in k.promoted_to_company_kpis.all %}● {{ ck.code }} — {{ ck.name }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-star"></i> شاخص کلان</span>{% endif %}
       </td>
       <td><span class="opk-domain-badge" style="background:{{ k.domain_color }};" title="{{ k.get_domain_display }}">{{ k.domain }}</span></td>
       <td>{{ k.unit|default:"—" }}</td>
       <td>{{ k.department|default:"—" }}</td>
-      <td>{{ k.target_month|default:"—" }} / {{ k.actual_month|default:"—" }}
-        <div class="opk-bar-track"><div class="opk-bar-fill" style="width:{{ k.month_progress_pct|default:0 }}%;background:{{ k.month_progress_color }};"></div></div>
+      <td>{{ k.target_month|default:"—" }} / {{ k.actual_month|default:"—" }}</td>
+      <td>{{ k.progress_month|default:"—" }}
+        <div class="opk-bar-track" title="تحقق ماه جاری: {% if k.manual_progress_month_value is not None %}{{ k.manual_progress_month_value }}٪{% else %}ثبت نشده{% endif %}"><div class="opk-bar-fill" style="width:{{ k.manual_progress_month_value|default:0 }}%;background:{{ k.progress_month_color }};"></div></div>
       </td>
       <td>{% if k.is_masked %}<span class="opk-blur-fake">{{ k.display_target_1405 }}</span> <i class="fa-solid fa-lock" style="font-size:9px;color:#B0413E;"></i>{% else %}{{ k.display_target_1405|default:"—" }}{% endif %}</td>
       <td>{% if k.is_masked %}<span class="opk-blur-fake">{{ k.display_actual_1405 }}</span> <i class="fa-solid fa-lock" style="font-size:9px;color:#B0413E;"></i>{% else %}{{ k.display_actual_1405|default:"—" }}{% endif %}</td>
@@ -98,7 +134,7 @@
         <button type="button" class="opk-actbtn" onclick="editOpk(this)"
           data-id="{{ k.pk }}" data-code="{{ k.code }}" data-title="{{ k.title }}" data-domain="{{ k.domain }}" data-unit="{{ k.unit }}"
           data-department="{{ k.department }}" data-t4="{{ k.target_1404 }}" data-a4="{{ k.actual_1404 }}"
-          data-tm="{{ k.target_month }}" data-am="{{ k.actual_month }}"
+          data-tm="{{ k.target_month }}" data-am="{{ k.actual_month }}" data-pm="{{ k.progress_month }}"
           data-t5="{{ k.target_1405 }}" data-a5="{{ k.actual_1405 }}" data-progress="{{ k.progress_1405 }}"
           data-confidential="{{ k.is_confidential|yesno:'1,0' }}" data-order="{{ k.order }}">
           <i class="fa-solid fa-pen"></i></button>
@@ -111,7 +147,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="8" class="opk-empty">هنوز شاخص عملیاتی‌ای ثبت نشده.</td></tr>
+    <tr><td colspan="11" class="opk-empty">هنوز شاخص عملیاتی‌ای ثبت نشده.</td></tr>
     {% endfor %}
   </tbody>
 </table>
@@ -138,6 +174,7 @@
         <div class="field-group"><label>هدف ماه جاری</label>{{ form.target_month }}</div>
         <div class="field-group"><label>عملکرد ماه جاری</label>{{ form.actual_month }}</div>
       </div>
+      <div class="field-group"><label>درصد تحقق ماه جاری (دستی)</label>{{ form.progress_month }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div class="field-group"><label>هدف ۱۴۰۵ (تجمعی)</label>{{ form.target_1405 }}</div>
         <div class="field-group"><label>عملکرد ۱۴۰۵ (تجمعی)</label>{{ form.actual_1405 }}</div>
@@ -168,18 +205,584 @@
       </div>
       <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
         هر ردیف بر اساس ستون «کد» با شاخص موجود تطبیق داده می‌شود؛ اگر کدی وجود نداشته باشد، شاخص جدید ساخته می‌شود.
+        بعد از این مرحله، یک صفحه‌ی «پیش‌نمایش تغییرات» نشان داده می‌شود و هیچ‌چیزی
+        بلافاصله ذخیره نمی‌شود — فقط بعد از تأیید نهایی در آن صفحه، تغییرات اعمال می‌شود.
       </p>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('opkImportOverlay').classList.remove('open')">انصراف</button>
-        <button type="submit" class="btn accent">وارد کردن</button>
+        <button type="submit" class="btn accent">ادامه و مشاهده‌ی پیش‌نمایش</button>
       </div>
     </form>
   </div>
 </div>
 {% endif %}
+
+<div class="overlay" id="opkTrendOverlay">
+  <div class="modal-card" style="max-width:820px;">
+    <h3 id="opkTrendTitle">نمودار روند شاخص</h3>
+
+    <div class="opk-trend-mode-row">
+      <button type="button" class="btn accent" id="opkTrendModeSingleBtn">یک سال</button>
+      <button type="button" class="btn ghost" id="opkTrendModeMultiBtn">مقایسه‌ی چندسال</button>
+    </div>
+
+    <div id="opkTrendSingleBlock">
+      <div class="opk-trend-year-row" id="opkTrendYearRow" style="display:none;">
+        <label style="font-size:12px;color:var(--ink-faint);">سال:</label>
+        <select id="opkTrendYearSelect"></select>
+      </div>
+    </div>
+
+    <div id="opkTrendMultiBlock" style="display:none;">
+      <div class="opk-trend-multi-cols">
+        <div class="opk-trend-multi-col">
+          <b>خط هدف — برای این سال‌ها نشان بده</b>
+          <div id="opkTrendMultiTargetChecks"></div>
+        </div>
+        <div class="opk-trend-multi-col">
+          <b>ستون عملکرد — برای این سال‌ها نشان بده</b>
+          <div id="opkTrendMultiActualChecks"></div>
+        </div>
+      </div>
+      <div id="opkTrendMultiWarning" style="display:none;"></div>
+    </div>
+
+    <div id="opkTrendEmpty" style="display:none;"></div>
+    <div id="opkTrendChartWrap" style="display:none;">
+      <canvas id="opkTrendCanvas"></canvas>
+    </div>
+    <div id="opkTrendProjectNote" style="display:none;font-size:11px;color:var(--ink-faint);margin-top:6px;">
+      <i class="fa-solid fa-flag" style="color:#B0413E;"></i>
+      پرچم رنگی بالای نمودار یعنی در آن ماه، پروژه/اقدامی مرتبط با این شاخص شروع شده است (برای جزئیات، اشاره‌گر را روی همان ستون نگه دارید).
+    </div>
+    <div id="opkTrendManage" style="display:none;margin-top:12px;">
+      <div class="opk-trend-manage-wrap" id="opkTrendManageWrap"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" onclick="document.getElementById('opkTrendOverlay').classList.remove('open')">بستن</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script>
+  const OPK_TREND_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_data' 999999 %}";
+  const OPK_TREND_DELETE_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_delete' 999999 %}";
+  const OPK_TREND_MULTI_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_multi' 999999 %}";
+  const OPK_YEAR_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'];
+  const OPK_TREND_MAX_SERIES = 5;
+
+  let opkTrendChartInstance = null;
+  let opkTrendCurrentKpiId = null;
+  let opkTrendCurrentYear = null;
+  let opkTrendMode = 'single';
+  let opkTrendSingleData = null;
+  let opkTrendMultiLoaded = false;
+  let opkTrendMultiData = null;
+  let opkTrendMultiColors = {};
+
+  function opkTrendUrl(kpiId, year){
+    let url = OPK_TREND_URL_TEMPLATE.replace('999999', kpiId);
+    if (year) { url += '?year=' + encodeURIComponent(year); }
+    return url;
+  }
+
+  function opkGetCsrfToken(){
+    const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : '';
+  }
+
+  function openTrendChart(kpiId, year){
+    if (kpiId !== opkTrendCurrentKpiId) {
+      opkTrendMultiLoaded = false;
+      opkTrendMultiData = null;
+    }
+    opkTrendCurrentKpiId = kpiId;
+    opkTrendMode = 'single';
+    document.getElementById('opkTrendModeSingleBtn').className = 'btn accent';
+    document.getElementById('opkTrendModeMultiBtn').className = 'btn ghost';
+    document.getElementById('opkTrendSingleBlock').style.display = 'block';
+    document.getElementById('opkTrendMultiBlock').style.display = 'none';
+    document.getElementById('opkTrendOverlay').classList.add('open');
+    document.getElementById('opkTrendTitle').textContent = 'در حال بارگذاری نمودار...';
+    document.getElementById('opkTrendYearRow').style.display = 'none';
+    document.getElementById('opkTrendEmpty').style.display = 'none';
+    document.getElementById('opkTrendChartWrap').style.display = 'none';
+    document.getElementById('opkTrendManage').style.display = 'none';
+
+    fetch(opkTrendUrl(kpiId, year))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        if (!res.ok || data.error) {
+          document.getElementById('opkTrendTitle').textContent = 'نمودار روند شاخص';
+          document.getElementById('opkTrendEmpty').textContent = data.error || 'خطا در دریافت داده‌ی نمودار.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('opkTrendTitle').textContent = 'نمودار روند — ' + data.kpi_code + ' — ' + data.kpi_title;
+
+        opkTrendSingleData = data;
+        if (!data.years || data.years.length === 0) {
+          document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است (از طریق شیت «اطلاعات روند شاخص‌ها» در فایل اکسل وارد کنید).';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        const yearSelect = document.getElementById('opkTrendYearSelect');
+        yearSelect.innerHTML = '';
+        data.years.forEach(function(y){
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = 'سال ' + y;
+          if (y === data.selected_year) { opt.selected = true; }
+          yearSelect.appendChild(opt);
+        });
+        document.getElementById('opkTrendYearRow').style.display = data.years.length > 1 ? 'flex' : 'none';
+
+        opkTrendCurrentYear = data.selected_year;
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderTrendChart(data);
+        renderTrendManageTable(data);
+      })
+      .catch(function(){
+        document.getElementById('opkTrendTitle').textContent = 'نمودار روند شاخص';
+        document.getElementById('opkTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      });
+  }
+
+  const OPK_FLAG_COLOR = '#B0413E';
+  const OPK_FLAG_BAND_COLOR = 'rgba(176,65,62,0.08)';
+
+  function renderTrendChart(data){
+    const canvas = document.getElementById('opkTrendCanvas');
+    if (opkTrendChartInstance) { opkTrendChartInstance.destroy(); }
+    const unitLabel = data.unit ? ' (' + data.unit + ')' : '';
+    const projectStarts = data.project_starts || [];
+    const hasProjectMarkers = projectStarts.some(function(list){ return list && list.length > 0; });
+
+    // این پلاگین محلی (فقط برای همین نمودار) بالای هر ماهی که پروژه/اقدامی
+    // شروع شده، یک پرچم توپر رنگی می‌کشه به‌همراه یک باند کم‌رنگ پس‌زمینه
+    // و یک خط نقطه‌چین که پرچم رو به نقطه‌ی «عملکرد» همون ماه وصل می‌کنه —
+    // طوری که بدون نیاز به هاور هم، همون نگاه اول کاملاً جلب توجه کنه.
+    const projectFlagPlugin = {
+      id: 'opkProjectFlags',
+      afterDatasetsDraw: function(chart){
+        if (!hasProjectMarkers) { return; }
+        const { ctx, chartArea, scales } = chart;
+        const xScale = scales.x;
+        const actualMeta = chart.getDatasetMeta(1);
+        ctx.save();
+
+        projectStarts.forEach(function(list, i){
+          if (!list || !list.length) { return; }
+          const x = xScale.getPixelForValue(i);
+
+          // باند کم‌رنگ پس‌زمینه‌ی همون ستون ماه
+          const bandHalfWidth = Math.min(22, (xScale.width / Math.max(projectStarts.length, 1)) / 2);
+          ctx.fillStyle = OPK_FLAG_BAND_COLOR;
+          ctx.fillRect(x - bandHalfWidth, chartArea.top, bandHalfWidth * 2, chartArea.bottom - chartArea.top);
+
+          const poleTop = chartArea.top + 6;
+          const poleBottom = chartArea.top + 30;
+          const pointEl = actualMeta.data[i];
+          const pointY = pointEl ? pointEl.y : chartArea.bottom;
+
+          // خط نقطه‌چین اتصال پرچم به نقطه‌ی عملکرد
+          ctx.beginPath();
+          ctx.setLineDash([3, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleBottom);
+          ctx.lineTo(x, pointY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // میله‌ی پرچم
+          ctx.beginPath();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x, poleBottom);
+          ctx.stroke();
+
+          // پارچه‌ی پرچم (مثلث توپر)
+          ctx.beginPath();
+          ctx.fillStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x + 15, poleTop + 5.5);
+          ctx.lineTo(x, poleTop + 11);
+          ctx.closePath();
+          ctx.fill();
+
+          // دایره‌ی تکیه‌گاه پایین میله
+          ctx.beginPath();
+          ctx.fillStyle = OPK_FLAG_COLOR;
+          ctx.arc(x, poleBottom, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      },
+    };
+
+    opkTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: data.months,
+        datasets: [
+          {
+            label: 'هدف' + unitLabel,
+            data: data.target,
+            borderColor: '#2E5C8A',
+            backgroundColor: '#2E5C8A',
+            borderDash: [6, 4],
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#2E5C8A',
+          },
+          {
+            label: 'عملکرد' + unitLabel,
+            data: data.actual,
+            borderColor: '#C97A2B',
+            backgroundColor: 'rgba(201,122,43,0.10)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#C97A2B',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: hasProjectMarkers ? 26 : 4 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true } },
+          tooltip: {
+            rtl: true,
+            titleAlign: 'right',
+            bodyAlign: 'right',
+            callbacks: {
+              afterBody: function(items){
+                if (!items || !items.length) { return []; }
+                const idx = items[0].dataIndex;
+                const list = projectStarts[idx];
+                if (!list || !list.length) { return []; }
+                const lines = ['', '🚩 شروع پروژه/اقدام در این ماه:'];
+                list.forEach(function(p){
+                  lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title);
+                });
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' } },
+        },
+      },
+      plugins: [projectFlagPlugin],
+    });
+
+    const noteEl = document.getElementById('opkTrendProjectNote');
+    if (noteEl) {
+      noteEl.style.display = hasProjectMarkers ? 'block' : 'none';
+    }
+  }
+
+  document.getElementById('opkTrendYearSelect').addEventListener('change', function(){
+    if (opkTrendCurrentKpiId) { openTrendChart(opkTrendCurrentKpiId, this.value); }
+  });
+
+  document.getElementById('opkTrendModeSingleBtn').addEventListener('click', function(){
+    opkSwitchTrendMode('single');
+  });
+  document.getElementById('opkTrendModeMultiBtn').addEventListener('click', function(){
+    opkSwitchTrendMode('multi');
+  });
+
+  function opkSwitchTrendMode(mode){
+    if (!opkTrendCurrentKpiId) { return; }
+    opkTrendMode = mode;
+    document.getElementById('opkTrendModeSingleBtn').className = mode === 'single' ? 'btn accent' : 'btn ghost';
+    document.getElementById('opkTrendModeMultiBtn').className = mode === 'multi' ? 'btn accent' : 'btn ghost';
+    document.getElementById('opkTrendSingleBlock').style.display = mode === 'single' ? 'block' : 'none';
+    document.getElementById('opkTrendMultiBlock').style.display = mode === 'multi' ? 'block' : 'none';
+
+    if (mode === 'single') {
+      document.getElementById('opkTrendManage').style.display = (opkTrendSingleData && opkTrendSingleData.can_manage) ? 'block' : 'none';
+      if (opkTrendSingleData && opkTrendSingleData.years && opkTrendSingleData.years.length) {
+        document.getElementById('opkTrendEmpty').style.display = 'none';
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderTrendChart(opkTrendSingleData);
+        renderTrendManageTable(opkTrendSingleData);
+      } else {
+        document.getElementById('opkTrendChartWrap').style.display = 'none';
+        document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است (از طریق شیت «اطلاعات روند شاخص‌ها» در فایل اکسل وارد کنید).';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      }
+    } else {
+      document.getElementById('opkTrendManage').style.display = 'none';
+      document.getElementById('opkTrendProjectNote').style.display = 'none';
+      if (opkTrendMultiLoaded) {
+        renderMultiChart();
+      } else {
+        loadMultiTrendData(opkTrendCurrentKpiId);
+      }
+    }
+  }
+
+  function loadMultiTrendData(kpiId){
+    document.getElementById('opkTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">در حال بارگذاری...</span>';
+    document.getElementById('opkTrendMultiActualChecks').innerHTML = '';
+    document.getElementById('opkTrendMultiWarning').style.display = 'none';
+
+    fetch(OPK_TREND_MULTI_URL_TEMPLATE.replace('999999', kpiId))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        if (!res.ok || data.error) {
+          document.getElementById('opkTrendMultiTargetChecks').innerHTML = '';
+          document.getElementById('opkTrendChartWrap').style.display = 'none';
+          document.getElementById('opkTrendEmpty').textContent = data.error || 'خطا در دریافت داده.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        opkTrendMultiData = data;
+        opkTrendMultiLoaded = true;
+        opkTrendMultiColors = {};
+        data.years.forEach(function(y, idx){ opkTrendMultiColors[y] = OPK_YEAR_PALETTE[idx % OPK_YEAR_PALETTE.length]; });
+
+        if (!data.years || data.years.length === 0) {
+          document.getElementById('opkTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">داده‌ای ثبت نشده است.</span>';
+          document.getElementById('opkTrendMultiActualChecks').innerHTML = '';
+          document.getElementById('opkTrendChartWrap').style.display = 'none';
+          document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        const descYears = data.years.slice().reverse();
+        const defaultTargetYears = descYears.length ? [descYears[0]] : [];
+        const defaultActualYears = descYears.slice(0, Math.min(3, descYears.length));
+
+        const targetBox = document.getElementById('opkTrendMultiTargetChecks');
+        const actualBox = document.getElementById('opkTrendMultiActualChecks');
+        targetBox.innerHTML = '';
+        actualBox.innerHTML = '';
+
+        descYears.forEach(function(y){
+          const color = opkTrendMultiColors[y];
+
+          const targetLabel = document.createElement('label');
+          targetLabel.className = 'opk-trend-multi-check';
+          const targetCb = document.createElement('input');
+          targetCb.type = 'checkbox'; targetCb.dataset.role = 'target'; targetCb.dataset.year = y;
+          targetCb.checked = defaultTargetYears.indexOf(y) > -1;
+          const targetSwatch = document.createElement('span');
+          targetSwatch.className = 'opk-trend-swatch'; targetSwatch.style.background = color;
+          targetLabel.appendChild(targetCb);
+          targetLabel.appendChild(targetSwatch);
+          targetLabel.appendChild(document.createTextNode('سال ' + y));
+          targetBox.appendChild(targetLabel);
+
+          const actualLabel = document.createElement('label');
+          actualLabel.className = 'opk-trend-multi-check';
+          const actualCb = document.createElement('input');
+          actualCb.type = 'checkbox'; actualCb.dataset.role = 'actual'; actualCb.dataset.year = y;
+          actualCb.checked = defaultActualYears.indexOf(y) > -1;
+          const actualSwatch = document.createElement('span');
+          actualSwatch.className = 'opk-trend-swatch'; actualSwatch.style.background = color;
+          actualLabel.appendChild(actualCb);
+          actualLabel.appendChild(actualSwatch);
+          actualLabel.appendChild(document.createTextNode('سال ' + y));
+          actualBox.appendChild(actualLabel);
+        });
+
+        targetBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', opkOnMultiCheckChange); });
+        actualBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', opkOnMultiCheckChange); });
+
+        document.getElementById('opkTrendEmpty').style.display = 'none';
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderMultiChart();
+      })
+      .catch(function(){
+        document.getElementById('opkTrendChartWrap').style.display = 'none';
+        document.getElementById('opkTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      });
+  }
+
+  function opkOnMultiCheckChange(e){
+    const totalChecked = document.querySelectorAll('#opkTrendMultiBlock input[type=checkbox]:checked').length;
+    if (totalChecked > OPK_TREND_MAX_SERIES) {
+      e.target.checked = false;
+      document.getElementById('opkTrendMultiWarning').textContent = 'برای خوانا ماندن نمودار، حداکثر ' + OPK_TREND_MAX_SERIES + ' سری هم‌زمان قابل انتخاب است. یکی را بردارید تا بتوانید مورد دیگری اضافه کنید.';
+      document.getElementById('opkTrendMultiWarning').style.display = 'block';
+      return;
+    }
+    document.getElementById('opkTrendMultiWarning').style.display = 'none';
+    renderMultiChart();
+  }
+
+  function renderMultiChart(){
+    if (!opkTrendMultiData) { return; }
+    const data = opkTrendMultiData;
+    const canvas = document.getElementById('opkTrendCanvas');
+    if (opkTrendChartInstance) { opkTrendChartInstance.destroy(); }
+    const unitLabel = data.unit ? ' (' + data.unit + ')' : '';
+
+    const targetYears = Array.prototype.slice.call(document.querySelectorAll('#opkTrendMultiTargetChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+    const actualYears = Array.prototype.slice.call(document.querySelectorAll('#opkTrendMultiActualChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+
+    const datasets = [];
+    targetYears.forEach(function(y){
+      const color = opkTrendMultiColors[y];
+      datasets.push({
+        type: 'line',
+        label: 'هدف ' + y + unitLabel,
+        data: data.series[y].target,
+        borderColor: color,
+        backgroundColor: color,
+        borderDash: [6, 4],
+        borderWidth: 2.5,
+        tension: 0.3,
+        spanGaps: false,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: color,
+        order: 1,
+      });
+    });
+    actualYears.forEach(function(y){
+      const color = opkTrendMultiColors[y];
+      datasets.push({
+        type: 'bar',
+        label: 'عملکرد ' + y + unitLabel,
+        data: data.series[y].actual,
+        backgroundColor: color + 'AA',
+        borderColor: color,
+        borderWidth: 1,
+        order: 2,
+      });
+    });
+
+    opkTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: data.months, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true } },
+          tooltip: { rtl: true, titleAlign: 'right', bodyAlign: 'right' },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' } },
+        },
+      },
+    });
+  }
+
+  function renderTrendManageTable(data){
+    const manageBox = document.getElementById('opkTrendManage');
+    const wrap = document.getElementById('opkTrendManageWrap');
+
+    if (!data.can_manage) {
+      manageBox.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+
+    // فقط ماه‌هایی که حداقل یکی از هدف/عملکرد رو دارن؛ ترتیب طبیعی
+    // (فروردین تا اسفند) نگه داشته می‌شه — چون جدول با dir="ltr" ساخته
+    // می‌شه، همین ترتیب طبیعی باعث می‌شه فروردین بلافاصله بعد از ستون
+    // «ماه» (که خودش سمت چپ جدول قرار می‌گیره) بیاد و اسفند آخرین
+    // ستون (سمت راست) باشه — دقیقاً هم‌جهت با محور نمودار بالای جدول.
+    const cols = [];
+    for (let i = 0; i < data.months.length; i++) {
+      const target = data.target[i];
+      const actual = data.actual[i];
+      if (target === null && actual === null) { continue; }
+      cols.push({
+        month: data.months[i],
+        target: (target === null || target === undefined) ? '—' : target,
+        actual: (actual === null || actual === undefined) ? '—' : actual,
+      });
+    }
+
+    if (cols.length === 0) {
+      wrap.innerHTML = '';
+      manageBox.style.display = 'none';
+      return;
+    }
+
+    // کل جدول از صفر ساخته می‌شه (نه اینکه ردیف‌های از قبل موجود توی
+    // صفحه پر بشن) تا مرورگر همیشه یک جدول کامل و یک‌پارچه رو رندر کنه؛
+    // این باعث می‌شه اون باگ نادر نمایشیِ قبلی (که با تعویض تب رفع
+    // می‌شد) دیگه اصلاً پیش نیاد.
+    const table = document.createElement('table');
+    table.className = 'opk-trend-manage-table opk-trend-manage-table-transposed';
+    table.dir = 'ltr';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    const thCorner = document.createElement('th');
+    thCorner.textContent = 'ماه';
+    headRow.appendChild(thCorner);
+    cols.forEach(function(c){
+      const th = document.createElement('th');
+      th.textContent = c.month;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement('tbody');
+
+    const targetRow = document.createElement('tr');
+    const tdTargetLabel = document.createElement('td');
+    tdTargetLabel.textContent = 'هدف';
+    targetRow.appendChild(tdTargetLabel);
+    cols.forEach(function(c){
+      const td = document.createElement('td');
+      td.textContent = c.target;
+      targetRow.appendChild(td);
+    });
+
+    const actualRow = document.createElement('tr');
+    const tdActualLabel = document.createElement('td');
+    tdActualLabel.textContent = 'عملکرد';
+    actualRow.appendChild(tdActualLabel);
+    cols.forEach(function(c){
+      const td = document.createElement('td');
+      td.textContent = c.actual;
+      actualRow.appendChild(td);
+    });
+
+    tbody.appendChild(targetRow);
+    tbody.appendChild(actualRow);
+    table.appendChild(thead);
+    table.appendChild(tbody);
+
+    wrap.innerHTML = '';
+    wrap.appendChild(table);
+    manageBox.style.display = 'block';
+  }
+</script>
 <script>
   (function(){
     const inputs = {
@@ -188,6 +791,7 @@
       domain: document.getElementById('liveDomain'),
       unit: document.getElementById('liveUnit'),
       dept: document.getElementById('liveDept'),
+      monthProgress: document.getElementById('liveMonthProgress'),
       target: document.getElementById('liveTarget'),
       actual: document.getElementById('liveActual'),
       progress: document.getElementById('liveProgress'),
@@ -200,15 +804,16 @@
       let visible = 0;
       rows.forEach(function(row){
         const cells = row.querySelectorAll('td');
-        if (cells.length < 8) return;
+        if (cells.length < 9) return;
         const match = (!vals.code || cells[0].textContent.toLowerCase().includes(vals.code))
           && (!vals.title || cells[1].textContent.toLowerCase().includes(vals.title))
           && (!vals.domain || cells[2].textContent.toLowerCase().includes(vals.domain))
           && (!vals.unit || cells[3].textContent.toLowerCase().includes(vals.unit))
           && (!vals.dept || cells[4].textContent.toLowerCase().includes(vals.dept))
-          && (!vals.target || cells[6].textContent.toLowerCase().includes(vals.target))
-          && (!vals.actual || cells[7].textContent.toLowerCase().includes(vals.actual))
-          && (!vals.progress || cells[8].textContent.toLowerCase().includes(vals.progress));
+          && (!vals.monthProgress || cells[6].textContent.toLowerCase().includes(vals.monthProgress))
+          && (!vals.target || cells[7].textContent.toLowerCase().includes(vals.target))
+          && (!vals.actual || cells[8].textContent.toLowerCase().includes(vals.actual))
+          && (!vals.progress || cells[9].textContent.toLowerCase().includes(vals.progress));
         row.classList.toggle('opk-hidden', !match);
         if (match) visible++;
       });
@@ -240,6 +845,7 @@
     document.getElementById('id_actual_1404').value = d.a4;
     document.getElementById('id_target_month').value = d.tm;
     document.getElementById('id_actual_month').value = d.am;
+    document.getElementById('id_progress_month').value = d.pm;
     document.getElementById('id_target_1405').value = d.t5;
     document.getElementById('id_actual_1405').value = d.a5;
     document.getElementById('id_progress_1405').value = d.progress;

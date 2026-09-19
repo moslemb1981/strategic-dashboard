@@ -1,14 +1,17 @@
 import logging
 import re
 import io
+import os
+import uuid
 import math
 import json
 import requests
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.db.models import Q
 
@@ -23,6 +26,7 @@ from .models import (
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
+    ObjectiveKPIWeight, ObjectiveOperationalKPIWeight, OperationalKPITrendPoint,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -49,6 +53,20 @@ def _has_perm(request, perm):
     return False
 
 
+def _scoped_business_units(request):
+    """فهرست کسب‌وکارهایی که کاربر فعلی مجاز به دیدن آن‌هاست — برای بخش‌های
+    دارای محدودیت کسب‌وکار (SWOT، نقشه استراتژیک، پروژه‌های تحول).
+    ادمین کامل یا کاربر بدون کسب‌وکار اختصاصی، همه را می‌بیند."""
+    all_units = list(BusinessUnit.objects.all())
+    user = request.user
+    if not user.is_authenticated or user.is_superuser:
+        return all_units
+    profile = getattr(user, "profile", None)
+    if profile and profile.business_unit_id:
+        return [b for b in all_units if b.pk == profile.business_unit_id]
+    return all_units
+
+
 def _log_action(request, action, label):
     logger.info("%s: user=%s item=%r", action, request.user, label)
 
@@ -66,24 +84,97 @@ def _swot_code_map():
     return code_map
 
 
+def _pct_color_hex(pct):
+    if pct is None:
+        return "#9aa1ab"
+    if pct < 80:
+        return "#B0413E"
+    if pct < 90:
+        return "#C97A2B"
+    return "#3E7A52"
+
+
+STATUS_LABEL_FA = {"on": "در مسیر", "watch": "نیازمند پیگیری", "risk": "در معرض ریسک"}
+
+
+def _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map):
+    """متن هاور برای خط وضعیت هر کارت: شفاف‌سازی اینکه عدد نهایی از کجا اومده —
+    تک‌تک شاخص‌های وصل‌شده با درصد تحقق و وزنشون، به‌علاوه جمع‌بندی نهایی."""
+    lines = []
+    for k in o.linked_kpis.all():
+        v = k.manual_progress_value
+        w = kpi_weight_map.get((o.pk, k.pk), 100)
+        pct_txt = f"{v}٪" if v is not None else "—"
+        lines.append(f"● {k.code} — {k.name} — تحقق: {pct_txt} — وزن: {w}")
+    for k in o.linked_operational_kpis.all():
+        v = k.manual_progress_value
+        w = opkpi_weight_map.get((o.pk, k.pk), 100)
+        pct_txt = f"{v}٪" if v is not None else "—"
+        lines.append(f"● {k.code} — {k.title} — تحقق: {pct_txt} — وزن: {w}")
+    if not lines:
+        return "هنوز هیچ شاخصی به این کارت وصل نشده است."
+    header = "شاخص‌های وصل‌شده به این کارت:"
+    footer = f"میانگین وزن‌دار نهایی: {pct}٪" if pct is not None else "میانگین وزن‌دار نهایی: —"
+    return header + "\n" + "\n".join(lines) + "\n\n" + footer
+
+
+def _attach_computed_objective_status(objectives):
+    """به هر هدف توی این لیست، وضعیت وزن‌دار محاسبه‌شده (درصد/وضعیت/رنگ/برچسب/هاور) رو اضافه می‌کنه.
+    برای اینکه توی همه‌ی نماهای نقشه‌ی استراتژیک (خود صفحه + خروجی‌های چاپی) یکسان باشه."""
+    kpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveKPIWeight.objects.filter(objective__in=objectives)}
+    opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.filter(objective__in=objectives)}
+    for o in objectives:
+        pct, status = _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map)
+        o.computed_pct = pct
+        o.computed_status = status
+        o.computed_status_color = _pct_color_hex(pct)
+        o.computed_status_label = STATUS_LABEL_FA.get(status, "")
+        o.computed_status_tooltip = _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map)
+
+
+def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
+    """میانگین وزن‌دار درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده به یک هدف را حساب می‌کند
+    (هر شاخص طبق وزنی که برای همین کارت دارد در میانگین سهیم می‌شود) و وضعیت متناظرش رو
+    برمی‌گردونه. این تابع مرکزی، هم توی صفحه‌ی خانه (برای وضعیت اهداف استراتژیک) و هم توی
+    خود نقشه‌ی استراتژیک (برای وضعیت هر کارت) استفاده می‌شه تا دو جا هیچ‌وقت با هم فرق نکنن.
+    اگر هدف هیچ شاخص معتبری نداشته باشه، (None, None) برمی‌گردونه."""
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for k in o.linked_kpis.all():
+        v = k.manual_progress_value
+        if v is None:
+            continue
+        w = kpi_weight_map.get((o.pk, k.pk), 100)
+        weighted_sum += v * w
+        weight_total += w
+    for k in o.linked_operational_kpis.all():
+        v = k.manual_progress_value
+        if v is None:
+            continue
+        w = opkpi_weight_map.get((o.pk, k.pk), 100)
+        weighted_sum += v * w
+        weight_total += w
+    if weight_total <= 0:
+        return None, None
+    avg = weighted_sum / weight_total
+    if avg >= 90:
+        status = "on"
+    elif avg >= 80:
+        status = "watch"
+    else:
+        status = "risk"
+    return round(avg), status
+
+
 def home(request):
     objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis"))
 
+    kpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveKPIWeight.objects.all()}
+    opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.all()}
+
     def _objective_status(o):
-        """وضعیت هر هدف را از میانگین درصد تحقق شاخص‌های کلان+عملیاتی وصل‌شده محاسبه می‌کند.
-        اهدافی که هیچ شاخصی ندارند، None برمی‌گردانند (یعنی از محاسبه کنار گذاشته می‌شوند)."""
-        values = [v for v in (
-            [k.manual_progress_value for k in o.linked_kpis.all()]
-            + [k.manual_progress_value for k in o.linked_operational_kpis.all()]
-        ) if v is not None]
-        if not values:
-            return None
-        avg = sum(values) / len(values)
-        if avg >= 90:
-            return "on"
-        if avg >= 80:
-            return "watch"
-        return "risk"
+        _, status = _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map)
+        return status
 
     objectives_with_status = [(o, _objective_status(o)) for o in objectives]
     scored_objectives = [(o, s) for o, s in objectives_with_status if s is not None]
@@ -355,7 +446,7 @@ def study_delete(request, pk):
 # ---------------- Roadmap / initiatives ----------------
 
 def roadmap(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     group_mode = request.POST.get("group_mode") or request.GET.get("group_mode") or "bu"
     if group_mode not in ("bu", "division", "work_group"):
         group_mode = "bu"
@@ -367,15 +458,18 @@ def roadmap(request):
     if not current_bu and business_units:
         current_bu = business_units[0]
 
+    allowed_bu_ids = [b.pk for b in business_units]
+    scoped_initiatives_qs = Initiative.objects.filter(business_unit_id__in=allowed_bu_ids)
+
     group_field = {"division": "division", "work_group": "work_group"}.get(group_mode)
     group_tabs, current_group_key = [], None
     if group_field:
         distinct_values = sorted(set(
-            v.strip() for v in Initiative.objects.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
+            v.strip() for v in scoped_initiatives_qs.exclude(**{group_field: ""}).values_list(group_field, flat=True) if v and v.strip()
         ))
         counts = {}
         for v in distinct_values:
-            counts[v] = Initiative.objects.filter(**{group_field: v}).count()
+            counts[v] = scoped_initiatives_qs.filter(**{group_field: v}).count()
         group_tabs = [{"key": v, "count": counts[v]} for v in distinct_values]
         current_group_key = request.POST.get("g") or request.GET.get("g") or (distinct_values[0] if distinct_values else None)
 
@@ -394,8 +488,11 @@ def roadmap(request):
     if request.method == "POST" and request.POST.get("form_kind", "initiative") == "initiative":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_initiative" if obj_id else "strategic.add_initiative"
+        instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
+        if instance and instance.business_unit_id not in allowed_bu_ids:
+            messages.error(request, "شما مجاز به ویرایش پروژه‌های این کسب‌وکار نیستید.")
+            return redirect("strategic:roadmap")
         if _has_perm(request, perm):
-            instance = get_object_or_404(Initiative, pk=obj_id) if obj_id else None
             form = InitiativeForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
                 obj = form.save(commit=False)
@@ -417,7 +514,7 @@ def roadmap(request):
                       "source_tows__source_items", "linked_stakeholders")
     if group_field:
         initiatives_qs = (
-            Initiative.objects.filter(**{group_field: current_group_key})
+            scoped_initiatives_qs.filter(**{group_field: current_group_key})
             .prefetch_related(*base_prefetch)
             if current_group_key else Initiative.objects.none()
         )
@@ -1360,8 +1457,31 @@ def value_chain(request):
 THEME_PALETTE = ["#0f8a6a", "#1183c9", "#7b5cd6", "#d08a1f", "#17a3a3", "#d6402f", "#8a5a44", "#5a6474"]
 
 
+def _save_objective_kpi_weights(request, obj):
+    """بعد از ذخیره‌ی شاخص‌های وصل‌شده به یک کارت هدف (form.save_m2m)، وزن هر شاخص را
+    از فیلدهای kpi_weight_<id> / opkpi_weight_<id> که در فرم پرشده، می‌خواند و ذخیره می‌کند.
+    اگر وزنی ارسال نشده یا نامعتبر باشد، مقدار پیش‌فرض ۱۰۰ (وزن مساوی) در نظر گرفته می‌شود."""
+    def _clean_weight(raw):
+        try:
+            w = int(raw)
+        except (TypeError, ValueError):
+            return 100
+        return max(1, min(w, 100))
+
+    for k in obj.linked_kpis.all():
+        raw = request.POST.get(f"kpi_weight_{k.pk}")
+        ObjectiveKPIWeight.objects.update_or_create(
+            objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
+        )
+    for k in obj.linked_operational_kpis.all():
+        raw = request.POST.get(f"opkpi_weight_{k.pk}")
+        ObjectiveOperationalKPIWeight.objects.update_or_create(
+            objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
+        )
+
+
 def stratmap(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
     current_bu = None
     if bu_id:
@@ -1378,8 +1498,11 @@ def stratmap(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
         perm = "strategic.change_strategicobjective" if obj_id else "strategic.add_strategicobjective"
+        instance = get_object_or_404(StrategicObjective, pk=obj_id) if obj_id else None
+        if instance and instance.business_unit_id not in [b.pk for b in business_units]:
+            messages.error(request, "شما مجاز به ویرایش اهداف این کسب‌وکار نیستید.")
+            return redirect("strategic:stratmap")
         if _has_perm(request, perm):
-            instance = get_object_or_404(StrategicObjective, pk=obj_id) if obj_id else None
             form = StrategicObjectiveForm(request.POST, instance=instance, business_unit=current_bu)
             if form.is_valid():
                 obj = form.save(commit=False)
@@ -1387,6 +1510,7 @@ def stratmap(request):
                     obj.business_unit = current_bu
                 obj.save()
                 form.save_m2m()
+                _save_objective_kpi_weights(request, obj)
                 _log_action(request, "UPDATE StrategicObjective" if obj_id else "CREATE StrategicObjective", str(obj))
                 bu_param = f"?bu={current_bu.pk}" if current_bu else ""
                 return redirect(reverse("strategic:stratmap") + bu_param)
@@ -1427,6 +1551,24 @@ def stratmap(request):
             return "#C97A2B"
         return "#3E7A52"
 
+    def _project_square(kpi_obj):
+        """برای یه شاخص (CompanyKPI یا OperationalKPI)، میانگین پیشرفت پروژه‌های
+        وصل‌شده به همون شاخص خاص را محاسبه می‌کند و اطلاعات کامل هاور را می‌سازد."""
+        inits = list(kpi_obj.initiatives.all())
+        if not inits:
+            return None
+        avg_progress = round(sum(i.progress for i in inits) / len(inits))
+        tooltip_lines = [
+            f"● {i.title}{f' ({i.code})' if i.code else ''} — مسئول: {i.owner or '—'} — وضعیت: {i.get_status_display()} — پیشرفت: {i.progress}٪"
+            for i in inits
+        ]
+        return {
+            "color": _pct_color(avg_progress),
+            "avg": avg_progress,
+            "count": len(inits),
+            "tooltip": "پروژه‌های وصل به این شاخص:\n" + "\n".join(tooltip_lines),
+        }
+
     kpis_by_objective = {}
     circles_by_objective = {}
     for k in StrategicKPI.objects.filter(objective__in=objectives).select_related("objective"):
@@ -1436,7 +1578,7 @@ def stratmap(request):
         })
         circles_by_objective.setdefault(k.objective_id, []).append({
             "name": k.name, "target": k.target, "actual": k.actual, "unit": k.unit,
-            "pct": k.progress_pct, "color": _pct_color(k.progress_pct),
+            "pct": k.progress_pct, "color": _pct_color(k.progress_pct), "project": None,
         })
 
     for o in objectives:
@@ -1448,7 +1590,7 @@ def stratmap(request):
             })
             circles_by_objective.setdefault(o.pk, []).append({
                 "name": f"{k.code} — {k.name}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
-                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
             })
         for k in o.linked_operational_kpis.all():
             kpis_by_objective.setdefault(o.pk, []).append({
@@ -1458,18 +1600,27 @@ def stratmap(request):
             })
             circles_by_objective.setdefault(o.pk, []).append({
                 "name": f"{k.code} — {k.title}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
-                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value),
+                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
             })
 
     for o in objectives:
         o.kpi_count = len(kpis_by_objective.get(o.pk, []))
         o.kpi_circles = circles_by_objective.get(o.pk, [])
+    _attach_computed_objective_status(objectives)
+
+    # وزن هر شاخص در هر کارت — برای پرشدن خودکار فیلد وزن هنگام ویرایش یک هدف
+    weights_by_objective = {}
+    for w in ObjectiveKPIWeight.objects.filter(objective__in=objectives):
+        weights_by_objective.setdefault(w.objective_id, {})[f"kpi-{w.kpi_id}"] = w.weight
+    for w in ObjectiveOperationalKPIWeight.objects.filter(objective__in=objectives):
+        weights_by_objective.setdefault(w.objective_id, {})[f"opkpi-{w.kpi_id}"] = w.weight
 
     return render(request, "strategic/stratmap.html", {
         "active_page": "stratmap", "bands": bands, "form": form,
         "links": links, "business_units": business_units, "current_bu": current_bu,
         "themes": themes, "theme_form": StrategyThemeForm(), "org_vision": org_identity.vision,
         "kpis_by_objective": kpis_by_objective, "kpi_form": StrategicKPIForm(),
+        "weights_by_objective": weights_by_objective,
     })
 
 
@@ -1513,7 +1664,8 @@ def stratmap_print(request):
         current_bu = business_units[0]
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -1523,6 +1675,7 @@ def stratmap_print(request):
         o.feeds_codes = [t.code for t in targets]
         for t in targets:
             links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+    _attach_computed_objective_status(objectives)
 
     bands = []
     PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
@@ -1544,7 +1697,8 @@ def stratmap_print_full(request):
         current_bu = business_units[0]
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme").prefetch_related("feeds_into")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -1554,6 +1708,7 @@ def stratmap_print_full(request):
         o.feeds_codes = [t.code for t in targets]
         for t in targets:
             links.append([f"pcard-{o.pk}", f"pcard-{t.pk}"])
+    _attach_computed_objective_status(objectives)
 
     bands = []
     PERSP_KEYS = {"financial": "fin", "customer": "cust", "process": "proc", "learning": "learn"}
@@ -1618,7 +1773,7 @@ def business_unit_add(request):
 # ---------------- SWOT ----------------
 
 def swot(request):
-    business_units = list(BusinessUnit.objects.all())
+    business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
     current_bu = None
     if bu_id:
@@ -1632,8 +1787,11 @@ def swot(request):
         obj_id = request.POST.get("obj_id")
         if cat in ("s", "w", "o", "t"):
             perm = "strategic.change_swotitem" if obj_id else "strategic.add_swotitem"
+            instance = get_object_or_404(SWOTItem, pk=obj_id) if obj_id else None
+            if instance and instance.business_unit_id not in [b.pk for b in business_units]:
+                messages.error(request, "شما مجاز به ویرایش موارد این کسب‌وکار نیستید.")
+                return redirect("strategic:swot")
             if _has_perm(request, perm):
-                instance = get_object_or_404(SWOTItem, pk=obj_id) if obj_id else None
                 form = SWOTItemForm(request.POST, instance=instance)
                 if form.is_valid():
                     obj = form.save(commit=False)
@@ -1644,8 +1802,11 @@ def swot(request):
                     return redirect(reverse("strategic:swot") + bu_param)
         elif cat in ("so", "st", "wo", "wt"):
             perm = "strategic.change_towsstrategy" if obj_id else "strategic.add_towsstrategy"
+            t_instance = get_object_or_404(TOWSStrategy, pk=obj_id) if obj_id else None
+            if t_instance and t_instance.business_unit_id not in [b.pk for b in business_units]:
+                messages.error(request, "شما مجاز به ویرایش موارد این کسب‌وکار نیستید.")
+                return redirect("strategic:swot")
             if _has_perm(request, perm):
-                t_instance = get_object_or_404(TOWSStrategy, pk=obj_id) if obj_id else None
                 tform = TOWSStrategyForm(request.POST, instance=t_instance, business_unit=current_bu)
                 if tform.is_valid():
                     tobj = tform.save(commit=False)
@@ -2424,9 +2585,22 @@ def company_kpi_import(request):
 # ---------------- بانک شاخص‌های عملیاتی (سطح دپارتمانی، جدا از شاخص‌های کلان شرکت) ----------------
 
 _OPKPI_EXCEL_HEADERS = [
-    "کد", "عنوان شاخص", "حوزه (Q/D/C/M)", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته", "عملکرد سال گذشته",
-    "هدف سال جاری", "عملکرد سال جاری", "درصد تحقق", "ترتیب نمایش",
+    "کد", "عنوان شاخص", "حوزه (Q/D/C/M)", "واحد سنجش", "دپارتمان مالک", "هدف سال گذشته (تجمعی)", "عملکرد سال گذشته (تجمعی)",
+    "هدف ماه جاری", "عملکرد ماه جاری", "تحقق ماه جاری",
+    "هدف سال جاری (تجمعی)", "عملکرد سال جاری (تجمعی)", "درصد تحقق", "محرمانه (بله/خالی)", "ترتیب نمایش",
 ]
+
+# شیت دوم فایل اکسل شاخص‌های عملیاتی — داده‌ی روند ماهانه (کاملاً جدا از ماه جاری/تجمعی)،
+# فقط برای نمودار روند. هر شاخص می‌تواند چند ردیف داشته باشد (یک ردیف به‌ازای هر سال).
+_OPKPI_TREND_SHEET_NAME = "اطلاعات روند شاخص‌ها"
+_OPKPI_TREND_MONTHS = [m for _, m in OperationalKPITrendPoint.MONTH_CHOICES]
+# توجه: ستون «ردیف» عمداً حذف شده — تطبیق همیشه بر اساس «کد شاخص» انجام می‌شود، نه شماره‌ی ردیف.
+_OPKPI_TREND_HEADERS = ["کد شاخص", "عنوان شاخص", "سال"] + [
+    f"{kind} {month}" for month in _OPKPI_TREND_MONTHS for kind in ("هدف", "عملکرد")
+]
+# سالی که همیشه برای همه‌ی شاخص‌ها یک ردیف آماده‌ی پرکردن در شیت روند دارد
+# (حتی اگر هنوز هیچ داده‌ای برایش وارد نشده)؛ همان «سال جاری» سامانه (target_1405 و...).
+_OPKPI_TREND_CURRENT_YEAR = "1405"
 
 
 def raw_factors_archive(request):
@@ -2579,7 +2753,23 @@ def operational_kpis(request):
     else:
         form = OperationalKPIForm()
 
-    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis"))
+    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis", "initiatives"))
+
+    # ماسک‌کردن هدف/عملکرد تجمعی سالانه برای کاربر مهمان (بدون لاگین) در شاخص‌های محرمانه.
+    # این مقدار واقعی هیچ‌وقت به HTML کاربر مهمان ارسال نمی‌شود؛ به‌جایش یک عدد
+    # ساختگی (ولی ثابت برای همان شاخص) تولید می‌شود تا با افکت تار نمایش داده شود.
+    import random
+    is_guest = not request.user.is_authenticated
+    for k in items:
+        if k.is_confidential and is_guest:
+            rnd = random.Random(k.code)
+            k.display_target_1405 = f"{rnd.randint(100, 999)},{rnd.randint(100, 999)}"
+            k.display_actual_1405 = f"{rnd.randint(100, 999)},{rnd.randint(100, 999)}"
+            k.is_masked = True
+        else:
+            k.display_target_1405 = k.target_1405
+            k.display_actual_1405 = k.actual_1405
+            k.is_masked = False
 
     return render(request, "strategic/operational_kpis.html", {
         "active_page": "operational_kpis", "items": items, "total": len(items),
@@ -2622,19 +2812,57 @@ def operational_kpi_export(request):
     for row_i, k in enumerate(OperationalKPI.objects.all(), start=2):
         values = [
             k.code, k.title, k.domain, k.unit, k.department,
-            k.target_1404, k.actual_1404, k.target_1405, k.actual_1405, k.progress_1405, k.order,
+            k.target_1404, k.actual_1404, k.target_month, k.actual_month, k.progress_month,
+            k.target_1405, k.actual_1405, k.progress_1405, ("بله" if k.is_confidential else ""), k.order,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [12, 42, 10, 12, 28, 12, 12, 12, 12, 12, 10]
+    widths = [12, 42, 10, 12, 28, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+
+    # ---- شیت دوم: اطلاعات روند شاخص‌ها (کاملاً جدا از شیت اول) ----
+    ws2 = wb.create_sheet(_OPKPI_TREND_SHEET_NAME)
+    ws2.sheet_view.rightToLeft = True
+    for col, title in enumerate(_OPKPI_TREND_HEADERS, start=1):
+        cell = ws2.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    trend_row_i = 2
+    trend_point_count = 0
+    for k in OperationalKPI.objects.all():
+        years_for_kpi = list(
+            OperationalKPITrendPoint.objects.filter(kpi=k).order_by("-year").values_list("year", flat=True).distinct()
+        )
+        # هر شاخص همیشه حداقل یک ردیف آماده برای «سال جاری» دارد — حتی اگر هنوز
+        # هیچ داده‌ی روندی برایش وارد نشده باشد — تا کد/عنوان همیشه خودکار پر
+        # باشند و کاربر فقط کافی باشد مقادیر ماه‌ها را تایپ کند.
+        if _OPKPI_TREND_CURRENT_YEAR not in years_for_kpi:
+            years_for_kpi = [_OPKPI_TREND_CURRENT_YEAR] + years_for_kpi
+        for year in years_for_kpi:
+            points_by_month = {p.month: p for p in OperationalKPITrendPoint.objects.filter(kpi=k, year=year)}
+            row_values = [k.code, k.title, year]
+            for month in range(1, 13):
+                p = points_by_month.get(month)
+                row_values.append(p.target if p else "")
+                row_values.append(p.actual if p else "")
+                if p:
+                    trend_point_count += 1
+            for col, val in enumerate(row_values, start=1):
+                ws2.cell(row=trend_row_i, column=col, value=val)
+            trend_row_i += 1
+
+    widths2 = [12, 30, 8] + [11] * (len(_OPKPI_TREND_HEADERS) - 3)
+    for col, w in enumerate(widths2, start=1):
+        ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    _log_action(request, "EXPORT OperationalKPI Excel", f"{OperationalKPI.objects.count()} ردیف")
+    _log_action(request, "EXPORT OperationalKPI Excel", f"{OperationalKPI.objects.count()} ردیف، {trend_point_count} نقطه‌ی روند")
     response = HttpResponse(
         buf.read(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2643,8 +2871,174 @@ def operational_kpi_export(request):
     return response
 
 
+def _s_opkpi(v):
+    return "" if v is None else str(v).strip()
+
+
+def _opkpi_pick_main_sheet(wb):
+    """شیت اصلی («شاخص‌های عملیاتی») را همیشه صریحاً با اسمش انتخاب می‌کند —
+    نه با wb.active، چون wb.active به شیتی وابسته است که هنگام «ذخیره‌ی آخر در
+    اکسل» باز/انتخاب‌شده بوده (نه لزوماً شیت اول) و می‌تواند باعث بشه داده‌ی
+    شیت روند به‌اشتباه به‌جای شیت اصلی خوانده بشه."""
+    return wb["شاخص‌های عملیاتی"] if "شاخص‌های عملیاتی" in wb.sheetnames else wb.worksheets[0]
+
+
+# نگاشت فیلد → برچسب فارسی، برای نمایش «قبل → بعد» در پیش‌نمایش ورود از اکسل
+_OPKPI_FIELD_LABELS = [
+    ("title", "عنوان شاخص"), ("domain", "حوزه"), ("unit", "واحد سنجش"), ("department", "دپارتمان مالک"),
+    ("target_1404", "هدف سال گذشته (تجمعی)"), ("actual_1404", "عملکرد سال گذشته (تجمعی)"),
+    ("target_month", "هدف ماه جاری"), ("actual_month", "عملکرد ماه جاری"), ("progress_month", "تحقق ماه جاری"),
+    ("target_1405", "هدف سال جاری (تجمعی)"), ("actual_1405", "عملکرد سال جاری (تجمعی)"), ("progress_1405", "درصد تحقق"),
+    ("is_confidential", "محرمانه"), ("order", "ترتیب نمایش"),
+]
+
+
+def _parse_opkpi_sheet1(ws):
+    """شیت اول («شاخص‌های عملیاتی») را می‌خواند و فهرستی از دیکشنری‌های
+    پاک‌شده/آماده برمی‌گرداند — بدون هیچ نوشتنی در دیتابیس (فقط خواندن)."""
+    rows, skipped = [], 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not row[0]:
+            continue
+        code = _s_opkpi(row[0])
+        if not code:
+            skipped += 1
+            continue
+        domain = _s_opkpi(row[2]).upper() if len(row) > 2 else ""
+        if domain not in ("Q", "D", "C", "M"):
+            domain = "Q"
+        try:
+            order = int(row[14]) if len(row) > 14 and row[14] not in (None, "") else 0
+        except (TypeError, ValueError):
+            order = 0
+        rows.append(dict(
+            code=code,
+            title=_s_opkpi(row[1]) if len(row) > 1 else "",
+            domain=domain,
+            unit=_s_opkpi(row[3]) if len(row) > 3 else "",
+            department=_s_opkpi(row[4]) if len(row) > 4 else "",
+            target_1404=clean_number_string(_s_opkpi(row[5]) if len(row) > 5 else ""),
+            actual_1404=clean_number_string(_s_opkpi(row[6]) if len(row) > 6 else ""),
+            target_month=clean_number_string(_s_opkpi(row[7]) if len(row) > 7 else ""),
+            actual_month=clean_number_string(_s_opkpi(row[8]) if len(row) > 8 else ""),
+            progress_month=clean_number_string(_s_opkpi(row[9]) if len(row) > 9 else ""),
+            target_1405=clean_number_string(_s_opkpi(row[10]) if len(row) > 10 else ""),
+            actual_1405=clean_number_string(_s_opkpi(row[11]) if len(row) > 11 else ""),
+            progress_1405=clean_number_string(_s_opkpi(row[12]) if len(row) > 12 else ""),
+            is_confidential=(_s_opkpi(row[13]) in ("بله", "Yes", "yes", "true", "True", "1")) if len(row) > 13 else False,
+            order=order,
+        ))
+    return rows, skipped
+
+
+def _parse_opkpi_trend_sheet(ws_trend):
+    """شیت دوم («اطلاعات روند شاخص‌ها») را می‌خواند — ستون‌ها: کد شاخص، عنوان
+    شاخص (فقط خوانایی)، سال، و بعد هدف/عملکرد هر یک از ۱۲ ماه. فقط خواندن،
+    بدون نوشتن در دیتابیس.
+
+    **سازگاری با فایل‌های قدیمی‌تر**: نسخه‌ی اول این شیت (بند ۳۰۲/۳۰۳) یک
+    ستون «ردیف» هم در ابتدا داشت که بعداً چون لازم نبود حذف شد (بند ۳۰۴).
+    اگر کاربر یکی از آن فایل‌های قدیمی را دوباره وارد کند، از روی سلول اول
+    هدر (اگر «ردیف» باشد) تشخیص داده و ستون‌ها یک واحد جابه‌جا خوانده
+    می‌شوند — تا شبیه باگ بند ۳۰۳ (جابه‌جایی ستونی) دوباره تکرار نشود."""
+    header_first_cell = _s_opkpi(ws_trend.cell(row=1, column=1).value)
+    is_legacy_with_row_number = header_first_cell == "ردیف"
+    code_col = 1 if is_legacy_with_row_number else 0
+    year_col = 3 if is_legacy_with_row_number else 2
+    months_start_col = 4 if is_legacy_with_row_number else 3
+
+    points, skipped = [], 0
+    for row in ws_trend.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[code_col] if len(row) > code_col else None):
+            continue
+        code = _s_opkpi(row[code_col])
+        year = _s_opkpi(row[year_col]) if len(row) > year_col else ""
+        if not code or not year:
+            skipped += 1
+            continue
+        for month in range(1, 13):
+            col_target = months_start_col + (month - 1) * 2
+            col_actual = col_target + 1
+            target_val = clean_number_string(_s_opkpi(row[col_target]) if len(row) > col_target else "")
+            actual_val = clean_number_string(_s_opkpi(row[col_actual]) if len(row) > col_actual else "")
+            points.append(dict(code=code, year=year, month=month, target=target_val, actual=actual_val))
+    return points, skipped
+
+
+def _diff_opkpi_rows(parsed_rows):
+    """فقط مقایسه (بدون نوشتن) — برمی‌گرداند: (جدیدها، به‌روزشونده‌ها با فهرست
+    تغییرات، تعداد بدون‌تغییر)."""
+    existing_by_code = {k.code: k for k in OperationalKPI.objects.all()}
+    new_items, updated_items = [], []
+    unchanged_count = 0
+    for r in parsed_rows:
+        existing = existing_by_code.get(r["code"])
+        if not existing:
+            new_items.append(r)
+            continue
+        changes = []
+        for field, label in _OPKPI_FIELD_LABELS:
+            old_val = getattr(existing, field)
+            new_val = r[field]
+            if old_val != new_val:
+                if field == "is_confidential":
+                    changes.append((label, "بله" if old_val else "خیر", "بله" if new_val else "خیر"))
+                else:
+                    changes.append((label, old_val, new_val))
+        if changes:
+            updated_items.append(dict(code=r["code"], title=r["title"], changes=changes))
+        else:
+            unchanged_count += 1
+    return new_items, updated_items, unchanged_count
+
+
+def _diff_opkpi_trend(parsed_points, kpi_lookup):
+    """فقط مقایسه (بدون نوشتن). kpi_lookup: دیکشنری کد→آبجکتی با .title (می‌تواند
+    شاخص واقعی دیتابیس باشد یا یک شاخص تازه که در همین فایل — شیت اول — دارد
+    ساخته می‌شود)."""
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+    existing_by_key = {
+        (p.kpi.code, p.year, p.month): p
+        for p in OperationalKPITrendPoint.objects.select_related("kpi").all()
+    }
+    new_items, updated_items = [], []
+    unchanged_count, skipped_unknown = 0, 0
+    for pt in parsed_points:
+        kpi_obj = kpi_lookup.get(pt["code"])
+        if not kpi_obj:
+            skipped_unknown += 1
+            continue
+        existing = existing_by_key.get((pt["code"], pt["year"], pt["month"]))
+        if not existing:
+            if not pt["target"] and not pt["actual"]:
+                continue
+            new_items.append(dict(
+                code=pt["code"], title=kpi_obj.title, year=pt["year"], month_label=month_labels[pt["month"]],
+                target=pt["target"], actual=pt["actual"],
+            ))
+            continue
+        if existing.target != pt["target"] or existing.actual != pt["actual"]:
+            updated_items.append(dict(
+                code=pt["code"], title=kpi_obj.title, year=pt["year"], month_label=month_labels[pt["month"]],
+                old_target=existing.target, old_actual=existing.actual,
+                new_target=pt["target"], new_actual=pt["actual"],
+            ))
+        else:
+            unchanged_count += 1
+    return new_items, updated_items, unchanged_count, skipped_unknown
+
+
+def _opkpi_import_tmp_path(token):
+    tmp_dir = os.path.join(settings.BASE_DIR, "tmp_imports")
+    os.makedirs(tmp_dir, exist_ok=True)
+    return os.path.join(tmp_dir, f"opkpi_{token}.xlsx")
+
+
 @login_required
 def operational_kpi_import(request):
+    """قدم اول: فایل اکسل را می‌خواند، با اطلاعات فعلی سامانه مقایسه می‌کند و یک
+    صفحه‌ی پیش‌نمایش («قبل → بعد») نشان می‌دهد — هنوز هیچ‌چیزی در دیتابیس
+    نوشته نمی‌شود. تأیید نهایی با operational_kpi_import_apply انجام می‌شود."""
     if not request.user.is_superuser:
         messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
         return redirect("strategic:operational_kpis")
@@ -2655,55 +3049,277 @@ def operational_kpi_import(request):
 
     import openpyxl
 
+    uploaded = request.FILES["excel_file"]
+    file_bytes = uploaded.read()
+
     try:
-        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
-        ws = wb.active
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = _opkpi_pick_main_sheet(wb)
     except Exception:
         messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
         return redirect("strategic:operational_kpis")
 
-    def _s(v):
-        return "" if v is None else str(v).strip()
+    parsed_rows, skipped = _parse_opkpi_sheet1(ws)
+    new_items, updated_items, unchanged_count = _diff_opkpi_rows(parsed_rows)
 
-    created, updated, skipped = 0, 0, 0
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not row[0]:
-            continue
-        code = _s(row[0])
-        if not code:
-            skipped += 1
-            continue
-        title = _s(row[1]) if len(row) > 1 else ""
-        domain = _s(row[2]).upper() if len(row) > 2 else ""
-        if domain not in ("Q", "D", "C", "M"):
-            domain = "Q"
-        unit = _s(row[3]) if len(row) > 3 else ""
-        department = _s(row[4]) if len(row) > 4 else ""
-        target_1404 = clean_number_string(_s(row[5]) if len(row) > 5 else "")
-        actual_1404 = clean_number_string(_s(row[6]) if len(row) > 6 else "")
-        target_1405 = clean_number_string(_s(row[7]) if len(row) > 7 else "")
-        actual_1405 = clean_number_string(_s(row[8]) if len(row) > 8 else "")
-        progress_1405 = clean_number_string(_s(row[9]) if len(row) > 9 else "")
-        try:
-            order = int(row[10]) if len(row) > 10 and row[10] not in (None, "") else 0
-        except (TypeError, ValueError):
-            order = 0
+    has_trend_sheet = _OPKPI_TREND_SHEET_NAME in wb.sheetnames
+    trend_new, trend_updated, trend_unchanged_count, trend_skipped = [], [], 0, 0
+    if has_trend_sheet:
+        parsed_points, trend_skipped = _parse_opkpi_trend_sheet(wb[_OPKPI_TREND_SHEET_NAME])
 
+        class _PendingKPI:
+            def __init__(self, code, title):
+                self.code, self.title = code, title
+
+        kpi_lookup = {k.code: k for k in OperationalKPI.objects.all()}
+        for r in parsed_rows:
+            kpi_lookup.setdefault(r["code"], _PendingKPI(r["code"], r["title"]))
+
+        trend_new, trend_updated, trend_unchanged_count, trend_skip_unknown = _diff_opkpi_trend(parsed_points, kpi_lookup)
+        trend_skipped += trend_skip_unknown
+
+    if not new_items and not updated_items and not trend_new and not trend_updated:
+        messages.info(request, "هیچ تغییری در این فایل نسبت به اطلاعات فعلی سامانه پیدا نشد؛ چیزی برای اعمال وجود ندارد.")
+        return redirect("strategic:operational_kpis")
+
+    # فایل موقت قبلیِ همین کاربر (اگر تأیید/انصراف نشده بود) پاک شود تا انباشته نشه
+    old_token = request.session.get("opk_import_pending_token")
+    if old_token:
+        old_path = _opkpi_import_tmp_path(old_token)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    token = uuid.uuid4().hex
+    with open(_opkpi_import_tmp_path(token), "wb") as f:
+        f.write(file_bytes)
+    request.session["opk_import_pending_token"] = token
+
+    return render(request, "strategic/operational_kpi_import_preview.html", {
+        "active_page": "operational_kpis",
+        "token": token,
+        "original_filename": uploaded.name,
+        "new_items": new_items, "updated_items": updated_items,
+        "unchanged_count": unchanged_count, "skipped": skipped,
+        "has_trend_sheet": has_trend_sheet,
+        "trend_new": trend_new, "trend_updated": trend_updated,
+        "trend_unchanged_count": trend_unchanged_count, "trend_skipped": trend_skipped,
+    })
+
+
+@login_required
+def operational_kpi_import_apply(request):
+    """قدم دوم (تأیید نهایی): فایل موقتی که در قدم پیش‌نمایش ذخیره شده بود را
+    واقعاً در دیتابیس می‌نویسد."""
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:operational_kpis")
+    if request.method != "POST":
+        return redirect("strategic:operational_kpis")
+
+    token = request.POST.get("token", "")
+    if not token or token != request.session.get("opk_import_pending_token"):
+        messages.error(request, "این پیش‌نمایش دیگر معتبر نیست (شاید منقضی شده). لطفاً دوباره فایل اکسل را انتخاب کنید.")
+        return redirect("strategic:operational_kpis")
+
+    tmp_path = _opkpi_import_tmp_path(token)
+    if not os.path.exists(tmp_path):
+        messages.error(request, "فایل موقت پیدا نشد؛ لطفاً دوباره فایل اکسل را وارد کنید.")
+        return redirect("strategic:operational_kpis")
+
+    import openpyxl
+
+    with open(tmp_path, "rb") as f:
+        wb = openpyxl.load_workbook(f, data_only=True)
+    ws = _opkpi_pick_main_sheet(wb)
+
+    parsed_rows, skipped = _parse_opkpi_sheet1(ws)
+    created, updated = 0, 0
+    for r in parsed_rows:
         _, was_created = OperationalKPI.objects.update_or_create(
-            code=code,
-            defaults=dict(
-                title=title, domain=domain, unit=unit, department=department,
-                target_1404=target_1404, actual_1404=actual_1404,
-                target_1405=target_1405, actual_1405=actual_1405,
-                progress_1405=progress_1405, order=order,
-            ),
+            code=r["code"], defaults={k: v for k, v in r.items() if k != "code"},
         )
         created += 1 if was_created else 0
         updated += 0 if was_created else 1
 
-    _log_action(request, "IMPORT OperationalKPI Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
-    messages.success(request, f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد.")
+    trend_points_written, trend_rows_skipped = 0, 0
+    if _OPKPI_TREND_SHEET_NAME in wb.sheetnames:
+        parsed_points, trend_rows_skipped = _parse_opkpi_trend_sheet(wb[_OPKPI_TREND_SHEET_NAME])
+        kpi_by_code = {k.code: k for k in OperationalKPI.objects.all()}
+        for pt in parsed_points:
+            kpi_obj = kpi_by_code.get(pt["code"])
+            if not kpi_obj:
+                trend_rows_skipped += 1
+                continue
+            if not pt["target"] and not pt["actual"]:
+                if not OperationalKPITrendPoint.objects.filter(kpi=kpi_obj, year=pt["year"], month=pt["month"]).exists():
+                    continue
+            OperationalKPITrendPoint.objects.update_or_create(
+                kpi=kpi_obj, year=pt["year"], month=pt["month"],
+                defaults=dict(target=pt["target"], actual=pt["actual"]),
+            )
+            trend_points_written += 1
+
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+    request.session.pop("opk_import_pending_token", None)
+
+    _log_action(
+        request, "IMPORT OperationalKPI Excel",
+        f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده — روند: {trend_points_written} نقطه، {trend_rows_skipped} ردیف رد‌شده",
+    )
+    messages.success(
+        request,
+        f"وارد کردن انجام شد: {created} شاخص جدید، {updated} شاخص به‌روزرسانی‌شده، {skipped} ردیف نامعتبر رد شد."
+        + (f" داده‌ی روند: {trend_points_written} نقطه ثبت شد." if trend_points_written else ""),
+    )
     return redirect("strategic:operational_kpis")
+
+
+@login_required
+def operational_kpi_import_cancel(request):
+    token = request.session.get("opk_import_pending_token")
+    if token:
+        tmp_path = _opkpi_import_tmp_path(token)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        request.session.pop("opk_import_pending_token", None)
+    messages.info(request, "وارد کردن لغو شد؛ هیچ تغییری اعمال نشد.")
+    return redirect("strategic:operational_kpis")
+
+
+def operational_kpi_trend_data(request, pk):
+    """داده‌ی نمودار روند یک شاخص عملیاتی به‌صورت JSON — کاملاً جدا از هدف/عملکرد
+    ماه جاری یا تجمعی سالانه؛ فقط از OperationalKPITrendPoint خوانده می‌شود.
+    اگر سال درخواست نشده باشد، جدیدترین سالی که برایش داده وارد شده انتخاب می‌شود."""
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+
+    if kpi.is_confidential and not request.user.is_authenticated:
+        return JsonResponse({"error": "این شاخص محرمانه است؛ برای مشاهده‌ی نمودار وارد سامانه شوید."}, status=403)
+
+    years = list(
+        OperationalKPITrendPoint.objects.filter(kpi=kpi)
+        .order_by("-year").values_list("year", flat=True).distinct()
+    )
+    can_manage = request.user.is_superuser
+
+    if not years:
+        return JsonResponse({
+            "kpi_code": kpi.code, "kpi_title": kpi.title, "unit": kpi.unit,
+            "years": [], "selected_year": None, "months": [], "target": [], "actual": [],
+            "can_manage": can_manage,
+        })
+
+    selected_year = request.GET.get("year") or years[0]
+    if selected_year not in years:
+        selected_year = years[0]
+
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+    points = {
+        p.month: p for p in OperationalKPITrendPoint.objects.filter(kpi=kpi, year=selected_year)
+    }
+
+    # فقط تا آخرین ماهی که حداقل یکی از هدف/عملکرد مقدار دارد نمایش داده می‌شود
+    # (نه لزوماً هر ۱۲ ماه) — ماه‌های خالیِ میان‌راه هم به‌صورت None می‌مانند تا
+    # خط عملکرد دقیقاً همان‌جایی که داده تمام می‌شود، قطع شود (نه اینکه تا اسفند کشیده شود).
+    last_month = 0
+    for m in range(1, 13):
+        p = points.get(m)
+        if p and (p.target_value is not None or p.actual_value is not None):
+            last_month = m
+
+    months, month_numbers, target_vals, actual_vals = [], [], [], []
+    for m in range(1, last_month + 1):
+        p = points.get(m)
+        months.append(month_labels[m])
+        month_numbers.append(m)
+        target_vals.append(p.target_value if p else None)
+        actual_vals.append(p.actual_value if p else None)
+
+    return JsonResponse({
+        "kpi_code": kpi.code, "kpi_title": kpi.title, "unit": kpi.unit,
+        "years": years, "selected_year": selected_year,
+        "months": months, "month_numbers": month_numbers,
+        "target": target_vals, "actual": actual_vals,
+        "can_manage": can_manage,
+    })
+
+
+def operational_kpi_trend_multi(request, pk):
+    """داده‌ی روند «همه‌ی سال‌ها»ی یک شاخص عملیاتی، برای حالت «مقایسه‌ی چندسال» در
+    پاپ‌آپ نمودار روند (هدف به‌صورت خطی، عملکرد به‌صورت ستونی، هر سال یک رنگ ثابت).
+    برخلاف operational_kpi_trend_data، اینجا محور ماه همیشه کامل (۱۲ ماه، فروردین تا
+    اسفند) برمی‌گردد تا سال‌های مختلف روی یک محور مشترک قابل مقایسه باشند؛ ماه‌های
+    بعد از آخرین ماهی که برای آن سال داده ثبت شده، None می‌مانند (نه صفر) تا خط/ستون
+    درست همان‌جا قطع شود."""
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+
+    if kpi.is_confidential and not request.user.is_authenticated:
+        return JsonResponse({"error": "این شاخص محرمانه است؛ برای مشاهده‌ی نمودار وارد سامانه شوید."}, status=403)
+
+    years = list(
+        OperationalKPITrendPoint.objects.filter(kpi=kpi)
+        .order_by("year").values_list("year", flat=True).distinct()
+    )
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+    months = [month_labels[m] for m in range(1, 13)]
+
+    series = {}
+    for year in years:
+        points = {p.month: p for p in OperationalKPITrendPoint.objects.filter(kpi=kpi, year=year)}
+        last_month = 0
+        for m in range(1, 13):
+            p = points.get(m)
+            if p and (p.target_value is not None or p.actual_value is not None):
+                last_month = m
+        target_vals, actual_vals = [], []
+        for m in range(1, 13):
+            p = points.get(m)
+            if m <= last_month:
+                target_vals.append(p.target_value if p else None)
+                actual_vals.append(p.actual_value if p else None)
+            else:
+                target_vals.append(None)
+                actual_vals.append(None)
+        series[year] = {"target": target_vals, "actual": actual_vals}
+
+    return JsonResponse({
+        "kpi_code": kpi.code, "kpi_title": kpi.title, "unit": kpi.unit,
+        "years": years, "months": months, "series": series,
+    })
+
+
+@login_required
+def operational_kpi_trend_delete(request, pk):
+    """حذف داده‌ی روند — یا یک نقطه‌ی مشخص (یک ماه از یک سال)، یا کل یک سال،
+    برای یک شاخص. فقط مدیر سیستم؛ برای اصلاح مواردی که با اکسل اشتباه وارد
+    شده‌اند، مستقیماً از همون پاپ‌آپ «نمودار روند» قابل استفاده است."""
+    if not request.user.is_superuser:
+        return JsonResponse({"error": "این عملیات فقط برای مدیر سیستم مجاز است."}, status=403)
+    if request.method != "POST":
+        return JsonResponse({"error": "روش درخواست نامعتبر است."}, status=405)
+
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+    year = (request.POST.get("year") or "").strip()
+    month = (request.POST.get("month") or "").strip()
+    if not year:
+        return JsonResponse({"error": "سال مشخص نشده است."}, status=400)
+
+    qs = OperationalKPITrendPoint.objects.filter(kpi=kpi, year=year)
+    if month and month != "all":
+        try:
+            month_int = int(month)
+        except ValueError:
+            return JsonResponse({"error": "ماه نامعتبر است."}, status=400)
+        qs = qs.filter(month=month_int)
+        label = f"سال {year}"
+    else:
+        label = f"کل سال {year}"
+
+    deleted_count, _ = qs.delete()
+    _log_action(request, "DELETE OperationalKPITrendPoint", f"{kpi.code} — {label} — {deleted_count} نقطه")
+    return JsonResponse({"ok": True, "deleted": deleted_count})
 
 
 # ---------------- ورود/خروجی اکسل ماتریس اثر متقابل (فقط مدیر سیستم) ----------------
@@ -3340,24 +3956,40 @@ def _kpi_pct_color(pct):
 
 
 def _objective_kpi_entries(o):
-    """لیست شاخص‌های وصل به یک هدف (مشترک + اختصاصی) با کد/نام/هدف/عملکرد/درصد."""
+    """لیست شاخص‌های وصل به یک هدف (کلان + اختصاصی + عملیاتی) با کد/نام/هدف/عملکرد/درصد/وزن.
+    شاخص‌های اختصاصی (StrategicKPI) وزن ندارند و همیشه وزن ۱۰۰ در نظر گرفته می‌شوند."""
     entries = []
+    kpi_weights = {w.kpi_id: w.weight for w in ObjectiveKPIWeight.objects.filter(objective=o)}
+    opkpi_weights = {w.kpi_id: w.weight for w in ObjectiveOperationalKPIWeight.objects.filter(objective=o)}
     for k in o.linked_kpis.all():
         entries.append({
             "code": k.code, "name": k.name, "target": k.target_1405, "actual": k.actual_1405,
-            "pct": k.manual_progress_value,
+            "pct": k.manual_progress_value, "weight": kpi_weights.get(k.pk, 100),
         })
     for k in o.kpis.all():
         entries.append({
             "code": "", "name": k.name, "target": k.target, "actual": k.actual,
-            "pct": k.progress_pct,
+            "pct": k.progress_pct, "weight": 100,
+        })
+    for k in o.linked_operational_kpis.all():
+        entries.append({
+            "code": k.code, "name": k.title, "target": k.target_1405, "actual": k.actual_1405,
+            "pct": k.manual_progress_value, "weight": opkpi_weights.get(k.pk, 100),
         })
     return entries
 
 
 def _objective_overall_pct(entries):
-    vals = [e["pct"] for e in entries if e["pct"] is not None]
-    return round(sum(vals) / len(vals)) if vals else None
+    """میانگین وزن‌دار درصد تحقق شاخص‌های یک هدف. اگر همه‌ی وزن‌ها صفر یا خالی باشند
+    (مورد نادر)، به میانگین ساده برمی‌گردد تا هیچ‌وقت تقسیم بر صفر رخ ندهد."""
+    scored = [e for e in entries if e["pct"] is not None]
+    if not scored:
+        return None
+    weight_total = sum(e.get("weight", 100) or 0 for e in scored)
+    if weight_total <= 0:
+        return round(sum(e["pct"] for e in scored) / len(scored))
+    weighted_sum = sum(e["pct"] * (e.get("weight", 100) or 0) for e in scored)
+    return round(weighted_sum / weight_total)
 
 
 def _objective_swot_items(o):
@@ -3385,7 +4017,7 @@ def stratmap_export_excel(request):
     objectives = list(
         StrategicObjective.objects.filter(business_unit=current_bu)
         .select_related("theme", "source_tows")
-        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "kpis", "source_tows__source_items")
+        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "linked_operational_kpis", "kpis", "source_tows__source_items")
     )
 
     HEADER_FILL = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
@@ -3600,13 +4232,17 @@ def stratmap_export_excel(request):
     style_header_row(ws4, 1, len(headers4))
     ws4.freeze_panes = "A2"
 
-    # جمع‌آوری منحصربه‌فرد شاخص‌های مشترک و اختصاصی مرتبط با اهداف این کسب‌وکار
+    # جمع‌آوری منحصربه‌فرد شاخص‌های مشترک، اختصاصی، و عملیاتی مرتبط با اهداف این کسب‌وکار
     shared_map = {}   # kpi_pk -> {"kpi": obj, "objectives": [o,...]}
+    operational_map = {}  # kpi_pk -> {"kpi": obj, "objectives": [o,...]}
     custom_list = []  # list of (StrategicKPI, objective)
     for o in objectives:
         for k in o.linked_kpis.all():
             shared_map.setdefault(k.pk, {"kpi": k, "objectives": []})
             shared_map[k.pk]["objectives"].append(o)
+        for k in o.linked_operational_kpis.all():
+            operational_map.setdefault(k.pk, {"kpi": k, "objectives": []})
+            operational_map[k.pk]["objectives"].append(o)
         for k in o.kpis.all():
             custom_list.append((k, o))
 
@@ -3626,6 +4262,34 @@ def stratmap_export_excel(request):
         ws4.cell(row=r, column=1, value=k.code)
         ws4.cell(row=r, column=2, value=k.name)
         ws4.cell(row=r, column=3, value="مشترک شرکت")
+        ws4.cell(row=r, column=4, value=k.target_1405 or "—")
+        ws4.cell(row=r, column=5, value=k.actual_1405 or "—")
+        ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))
+        ws4.cell(row=r, column=7, value=obj_cell)
+        ws4.cell(row=r, column=8, value=swot_cell)
+        if color:
+            ws4.cell(row=r, column=6).fill = PCT_FILL[color]
+        for c in range(1, 9):
+            cell = ws4.cell(row=r, column=c)
+            cell.alignment = WRAP
+            cell.border = BORDER
+        r += 1
+
+    for entry in operational_map.values():
+        k = entry["kpi"]
+        objs = entry["objectives"]
+        pct = k.manual_progress_value
+        color = _kpi_pct_color(pct)
+        obj_cell = "\n".join(f"{o.code} — {o.title}" for o in objs)
+        swot_lines = []
+        for o in objs:
+            for it in _objective_swot_items(o):
+                swot_lines.append(f"{it.category.upper()}: {it.text}")
+        swot_cell = "\n".join(dict.fromkeys(swot_lines)) if swot_lines else "—"
+
+        ws4.cell(row=r, column=1, value=k.code)
+        ws4.cell(row=r, column=2, value=k.title)
+        ws4.cell(row=r, column=3, value="عملیاتی")
         ws4.cell(row=r, column=4, value=k.target_1405 or "—")
         ws4.cell(row=r, column=5, value=k.actual_1405 or "—")
         ws4.cell(row=r, column=6, value=(f"{pct}%" if pct is not None else "—"))
@@ -3694,7 +4358,18 @@ def user_list(request):
         return redirect("strategic:home")
 
     from django.contrib.auth.models import User
+    from strategic.permission_sections import SECTIONS
+
     users = User.objects.all().select_related("profile").order_by("-date_joined")
+    for u in users:
+        if u.is_superuser:
+            u.granted_sections = ["ادمین کامل"]
+        else:
+            perm_codenames = set(u.user_permissions.values_list("codename", flat=True))
+            u.granted_sections = [
+                label for key, (label, models_, _) in SECTIONS.items()
+                if f"change_{models_[0].lower()}" in perm_codenames
+            ]
     return render(request, "strategic/user_list.html", {
         "active_page": "user_list", "users": users,
     })
@@ -3706,8 +4381,9 @@ def user_edit(request, pk=None):
         messages.error(request, "دسترسی به این بخش فقط برای مدیر سامانه مجاز است.")
         return redirect("strategic:home")
 
-    from django.contrib.auth.models import User, Group
+    from django.contrib.auth.models import User, Permission
     from strategic.models import UserProfile, BusinessUnit
+    from strategic.permission_sections import SECTIONS, permissions_for_section
 
     instance = get_object_or_404(User, pk=pk) if pk else None
 
@@ -3716,11 +4392,12 @@ def user_edit(request, pk=None):
         first_name = request.POST.get("first_name", "").strip()
         last_name = request.POST.get("last_name", "").strip()
         email = request.POST.get("email", "").strip()
-        role = request.POST.get("role", "viewer")
+        is_admin = request.POST.get("is_admin") == "on"
         bu_id = request.POST.get("business_unit") or None
         phone = request.POST.get("phone", "").strip()
         new_password = request.POST.get("new_password", "").strip()
         is_active = request.POST.get("is_active") == "on"
+        selected_sections = request.POST.getlist("sections")
 
         if not username:
             messages.error(request, "نام کاربری الزامی است.")
@@ -3746,36 +4423,56 @@ def user_edit(request, pk=None):
         user_obj.email = email
         user_obj.is_active = is_active
         user_obj.is_staff = True  # برای دسترسی به بخش‌های مدیریتی سامانه لازم است
-        user_obj.is_superuser = (role == "admin")
+        user_obj.is_superuser = is_admin
         if new_password:
             user_obj.set_password(new_password)
         user_obj.save()
 
-        # اعمال گروه بر اساس نقش
-        user_obj.groups.clear()
-        if role == "editor":
-            editor_group, _ = Group.objects.get_or_create(name="ویرایشگر")
-            user_obj.groups.add(editor_group)
-        elif role == "viewer":
-            viewer_group, _ = Group.objects.get_or_create(name="کارشناس (فقط مشاهده)")
-            user_obj.groups.add(viewer_group)
+        # اعمال دقیق مجوزها: فقط مجوزهای مربوط به بخش‌های تیک‌خورده
+        if is_admin:
+            user_obj.user_permissions.clear()
+        else:
+            all_codenames = []
+            for key in SECTIONS:
+                all_codenames.extend(permissions_for_section(key))
+            all_perm_ids = list(Permission.objects.filter(
+                content_type__app_label="strategic", codename__in=all_codenames
+            ).values_list("pk", flat=True))
+            user_obj.user_permissions.remove(*all_perm_ids)
+
+            selected_codenames = []
+            for key in selected_sections:
+                if key in SECTIONS:
+                    selected_codenames.extend(permissions_for_section(key))
+            selected_perms = Permission.objects.filter(
+                content_type__app_label="strategic", codename__in=selected_codenames
+            )
+            user_obj.user_permissions.add(*selected_perms)
 
         profile, _ = UserProfile.objects.get_or_create(user=user_obj)
-        profile.role = role
         profile.phone = phone
         profile.business_unit_id = bu_id
         profile.save()
 
         action = "UPDATE User" if instance else "CREATE User"
-        _log_action(request, action, f"{user_obj.username} — نقش: {role}")
+        _log_action(request, action, f"{user_obj.username} — بخش‌های مجاز: {', '.join(selected_sections) or ('ادمین کامل' if is_admin else 'هیچ‌کدام')}")
         messages.success(request, f"کاربر «{username}» با موفقیت ذخیره شد.")
         return redirect("strategic:user_list")
 
     profile = getattr(instance, "profile", None) if instance else None
+    current_perm_codenames = set(instance.user_permissions.values_list("codename", flat=True)) if instance else set()
+    sections_ui = []
+    for key, (label, model_names, bu_scoped) in SECTIONS.items():
+        change_codename = f"change_{model_names[0].lower()}"
+        sections_ui.append({
+            "key": key, "label": label, "bu_scoped": bu_scoped,
+            "checked": change_codename in current_perm_codenames,
+        })
+
     return render(request, "strategic/user_form.html", {
         "active_page": "user_list", "instance": instance, "profile": profile,
         "business_units": BusinessUnit.objects.all(),
-        "role_choices": UserProfile.ROLE_CHOICES,
+        "sections_ui": sections_ui,
     })
 
 
