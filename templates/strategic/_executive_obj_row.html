@@ -1,0 +1,95 @@
+<!-- بخشی از نمای اجرایی /show/ — یک ردیف هدف استراتژیک به‌همراه شاخص‌ها، پروژه‌های
+     اجراکننده‌اش (سبز) و ریسک‌های تهدیدکننده‌اش (قرمز، زیر پروژه‌ها — طبق بازخواست
+     مدیریت). شاخص‌های کلان شرکت با یک ستاره و کادر طلایی از شاخص‌های عملیاتی متمایز
+     می‌شوند. کلیک روی شاخصی که روند ماهانه دارد، نمودار کامل روندش را باز می‌کند.
+     برچسب منظر (مالی/مشتری/فرآیند داخلی/یادگیری‌و‌رشد) دقیقاً با همون رنگی که در
+     نقشه‌ی استراتژیک (stratmap.html) دارد رنگ می‌شود (persp_color از views.py).
+     پیام‌های وضعیت («در معرض ریسک» و مشابه آن) طبق درخواست مدیریت از این نما
+     کلاً حذف شده‌اند؛ فقط درصد و جهت پیکان باقی مانده.
+     در executive_show.html با include فراخوانی می‌شود؛ در صورت حذف نمای /show/،
+     این فایل را هم همراه بقیه حذف کنید. -->
+{% load jalali_tags %}
+<div class="obj-row" style="--row-color:{{ o.color }};">
+  <div class="obj-row-top">
+    {% if o.code %}<span class="obj-code">{{ o.code }}</span>{% endif %}
+    <span class="obj-title">{{ o.title }}</span>
+    <span class="obj-persp" style="color:{{ o.persp_color }}; background:{{ o.persp_color }}1a; border-color:{{ o.persp_color }}55;">{{ o.perspective }}</span>
+    {% if o.pct %}
+    <span class="obj-pct" style="color:{{ o.color }};"><span class="arrow">{{ o.arrow }}</span>{{ o.pct|fanum }}٪</span>
+    {% endif %}
+  </div>
+
+  {% if o.company_goal %}
+  <div class="obj-goal-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-trophy"/></svg>
+    در راستای هدف استراتژیک گروه سایپا: {{ o.company_goal }}
+  </div>
+  {% endif %}
+
+  {% if o.kpi_text %}<div class="obj-kpi-text">{{ o.kpi_text }}</div>{% endif %}
+
+  {% if o.kpis %}
+  <div class="obj-kpis">
+    {% for k in o.kpis %}
+    {% if k.trend_id %}
+    <span class="kpi-chip has-trend" onclick="showTrend({{ k.kpi_pk }}, '{{ k.code|escapejs }}', '{{ k.name|escapejs }}', '{{ k.unit|default:""|escapejs }}')" role="button" tabindex="0">
+    {% elif k.is_company %}
+    <span class="kpi-chip is-company">
+    {% else %}
+    <span class="kpi-chip">
+    {% endif %}
+      {% if k.is_company %}<span class="kstar" title="شاخص کلان شرکت">★</span>{% endif %}
+      <span class="kc">{{ k.code }}</span>{{ k.name }}
+      {% if k.value != None %}<span class="kv">{{ k.value|fanum }}٪</span>{% endif %}
+      {% if k.target or k.actual %}<span class="kt">({{ k.actual|default:"—"|fanum }} از {{ k.target|default:"—"|fanum }}{% if k.unit %} {{ k.unit }}{% endif %})</span>{% endif %}
+      {% if k.sparkline %}
+      <svg class="kpi-spark" viewBox="0 0 58 20" preserveAspectRatio="none">
+        <polyline points="{{ k.sparkline }}" fill="none" stroke="var(--navy)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg class="kpi-spark-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-chart"/></svg>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if o.projects %}
+  <div class="obj-proj-wrap">
+    <div class="obj-proj-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-layers"/></svg>پروژه‌ها/اقدامات اجراکننده این استراتژی</div>
+    <div class="obj-proj-list">
+      {% for p in o.projects %}
+      <div class="proj-chip" {% if p.provenance_hover %}title="{{ p.provenance_hover }}"{% endif %}>
+        <span class="pc-ico">
+          <svg viewBox="0 0 24 24">
+            {% if p.status == "done" %}<use href="#ic-check"/>{% elif p.status == "in_progress" %}<use href="#ic-play"/>{% else %}<use href="#ic-pause"/>{% endif %}
+          </svg>
+        </span>
+        <span class="pc-title">{{ p.title }}</span>
+        <span class="pc-pct">{{ p.progress|fanum }}٪</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if o.risks %}
+  <div class="obj-risk-wrap">
+    <div class="obj-risk-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-flag"/></svg>ریسک‌های تهدیدکننده این استراتژی</div>
+    <div class="obj-risk-list">
+      {% for r in o.risks %}
+      <div class="risk-chip" style="--risk-color:{{ r.zone_color }};" title="پاسخ: {{ r.response_label }}">
+        <span class="rc-dot" style="background:{{ r.zone_color }};"></span>
+        <span class="rc-title">{{ r.title }}</span>
+        <span class="rc-cat">{{ r.category_label }}</span>
+        <span class="rc-pill" style="color:{{ r.zone_color }}; background:{{ r.zone_color }}1a;">{{ r.zone_label }} · {{ r.score|fanum }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- پنجره‌ی نمودار روند برای این ردیف نیازی به markup جدا ندارد: یک پنجره‌ی
+     مشترک واحد در انتهای executive_show.html تعریف شده که با کلیک روی هر
+     شاخص، همان نمودار روندِ Chart.js بانک شاخص‌های عملیاتی را برای آن شاخص
+     بارگذاری می‌کند (تابع showTrend در پایین همان صفحه). -->

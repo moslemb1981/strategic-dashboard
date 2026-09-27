@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.urls import reverse
-from django.db.models import Q
+from django.db.models import Q, Count
 
 import jdatetime
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
@@ -4701,3 +4701,422 @@ def audit_findings_import(request):
     _log_action(request, "IMPORT AuditFinding Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
     messages.success(request, f"وارد کردن انجام شد: {created} نتیجه‌ی جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف نامعتبر رد شد.")
     return redirect("strategic:audit_findings")
+
+
+# =====================================================================================
+# نمای اجرایی/هیات مدیره — «داستان هر کسب‌وکار در یک نگاه» — فقط با آدرس مستقیم /show/
+# عمداً به هیچ منویی وصل نیست. این بلوک کاملاً مستقل است (توابع زیر + دو فایل قالب
+# اختصاصی + یک خط مسیر در urls.py) و برای حذف کامل کافی‌ست همین توابع (تا انتهای
+# فایل)، همان یک خط از urls.py، و دو فایل templates/strategic/executive_show.html و
+# templates/strategic/_executive_obj_row.html حذف شوند — بدون اثر روی جای دیگر.
+# نمودار روند شاخص‌ها در این نما از همان endpoint و کتابخانه‌ی Chart.js موجودِ
+# «بانک شاخص‌های عملیاتی» (operational_kpi_trend_data) استفاده می‌کند و چیز جدیدی
+# اضافه نمی‌کند.
+# =====================================================================================
+
+RISK_ZONE_COLOR = {"crit": "#8a1f1f", "high": "#b03b34", "med": "#c17f1e", "low": "#6b7a8a"}
+RISK_ZONE_LABEL = {"crit": "بحرانی", "high": "بالا", "med": "متوسط", "low": "پایین"}
+
+
+def _sparkline_points(values, width=58, height=20, pad=2):
+    """رشته‌ی points برای یک نمودار خطی خیلی کوچک (sparkline) داخل SVG می‌سازد؛
+    اگر کمتر از دو نقطه‌ی داده وجود داشته باشد چیزی برنمی‌گرداند (به‌جای حدس زدن)."""
+    vals = [v for v in values if v is not None]
+    if len(vals) < 2:
+        return None
+    lo, hi = min(vals), max(vals)
+    rng = (hi - lo) or 1
+    n = len(vals)
+    step = (width - 2 * pad) / (n - 1)
+    pts = []
+    for idx, v in enumerate(vals):
+        x = pad + idx * step
+        y = pad + (height - 2 * pad) * (1 - (v - lo) / rng)
+        pts.append(f"{x:.1f},{y:.1f}")
+    return " ".join(pts)
+
+
+def _executive_bu_story(bu, objectives_all, initiatives_all, risks_all):
+    """داده‌ی کارت داستانِ یک کسب‌وکار را از روی مدل‌های موجود می‌سازد — بدون هیچ فیلد
+    جدیدی در دیتابیس؛ صرفاً تجمیع و روایت‌سازی از داده‌ای که همین حالا در سامانه هست."""
+    bu_objectives = [o for o in objectives_all if o.business_unit_id == bu.pk]
+    bu_initiatives = [i for i in initiatives_all if i.business_unit_id == bu.pk]
+    bu_risks = [r for r in risks_all if r.linked_objective and r.linked_objective.business_unit_id == bu.pk]
+
+    # پیوند استراتژیک: محورهای استراتژیک همان کسب‌وکار (یا در نبود محور، منظرهای BSC هدف‌ها)
+    themes = list(bu.themes.all().order_by("order"))
+    tags = [t.name for t in themes]
+    if not tags:
+        seen_p = []
+        for o in bu_objectives:
+            label = o.get_perspective_display()
+            if label not in seen_p:
+                seen_p.append(label)
+        tags = seen_p
+
+    # عملکرد: تا ۴ هدف دارای شاخص محاسبه‌شده، اولویت با پرمایه‌ترین/بحرانی‌ترین‌ها
+    # (خلاصه‌ی سریع بالای بخش عملکرد — نسخه‌ی کامل همه‌ی اهداف در «objectives_full» است)
+    perf_candidates = [o for o in bu_objectives if o.computed_pct is not None]
+    perf_candidates.sort(key=lambda o: (0 if o.computed_status == "risk" else 1, -(o.computed_pct or 0)))
+    ARROW = {"on": "▲", "watch": "►", "risk": "▼"}
+    performance = []
+    for o in perf_candidates[:4]:
+        performance.append({
+            "label": o.kpi or o.title,
+            "pct": o.computed_pct,
+            "color": o.computed_status_color,
+            "status_label": o.computed_status_label,
+            "arrow": ARROW.get(o.computed_status, "►"),
+        })
+
+    # نقشه‌ی هدف← پروژه‌هایی که به آن وصل‌اند (طبق خواسته‌ی صریح مدیریت: پروژه‌ها
+    # جدا نایستند، زیر همان استراتژی/هدفی که به آن خدمت می‌کنند نمایش داده شوند)
+    obj_to_initiatives = {}
+    for i in bu_initiatives:
+        for o in i.objectives.all():
+            obj_to_initiatives.setdefault(o.pk, []).append(i)
+    linked_initiative_ids = {i.pk for lst in obj_to_initiatives.values() for i in lst}
+    unlinked_count = sum(1 for i in bu_initiatives if i.pk not in linked_initiative_ids)
+    proj_status_rank = {"done": 0, "in_progress": 1, "deviation": 2}
+
+    # نقشه‌ی هدف← ریسک‌هایی که آن را تهدید می‌کنند (پیشنهاد تاییدشده: زیر همان
+    # استراتژی، کنار پروژه‌های سبز، با رنگ قرمز/نارنجی نشان داده شوند)
+    obj_to_risks = {}
+    for r in bu_risks:
+        obj_to_risks.setdefault(r.linked_objective_id, []).append(r)
+
+    # اهداف استراتژیک و شاخص‌ها — فهرست کامل (نه فقط خلاصه)، هر هدف با شاخص‌های
+    # کلان/عملیاتی وصل‌شده به آن، مقدار واقعی هرکدام (هدف/عملکرد ۱۴۰۵) و روند چندماهه‌ی
+    # آن (در صورت ثبت)، هدف کلان هلدینگی که این استراتژی به آن خدمت می‌کند، پروژه‌هایی
+    # که آن را اجرا می‌کنند، و ریسک‌هایی که تهدیدش می‌کنند
+    PERSP_ORDER = {"financial": 0, "customer": 1, "process": 2, "learning": 3}
+    # همون رنگ‌هایی که خودِ نقشه‌ی استراتژیک (stratmap.html) برای هر منظر استفاده می‌کنه
+    # (--fin/--cust/--proc/--learn) تا این نما با نقشه‌ی استراتژیک یکدست باشه.
+    PERSP_COLOR = {
+        "financial": "#0f8a6a",
+        "customer": "#1183c9",
+        "process": "#7b5cd6",
+        "learning": "#d08a1f",
+    }
+    objectives_full = []
+    for o in sorted(bu_objectives, key=lambda o: (PERSP_ORDER.get(o.perspective, 9), o.order, o.code)):
+        kpi_rows = []
+        company_goal = None
+        for k in o.linked_kpis.all():
+            kpi_rows.append({
+                "code": k.code, "name": k.name, "unit": k.unit,
+                "target": k.target_1405, "actual": k.actual_1405,
+                "value": k.manual_progress_value,
+                "is_company": True,
+                "sparkline": None,
+                "trend_id": None,
+                "kpi_pk": None,
+            })
+            if company_goal is None:
+                co = k.objectives.first()
+                if co:
+                    company_goal = co.title
+        for k in o.linked_operational_kpis.all():
+            tps = sorted(k.trend_points.all(), key=lambda tp: (tp.year, tp.month))
+            has_trend = len(tps) >= 2
+            kpi_rows.append({
+                "code": k.code, "name": k.title, "unit": k.unit,
+                "target": k.target_1405, "actual": k.actual_1405,
+                "value": k.manual_progress_value,
+                "is_company": False,
+                "sparkline": _sparkline_points([tp.actual_value for tp in tps]),
+                # کلیک روی این شاخص، همان نمودار روند (Chart.js) بانک شاخص‌های عملیاتی
+                # را از طریق همان endpoint موجود (operational_kpi_trend_data) باز می‌کند
+                "trend_id": f"kpi-{k.pk}" if has_trend else None,
+                "kpi_pk": k.pk if has_trend else None,
+            })
+
+        obj_projects = sorted(
+            obj_to_initiatives.get(o.pk, []),
+            key=lambda i: (proj_status_rank.get(i.status, 3), -i.progress),
+        )
+
+        obj_risks = sorted(obj_to_risks.get(o.pk, []), key=lambda r: -r.residual_score)
+        risk_rows = [{
+            "title": r.title,
+            "zone": r.zone,
+            "zone_color": RISK_ZONE_COLOR.get(r.zone, "#6b7a8a"),
+            "zone_label": RISK_ZONE_LABEL.get(r.zone, r.zone),
+            "score": r.residual_score,
+            "category_label": r.get_category_display(),
+            "response_label": r.get_response_strategy_display(),
+            "trend": r.trend,
+        } for r in obj_risks[:3]]
+
+        objectives_full.append({
+            "id": o.pk,
+            "code": o.code,
+            "title": o.title,
+            "perspective": o.get_perspective_display(),
+            "persp_color": PERSP_COLOR.get(o.perspective, "#6b7a8a"),
+            "kpi_text": o.kpi,
+            "pct": o.computed_pct,
+            "color": o.computed_status_color,
+            "status_label": o.computed_status_label,
+            "arrow": ARROW.get(o.computed_status, "►"),
+            "kpis": kpi_rows,
+            "company_goal": company_goal,
+            "projects": obj_projects,
+            "risks": risk_rows,
+            "_status": o.computed_status,
+        })
+
+    # نمای «یک‌نگاه» برای هیات مدیره: فقط ۵ هدف مهم‌ترین/بحرانی‌ترین به‌صورت باز نمایش
+    # داده می‌شود (مدیریت بر مبنای استثنا)؛ بقیه در یک آکاردئون قابل‌بازشدن قرار می‌گیرند
+    # تا کارت شلوغ نشود ولی هیچ هدفی هم از سامانه پنهان نماند.
+    def _obj_priority(o):
+        has_score = 0 if o["pct"] is not None else 1
+        status_rank = {"risk": 0, "watch": 1, "on": 2}.get(o["_status"], 3)
+        return (has_score, status_rank, -(o["pct"] or 0))
+
+    objectives_top = sorted(objectives_full, key=_obj_priority)[:5]
+    top_ids = {o["id"] for o in objectives_top}
+    objectives_rest = [o for o in objectives_full if o["id"] not in top_ids]
+
+    # طبق بازخورد مدیریت: پروژه‌ها دیگر لیست جدا ندارند — همان نمونه‌های Initiative
+    # که زیر هر هدف در objectives_full نشان داده می‌شوند را با متن هاور ردیابی منشأ
+    # غنی می‌کنیم (روی خودِ همان آبجکت‌ها، پس در هر جا استفاده شوند این مقدار هست).
+    for i in bu_initiatives:
+        i.provenance_hover = i.traced_origins_hover_text
+
+    # منشأ: ردیابی خودکار منابع پایه‌ی پروژه‌های این کسب‌وکار (PESTEL/پورتر/ذی‌نفع/...)
+    origin_types = []
+    for i in bu_initiatives:
+        for o in i.traced_origins:
+            t = o.get("source_type")
+            if t and t not in origin_types:
+                origin_types.append(t)
+    if origin_types:
+        origin_text = "این کسب‌وکار بر پایه " + "، ".join(origin_types[:4]) + " در تحلیل‌های راهبردی سامانه ریشه دارد."
+    elif themes:
+        origin_text = "مسیر این کسب‌وکار حول محورهای " + "، ".join(tags[:3]) + " در نقشه استراتژیک تعریف شده است."
+    else:
+        origin_text = "برای این کسب‌وکار هنوز هدف یا پروژه‌ای در سامانه ثبت نشده است."
+
+    # جمع‌بندی/تاثیر: یک جمله‌ی نهایی بر اساس آمار واقعی
+    on_track = sum(1 for o in bu_objectives if o.computed_status == "on")
+    total_scored = len(perf_candidates)
+    done_count = sum(1 for i in bu_initiatives if i.status == "done")
+    active_count = sum(1 for i in bu_initiatives if i.status == "in_progress")
+    if total_scored:
+        impact_text = f"{on_track} از {total_scored} هدف استراتژیک دارای شاخص، در مسیر برنامه است"
+        if active_count or done_count:
+            impact_text += f" و از {len(bu_initiatives)} پروژه این کسب‌وکار، {done_count} مورد به نتیجه رسیده و {active_count} مورد در حال اجراست."
+        else:
+            impact_text += "."
+    elif bu_initiatives:
+        impact_text = f"از {len(bu_initiatives)} پروژه این کسب‌وکار، {done_count} مورد به نتیجه رسیده و {active_count} مورد در حال اجراست."
+    else:
+        impact_text = "این کسب‌وکار هنوز داده‌ی کافی برای جمع‌بندی عملکرد ندارد."
+
+    # امتیاز کلی برای کارت پرتفوی بالای صفحه (+ زاویه‌ی حلقه‌ی شعاعی برای نمایش گرافیکی آن)
+    if total_scored:
+        overall_pct = round(sum(o.computed_pct for o in perf_candidates) / total_scored)
+        overall_color = _pct_color_hex(overall_pct)
+    else:
+        overall_pct, overall_color = None, "#9aa1ab"
+    overall_deg = round((overall_pct or 0) * 3.6)
+
+    # برچسب وضعیت کلی کسب‌وکار (برای شِمای رنگی سریع در نمای پرتفوی)
+    if overall_pct is None:
+        overall_status_label = "بدون شاخص"
+    elif overall_pct >= 90:
+        overall_status_label = "در مسیر هدف"
+    elif overall_pct >= 80:
+        overall_status_label = "نیازمند پیگیری"
+    else:
+        overall_status_label = "در معرض ریسک"
+
+    return {
+        "bu": bu,
+        "archetype_label": bu.get_archetype_display(),
+        "tags": tags[:5],
+        "origin_text": origin_text,
+        "performance": performance,
+        "objectives_top": objectives_top,
+        "objectives_rest": objectives_rest,
+        "objectives_rest_count": len(objectives_rest),
+        "unlinked_count": unlinked_count,
+        "impact_text": impact_text,
+        "overall_pct": overall_pct,
+        "overall_color": overall_color,
+        "overall_deg": overall_deg,
+        "overall_status_label": overall_status_label,
+        "objective_count": len(bu_objectives),
+        "initiative_count": len(bu_initiatives),
+        "done_count": done_count,
+        "active_count": active_count,
+        "on_track": on_track,
+    }
+
+
+@login_required
+def executive_show(request):
+    """نمای روایی سطح هیات مدیره: هر کسب‌وکار در یک نگاه — از کجا آمده، به کدام
+    استراتژی وصل است، عملکردش چیست، چه پروژه‌هایی دارد و نتیجه‌ی نهایی چه بوده.
+    عمداً در هیچ منویی لینک نشده؛ فقط با تایپ دستی /show/ در آدرس قابل دسترسی است."""
+    business_units = list(BusinessUnit.objects.all().order_by("order", "name"))
+
+    objectives_all = list(
+        StrategicObjective.objects.filter(business_unit__isnull=False)
+        .select_related("theme", "business_unit")
+        .prefetch_related("linked_kpis", "linked_operational_kpis__trend_points")
+    )
+    _attach_computed_objective_status(objectives_all)
+
+    initiatives_all = list(
+        Initiative.objects.filter(business_unit__isnull=False)
+        .select_related("business_unit")
+        .prefetch_related("source_tows__source_items", "objectives")
+    )
+
+    # ریسک‌های وصل‌شده به یک هدف استراتژیک — تا زیر همان استراتژی (کنار پروژه‌های
+    # سبز) با رنگ قرمز/نارنجی نشان داده شوند، طبق پیشنهاد تاییدشده در این نما.
+    risks_all = list(
+        Risk.objects.filter(linked_objective__business_unit__isnull=False)
+        .select_related("linked_objective")
+    )
+
+    cards = [_executive_bu_story(bu, objectives_all, initiatives_all, risks_all) for bu in business_units]
+
+    # ————— جمع‌بندی سطح هلدینگ (برای نوار خلاصه‌ی اجرایی بالای صفحه) —————
+    scored = [c for c in cards if c["overall_pct"] is not None]
+    if scored:
+        holding_avg = round(sum(c["overall_pct"] for c in scored) / len(scored))
+        holding_avg_deg = round(holding_avg * 3.6)
+        holding_avg_color = _pct_color_hex(holding_avg)
+        best = max(scored, key=lambda c: c["overall_pct"])
+        worst = min(scored, key=lambda c: c["overall_pct"])
+    else:
+        holding_avg = holding_avg_deg = None
+        holding_avg_color = "#9aa1ab"
+        best = worst = None
+
+    on_track_bu = sum(1 for c in scored if c["overall_pct"] >= 90)
+    watch_bu = sum(1 for c in scored if 80 <= c["overall_pct"] < 90)
+    risk_bu = sum(1 for c in scored if c["overall_pct"] < 80)
+
+    total_initiatives = len(initiatives_all)
+    done_initiatives = sum(1 for i in initiatives_all if i.status == "done")
+    active_initiatives = sum(1 for i in initiatives_all if i.status == "in_progress")
+    total_objectives = len(objectives_all)
+
+    if holding_avg is not None:
+        headline = (
+            f"در یک نگاه: از {len(cards)} کسب‌وکار، {on_track_bu} کسب‌وکار در مسیر هدف، "
+            f"{watch_bu} نیازمند پیگیری و {risk_bu} در معرض ریسک قرار دارند — "
+            f"میانگین تحقق اهداف راهبردی در سطح هلدینگ {holding_avg}٪ است."
+        )
+    else:
+        headline = "هنوز شاخص کافی برای جمع‌بندی وضعیت هلدینگ ثبت نشده است."
+
+    summary = {
+        "bu_count": len(cards),
+        "holding_avg": holding_avg,
+        "holding_avg_deg": holding_avg_deg,
+        "holding_avg_color": holding_avg_color,
+        "on_track_bu": on_track_bu,
+        "watch_bu": watch_bu,
+        "risk_bu": risk_bu,
+        "total_objectives": total_objectives,
+        "total_initiatives": total_initiatives,
+        "done_initiatives": done_initiatives,
+        "active_initiatives": active_initiatives,
+        "best": best,
+        "worst": worst,
+        "headline": headline,
+    }
+
+    return render(request, "strategic/executive_show.html", {"cards": cards, "summary": summary})
+
+
+@login_required
+def kpi_heatmap(request):
+    """نقشه‌ی حرارتی (Treemap) همه‌ی شاخص‌های سیستم — کلان و عملیاتی، در یک نگاه.
+
+    دسته‌بندی بر اساس «دپارتمان مالکِ شاخص» انجام می‌شود، نه بر اساس کسب‌وکار —
+    چون کسب‌وکار اصلاً فیلد مستقیمی روی خودِ شاخص نیست (فقط از طریق اتصال به یک
+    هدف استراتژیک به‌دست می‌آید)، خیلی از دپارتمان‌ها بین چند کسب‌وکار مشترک‌اند،
+    و بیش از نیمی از شاخص‌های عملیاتی اصلاً به هیچ هدفی وصل نیستند. دپارتمان اما
+    یک فیلد واقعی و کامل روی خودِ هر شاخص عملیاتی است. شاخص‌های کلان شرکت (که
+    اصلاً فیلد دپارتمان ندارند، چون سطح هلدینگ‌اند) در یک دسته‌ی جداگانه قرار
+    می‌گیرند.
+
+    اندازه‌ی هر خانه = تعداد هدف‌های استراتژیکی که آن شاخص به آن‌ها وصل است
+    (اهمیت راهبردی شاخص) — شاخص‌های بدون هیچ اتصالی هم با کوچک‌ترین اندازه نشان
+    داده می‌شوند، نه حذف؛ چون هنوز داده‌ی عملکرد واقعی دارند.
+    رنگ هر خانه = درصد تحقق واقعی شاخص (هدف/عملکرد ۱۴۰۵)، با همان آستانه‌های
+    رنگی که در سراسر سامانه استفاده می‌شود (_pct_color_hex)."""
+    HOLDING_BUCKET = "شاخص‌های کلان"
+
+    op_link_count = {
+        row["kpi_id"]: row["n"]
+        for row in ObjectiveOperationalKPIWeight.objects.values("kpi_id").annotate(n=Count("id"))
+    }
+    co_link_count = {
+        row["kpi_id"]: row["n"]
+        for row in ObjectiveKPIWeight.objects.values("kpi_id").annotate(n=Count("id"))
+    }
+
+    dept_items = {}
+
+    for k in OperationalKPI.objects.all():
+        dept = k.department or "سایر / بدون دپارتمان"
+        pct = k.manual_progress_value
+        dept_items.setdefault(dept, []).append({
+            "code": k.code,
+            "title": k.title,
+            "unit": k.unit,
+            "target": k.target_1405,
+            "actual": k.actual_1405,
+            "pct": pct,
+            "color": _pct_color_hex(pct),
+            "links": op_link_count.get(k.pk, 0),
+            "confidential": k.is_confidential,
+            "kind": "عملیاتی",
+        })
+
+    for k in CompanyKPI.objects.all():
+        pct = k.manual_progress_value
+        dept_items.setdefault(HOLDING_BUCKET, []).append({
+            "code": k.code,
+            "title": k.name,
+            "unit": k.unit,
+            "target": k.target_1405,
+            "actual": k.actual_1405,
+            "pct": pct,
+            "color": _pct_color_hex(pct),
+            "links": co_link_count.get(k.pk, 0),
+            "confidential": False,
+            "kind": "کلان",
+        })
+
+    departments = []
+    for name, items in dept_items.items():
+        scored = [i["pct"] for i in items if i["pct"] is not None]
+        avg_pct = round(sum(scored) / len(scored)) if scored else None
+        departments.append({
+            "name": name,
+            "items": sorted(items, key=lambda i: (-i["links"], i["code"])),
+            "count": len(items),
+            "avg_pct": avg_pct,
+            "avg_color": _pct_color_hex(avg_pct),
+            "is_holding": name == HOLDING_BUCKET,
+        })
+    departments.sort(key=lambda d: (d["is_holding"], -d["count"]))
+
+    total_kpis = OperationalKPI.objects.count() + CompanyKPI.objects.count()
+    scored_total = sum(1 for d in departments for i in d["items"] if i["pct"] is not None)
+
+    return render(request, "strategic/kpi_heatmap.html", {
+        "active_page": "kpi_heatmap",
+        "departments": departments,
+        "total_kpis": total_kpis,
+        "total_departments": len(departments),
+        "scored_total": scored_total,
+    })

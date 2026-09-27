@@ -1,0 +1,1080 @@
+{% load static %}
+{% load jalali_tags %}
+<!DOCTYPE html>
+<!--
+  این صفحه عمداً مستقل و خوداتکاست (بدون وابستگی به base.html یا فایل‌های CSS مشترک سامانه)
+  و در هیچ منویی لینک نشده — فقط با تایپ دستی آدرس /show/ در دسترس است.
+  برای حذف کامل این نما: همین فایل + تابع executive_show/_executive_bu_story در views.py +
+  همان یک خط path("show/", ...) در urls.py را حذف کنید؛ هیچ اثر جانبی دیگری روی سامانه نخواهد داشت.
+-->
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سایپا یدک - اینفوگرافی مدیریتی</title>
+<!-- فونت رسمی سامانه (Vazirmatn/IRANSans) — همان فایل مشترکی که همه‌ی صفحات دیگر
+     استفاده می‌کنند؛ همه چیز لوکال است، هیچ درخواستی به اینترنت زده نمی‌شود -->
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<style>
+  :root{
+    --navy:#081527;
+    --navy-2:#0f2340;
+    --navy-3:#16345c;
+    --gold:#c9a13b;
+    --gold-2:#e3c775;
+    --gold-line:rgba(201,161,59,.35);
+    --ink:#0b1d33;
+    --ink-soft:#5b6b80;
+    --ink-faint:#8b96a6;
+    --paper:#f5f3ec;
+    --paper-2:#efece1;
+    --card:#ffffff;
+    --line:#e6e2d4;
+    --green:#1f7a52;
+    --green-soft:#e7f3ec;
+    --amber:#c17f1e;
+    --amber-soft:#faf1de;
+    --red:#ad3a34;
+    --red-soft:#fbeae8;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+    font-size:14px;
+  }
+  ::selection{background:var(--gold-2); color:var(--navy);}
+  a{color:inherit;}
+
+  /* ============ نوار راهنمای بالای صفحه (فقط روی صفحه‌نمایش) ============ */
+  .topbar{
+    position:sticky; top:0; z-index:40;
+    background:rgba(8,21,39,.94); backdrop-filter:blur(6px);
+    border-bottom:1px solid rgba(201,161,59,.25);
+    display:flex; align-items:center; gap:18px;
+    padding:10px 6vw; overflow-x:auto; white-space:nowrap;
+  }
+  .topbar-mark{
+    display:flex; align-items:center; gap:8px; color:var(--gold-2);
+    font-size:12px; font-weight:800; flex:none;
+  }
+  .topbar-mark svg{width:16px; height:16px;}
+  .topbar-sep{width:1px; height:16px; background:rgba(255,255,255,.18); flex:none;}
+  .chip{
+    flex:none; display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+    color:#cfd8e6; text-decoration:none;
+    font-size:11.5px; font-weight:700; padding:6px 14px; border-radius:999px;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .chip:hover{background:var(--gold); color:var(--navy); border-color:var(--gold);}
+  .chip .dot{width:6px; height:6px; border-radius:50%; flex:none;}
+
+  /* ============ هدر ============ */
+  .masthead{
+    background:
+      radial-gradient(900px 420px at 88% -20%, rgba(201,161,59,.16), transparent 60%),
+      radial-gradient(700px 360px at 0% 130%, rgba(201,161,59,.09), transparent 60%),
+      linear-gradient(150deg,var(--navy) 0%,var(--navy-2) 55%,var(--navy-3) 100%);
+    color:#fff;
+    padding:52px 6vw 40px;
+    position:relative;
+  }
+  .masthead-inner{position:relative; display:flex; justify-content:space-between; align-items:flex-end; gap:24px; flex-wrap:wrap;}
+  .masthead-eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-size:11px; letter-spacing:1.6px; color:var(--gold-2);
+    text-transform:uppercase; font-weight:800; margin-bottom:16px;
+  }
+  .masthead-eyebrow .rule{width:26px; height:1px; background:var(--gold-2);}
+  .masthead h1{margin:0 0 10px; font-size:clamp(26px,3.4vw,38px); font-weight:800; letter-spacing:-.4px;}
+  .masthead p{margin:0; font-size:13.5px; color:#c3cede; max-width:620px; line-height:1.9;}
+  .masthead-meta{
+    text-align:left; font-size:11.5px; color:#9fadc2;
+    border-inline-start:1px solid rgba(255,255,255,.16); padding-inline-start:22px;
+  }
+  .masthead-meta .co{display:flex; align-items:center; gap:9px; margin-bottom:8px;}
+  .masthead-meta .co svg{width:22px; height:22px; flex:none;}
+  .masthead-meta b{display:block; color:#fff; font-size:14px; font-weight:800;}
+
+  /* ============ نوار خلاصه‌ی اجرایی ============ */
+  .exec-strip{
+    max-width:1220px; margin:-34px auto 0; padding:0 6vw; position:relative; z-index:2;
+  }
+  .exec-grid{
+    display:grid; grid-template-columns:1.15fr repeat(4,1fr);
+    gap:14px; background:var(--card); border-radius:18px;
+    box-shadow:0 18px 40px -14px rgba(8,21,39,.28), 0 2px 8px rgba(8,21,39,.06);
+    border:1px solid var(--line); padding:22px 22px;
+  }
+  .exec-cell{padding:6px 18px; position:relative;}
+  .exec-cell + .exec-cell{border-inline-start:1px solid var(--line);}
+  .exec-cell .lbl{font-size:10.5px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px;}
+  .exec-cell .val{font-size:28px; font-weight:800; color:var(--navy); display:flex; align-items:baseline; gap:5px;}
+  .exec-cell .val small{font-size:12px; font-weight:700; color:var(--ink-faint);}
+  .exec-cell .sub{font-size:11px; color:var(--ink-soft); margin-top:6px;}
+  .ring-cell{display:flex; align-items:center; gap:18px;}
+  .ring{
+    --deg:0deg; --ring-color:#9aa1ab;
+    width:78px; height:78px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--ring-color) var(--deg), var(--line) var(--deg));
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ring-inner{
+    width:60px; height:60px; border-radius:50%; background:var(--card);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .ring-inner b{font-size:16px; font-weight:800; color:var(--navy);}
+  .ring-inner span{font-size:8.5px; color:var(--ink-faint); font-weight:700;}
+  .split-dots{display:flex; gap:5px; margin-top:8px;}
+  .split-dots span{width:7px; height:7px; border-radius:50%; display:inline-block;}
+
+  /* ============ بدنه ============ */
+  .wrap{max-width:1220px; margin:0 auto; padding:56px 6vw 80px;}
+  .section-label{
+    display:flex; align-items:center; gap:12px;
+    font-size:11.5px; font-weight:800; color:var(--navy); letter-spacing:.5px;
+    text-transform:uppercase;
+    margin:0 0 20px;
+  }
+  .section-label .num{
+    width:22px; height:22px; border-radius:50%; background:var(--navy); color:var(--gold-2);
+    display:inline-flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800; flex:none;
+  }
+  .section-label .line{flex:1; height:1px; background:var(--line);}
+
+  /* ============ شبکه‌ی پرتفوی ============ */
+  .portfolio-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:14px; margin-bottom:64px;
+  }
+  .p-card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:20px 20px 18px; text-decoration:none; color:inherit;
+    box-shadow:0 1px 2px rgba(11,29,51,.04);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    display:flex; flex-direction:column; gap:14px; position:relative; overflow:hidden;
+  }
+  .p-card::before{
+    content:""; position:absolute; inset-inline-start:0; top:0; bottom:0; width:4px;
+    background:var(--rank-color,var(--line));
+  }
+  .p-card:hover{transform:translateY(-3px); box-shadow:0 16px 32px -10px rgba(11,29,51,.18); border-color:var(--gold-line);}
+  .p-card-top{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+  .p-card-id{font-size:12.5px; font-weight:800; color:var(--navy); line-height:1.4;}
+  .p-card-arch{font-size:9.5px; color:var(--ink-faint); font-weight:700; margin-top:3px;}
+  .p-ring{--deg:0deg; --ring-color:#9aa1ab; width:52px; height:52px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--ring-color) var(--deg), var(--line) var(--deg));
+    display:flex; align-items:center; justify-content:center;}
+  .p-ring-inner{width:41px; height:41px; border-radius:50%; background:var(--card); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--navy);}
+  .p-card-foot{display:flex; align-items:center; font-size:10px; color:var(--ink-soft); font-weight:700;}
+
+  /* ============ کارت داستان ============ */
+  .story{
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:0; margin-bottom:32px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(11,29,51,.05);
+    scroll-margin-top:76px;
+  }
+  .story-head{
+    display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap;
+    background:linear-gradient(120deg,var(--navy),var(--navy-3));
+    color:#fff; padding:24px 30px; position:relative; overflow:hidden;
+  }
+  .story-head::after{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(420px 200px at 100% 0%, rgba(201,161,59,.16), transparent 65%);
+    pointer-events:none;
+  }
+  .story-head-left{display:flex; align-items:center; gap:16px; position:relative;}
+  .story-num{
+    width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16); color:var(--gold-2);
+    display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; flex:none;
+  }
+  .story-head h2{margin:0; font-size:20px; font-weight:800;}
+  .story-head .arche{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--gold-2); margin-top:5px; font-weight:700;}
+  .story-head .arche svg{width:12px; height:12px;}
+  .story-score{display:flex; align-items:center; gap:14px; position:relative;}
+  .s-ring{--deg:0deg; --ring-color:#9aa1ab; width:64px; height:64px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--ring-color) var(--deg), rgba(255,255,255,.14) var(--deg));
+    display:flex; align-items:center; justify-content:center;}
+  .s-ring-inner{width:50px; height:50px; border-radius:50%; background:var(--navy-2); display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .s-ring-inner b{font-size:15px; font-weight:800; color:#fff;}
+  .s-ring-inner span{font-size:7.5px; color:var(--gold-2); font-weight:700;}
+  .story-score-label{font-size:11px; color:#cfd8e6; font-weight:700; line-height:1.6;}
+  .story-score-label b{display:block; font-size:12.5px; color:#fff;}
+
+  .story-body{padding:30px 30px 28px;}
+  .story-row{display:flex; gap:28px; flex-wrap:wrap; margin-bottom:26px;}
+  .story-row:last-child{margin-bottom:0;}
+  .story-block{flex:1; min-width:240px;}
+  .blk-h{
+    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+    font-size:11px; font-weight:800; color:var(--navy); text-transform:uppercase; letter-spacing:.4px;
+  }
+  .blk-h .ico{
+    width:26px; height:26px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center;
+    background:var(--paper); color:var(--gold); flex:none; border:1px solid var(--line);
+  }
+  .blk-h .ico svg{width:14px; height:14px;}
+
+  .origin-text{font-size:13.5px; color:var(--ink); line-height:2;}
+  .origin-text b{color:var(--navy);}
+
+  .tag-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .tag{
+    background:var(--paper); border:1px solid var(--line); color:var(--navy);
+    font-size:11.5px; font-weight:700; padding:7px 15px; border-radius:999px;
+  }
+
+  .impact-box{
+    position:relative;
+    background:linear-gradient(135deg, #fdfbf3, #f4ecd6);
+    border:1px solid var(--gold-line);
+    border-radius:14px; padding:18px 20px 18px 18px; font-size:13.5px; color:#5a4415;
+    line-height:1.9; font-weight:600;
+  }
+  .impact-box::before{
+    content:"\201C"; position:absolute; top:2px; inset-inline-end:16px;
+    font-size:40px; color:var(--gold-2); font-family:Georgia,serif; opacity:.7; line-height:1;
+  }
+
+  .obj-list{display:flex; flex-direction:column; gap:10px;}
+  .obj-row{
+    border:1px solid var(--line); border-radius:13px; padding:13px 16px 12px;
+    background:var(--paper); border-inline-start:3px solid var(--row-color,var(--line));
+  }
+  .obj-row-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .obj-code{font-size:9.5px; font-weight:800; color:#fff; background:var(--navy); padding:3px 9px; border-radius:6px; flex:none; letter-spacing:.3px;}
+  .obj-title{flex:1; min-width:180px; font-size:12.5px; font-weight:700; color:var(--ink);}
+  .obj-persp{font-size:9px; color:var(--ink-faint); font-weight:800; background:var(--card); border:1px solid var(--line); padding:3px 10px; border-radius:999px; flex:none; text-transform:uppercase; letter-spacing:.3px;}
+  .obj-pct{font-size:15px; font-weight:800; display:flex; align-items:center; gap:4px; flex:none;}
+  .obj-pct .arrow{font-size:11px;}
+  .obj-kpi-text{font-size:11px; color:var(--ink-soft); margin-top:6px; line-height:1.7;}
+  .obj-kpis{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px;}
+  .kpi-chip{
+    display:inline-flex; align-items:baseline; gap:5px;
+    font-size:10.5px; background:var(--card); border:1px solid var(--line); border-radius:8px;
+    padding:5px 11px; color:var(--ink-soft); font-weight:600;
+  }
+  .kpi-chip .kc{font-weight:800; color:var(--navy);}
+  .kpi-chip .kv{font-weight:800;}
+  .kpi-chip .kt{color:var(--ink-faint); font-size:9.5px;}
+  .kpi-spark{width:44px; height:16px; flex:none; margin-inline-start:2px; opacity:.85;}
+  .kpi-spark-ico{width:11px; height:11px; flex:none; color:var(--gold); opacity:.85;}
+  .kpi-chip.is-company{background:var(--gold-soft, #f6efd9); border-color:var(--gold-line);}
+  .kstar{color:var(--gold); font-size:10px; flex:none; margin-inline-end:1px;}
+  .kpi-chip.has-trend{cursor:pointer; transition:box-shadow .12s ease, transform .12s ease;}
+  .kpi-chip.has-trend:hover{box-shadow:0 4px 12px rgba(11,29,51,.12); transform:translateY(-1px);}
+  .obj-empty{font-size:12px; color:var(--ink-soft); padding:6px 2px;}
+
+  /* پنجره‌ی نمودار روند — با کلیک روی شاخصی که sparkline دارد باز می‌شود */
+  .trend-modal-backdrop{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(8,21,39,.55); align-items:center; justify-content:center; padding:20px;
+  }
+  .trend-modal-backdrop.open{display:flex;}
+  .trend-modal{
+    background:var(--card); border-radius:16px; padding:22px 24px 18px;
+    max-width:760px; width:100%; box-shadow:0 24px 60px -12px rgba(8,21,39,.4);
+  }
+  .trend-modal-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px;}
+  .trend-modal-kicker{font-size:9.5px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.3px;}
+  .trend-modal-title{font-size:14px; font-weight:800; color:var(--navy); margin-top:2px;}
+  .trend-close{
+    border:none; background:var(--paper); color:var(--ink-soft); border-radius:8px;
+    width:28px; height:28px; flex:none; cursor:pointer; font-size:13px;
+  }
+  .trend-close:hover{background:var(--line);}
+  .trend-chart-wrap{position:relative; width:100%; height:320px;}
+  .trend-chart-wrap canvas{width:100%!important; height:100%!important;}
+  .trend-empty{font-size:12px; color:var(--ink-soft); padding:20px 2px; text-align:center;}
+  .trend-loading{font-size:11.5px; color:var(--ink-faint); padding:20px 2px; text-align:center;}
+
+  /* حالت «یک سال» / «مقایسه‌ی چندسال» نمودار روند — دقیقاً مطابق بانک شاخص‌های عملیاتی */
+  .trend-mode-row{display:flex; gap:8px; margin-bottom:12px;}
+  .trend-mode-btn{
+    border:1px solid var(--line); background:var(--paper); color:var(--ink-soft);
+    border-radius:8px; padding:6px 16px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .trend-mode-btn.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+  .trend-year-row{display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:11.5px; color:var(--ink-soft);}
+  .trend-year-row select{border:1px solid var(--line); border-radius:6px; padding:5px 9px; font-size:11.5px; font-family:inherit; background:#fff;}
+  .trend-multi-cols{display:flex; gap:22px; margin-bottom:10px; flex-wrap:wrap;}
+  .trend-multi-col{flex:1; min-width:150px;}
+  .trend-multi-col > b{font-size:10.5px; color:var(--ink-faint); font-weight:800; display:block; margin-bottom:6px;}
+  .trend-multi-check{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink); padding:3px 0; cursor:pointer;}
+  .trend-swatch{display:inline-block; width:10px; height:10px; border-radius:3px; flex:none;}
+  .trend-multi-warning{font-size:10.5px; color:var(--red); margin-bottom:8px;}
+  .trend-project-note{font-size:10.5px; color:var(--ink-faint); margin-top:10px; line-height:1.7;}
+  .trend-project-note b{color:var(--red);}
+
+  /* ریسک‌های تهدیدکننده‌ی یک استراتژی — زیر همان هدف، هم‌تراز پروژه‌های سبز */
+  .obj-risk-wrap{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+  .obj-risk-label{
+    display:flex; align-items:center; gap:7px; margin-bottom:8px;
+    font-size:9.5px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.3px;
+  }
+  .obj-risk-label svg{width:11px; height:11px;}
+  .obj-risk-list{display:flex; flex-direction:column; gap:6px;}
+  .risk-chip{
+    display:flex; align-items:center; gap:9px;
+    background:var(--red-soft); border:1px solid var(--risk-color,#e2b3af); border-radius:10px;
+    padding:8px 12px; cursor:help;
+  }
+  .rc-dot{width:8px; height:8px; border-radius:50%; flex:none;}
+  .rc-title{flex:1; min-width:0; font-size:11.5px; font-weight:700; color:#7a2c27;}
+  .rc-cat{font-size:9.5px; color:#9a5652; font-weight:700; flex:none;}
+  .rc-pill{font-size:9.5px; font-weight:800; padding:2px 9px; border-radius:999px; flex:none;}
+
+  .obj-goal-link{
+    display:flex; align-items:center; gap:7px; margin-top:8px;
+    font-size:10.5px; font-weight:800; color:#6b4e12;
+    background:var(--card); border:1.5px solid var(--gold); border-radius:8px;
+    padding:6px 11px; width:fit-content;
+    box-shadow:0 1px 4px rgba(201,161,59,.18);
+  }
+  .obj-goal-link svg{width:11px; height:11px; flex:none;}
+
+  /* پروژه‌های اجراکننده‌ی یک استراتژی — همیشه سبز، همیشه زیر همان هدف (نه جدا) */
+  .obj-proj-wrap{margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);}
+  .obj-proj-label{
+    display:flex; align-items:center; gap:7px; margin-bottom:8px;
+    font-size:9.5px; font-weight:800; color:var(--green); text-transform:uppercase; letter-spacing:.3px;
+  }
+  .obj-proj-label svg{width:11px; height:11px;}
+  .obj-proj-list{display:flex; flex-direction:column; gap:6px;}
+  .proj-chip{
+    display:flex; align-items:center; gap:10px;
+    background:var(--green-soft); border:1px solid #bfe0cb; border-radius:10px;
+    padding:8px 12px; cursor:help;
+  }
+  .pc-ico{
+    width:22px; height:22px; border-radius:7px; background:var(--green); color:#fff; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .pc-ico svg{width:11px; height:11px;}
+  .pc-title{flex:1; min-width:0; font-size:11.5px; font-weight:700; color:#1d5d3e;}
+  .pc-pct{font-size:10.5px; font-weight:800; color:var(--green); flex:none;}
+
+  .unlinked-note{
+    display:flex; align-items:center; gap:8px; margin-top:12px;
+    font-size:11px; color:var(--ink-faint); font-weight:600;
+    background:var(--paper-2); border:1px dashed var(--line); border-radius:10px; padding:9px 14px;
+  }
+  .unlinked-note svg{width:13px; height:13px; flex:none;}
+
+  .blk-h-count{
+    margin-inline-start:auto; background:var(--paper); border:1px solid var(--line);
+    color:var(--ink-faint); font-size:9.5px; font-weight:800; padding:3px 10px; border-radius:999px;
+    text-transform:none; letter-spacing:0;
+  }
+  details.more-details{margin-top:10px;}
+  details.more-details > summary{
+    cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:7px;
+    font-size:11.5px; font-weight:800; color:var(--navy);
+    background:var(--paper); border:1px dashed var(--gold-line); border-radius:999px;
+    padding:8px 16px; user-select:none;
+  }
+  details.more-details > summary::-webkit-details-marker{display:none;}
+  details.more-details > summary::before{content:"+"; color:var(--gold); font-weight:900; font-size:13px;}
+  details.more-details[open] > summary::before{content:"–";}
+  details.more-details[open] > summary{margin-bottom:2px;}
+
+  .perf-empty{font-size:12px; color:var(--ink-soft); padding:6px 2px;}
+
+  .empty-state{text-align:center; padding:70px 20px; color:var(--ink-soft); font-size:13.5px;}
+
+  .footer-note{
+    max-width:1220px; margin:0 auto; padding:0 6vw 50px; text-align:center;
+    color:var(--ink-faint); font-size:10.5px; letter-spacing:.3px;
+  }
+  .footer-note .rule{width:40px; height:1px; background:var(--line); margin:0 auto 18px;}
+
+  /* ============ چاپ ============ */
+  @media print{
+    .topbar{display:none;}
+    body{background:#fff;}
+    .masthead{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    .exec-grid{-webkit-print-color-adjust:exact; print-color-adjust:exact; box-shadow:none;}
+    .story{page-break-inside:avoid; box-shadow:none; margin-bottom:20px; border-width:1px;}
+    .portfolio-grid{page-break-after:always;}
+    .p-card{box-shadow:none;}
+    a.chip{display:none;}
+  }
+  @media (max-width:820px){
+    .exec-grid{grid-template-columns:1fr 1fr;}
+    .exec-cell{border-inline-start:none !important; border-top:1px solid var(--line); padding-top:16px;}
+    .exec-cell:nth-child(-n+2){border-top:none; padding-top:6px;}
+  }
+  @media (max-width:700px){
+    .story-row{flex-direction:column;}
+    .masthead-inner{flex-direction:column; align-items:flex-start;}
+    .masthead-meta{border-inline-start:none; padding-inline-start:0; text-align:right; margin-top:6px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ تعریف آیکن‌های SVG (یک‌بار، سراسر صفحه با <use> فراخوانی می‌شوند) ============ -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3z"/></symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6 6-2z"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5l5-5"/><path d="M11 6l1-1a4 4 0 1 1 6 6l-1 1"/><path d="M13 18l-1 1a4 4 0 1 1-6-6l1-1"/></symbol>
+  <symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></symbol>
+  <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h13l-3 4 3 4H5"/></symbol>
+  <symbol id="ic-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M5 5H3v2a3 3 0 0 0 3 3M19 5h2v2a3 3 0 0 1-3 3"/><path d="M12 13v4M9 21h6M9.5 17h5l.5 4h-6l.5-4z"/></symbol>
+  <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".7" fill="currentColor"/></symbol>
+  <symbol id="ic-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l11 7-11 7V5z"/></symbol>
+  <symbol id="ic-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+  <symbol id="ic-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6l8-3 8 3v15"/><path d="M9 21v-5h6v5"/><path d="M9 10h1M14 10h1M9 14h1M14 14h1"/></symbol>
+  <symbol id="ic-quote" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3M17 8a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3"/></symbol>
+</svg>
+
+  <!-- ============ نوار راهنمای بالا (پرش سریع بین کسب‌وکارها) ============ -->
+  <nav class="topbar">
+    <span class="topbar-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-shield"/></svg> سایپا یدک - اینفوگرافی مدیریتی</span>
+    {% if cards %}
+    <span class="topbar-sep"></span>
+    <a class="chip" href="#exec-summary">خلاصه اجرایی</a>
+    {% for c in cards %}
+    <a class="chip" href="#bu-{{ c.bu.pk }}"><span class="dot" style="background:{{ c.overall_color }};"></span>{{ c.bu.name }}</a>
+    {% endfor %}
+    {% endif %}
+  </nav>
+
+  <!-- ============ هدر ============ -->
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div>
+        <div class="masthead-eyebrow"><span class="rule"></span>نمای اختصاصی مدیریتی — محرمانه</div>
+        <h1>روایت راهبردی کسب‌وکارها</h1>
+        <p>یک نگاه به این‌که هر خط کسب‌وکار از کجا آمده، به کدام استراتژی گروه وصل است، عملکرد امروز آن چیست و چه دستاوردی داشته است.</p>
+      </div>
+      <div class="masthead-meta">
+        <div class="co">
+          <img src="{% static 'images/logo-mark.png' %}" alt="سایپا یدک" style="width:22px; height:22px; object-fit:contain; flex:none;">
+          <b>سایپا یدک</b>
+        </div>
+        اداره مطالعات و برنامه‌ریزی استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی<br>
+        <span style="opacity:.75;">{% jalali_now %}</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ نوار خلاصه‌ی اجرایی ============ -->
+  {% if cards %}
+  <div class="exec-strip" id="exec-summary">
+    <div class="exec-grid">
+      <div class="exec-cell ring-cell">
+        <div class="ring" style="--deg:{{ summary.holding_avg_deg|default:0 }}deg; --ring-color:{{ summary.holding_avg_color }};">
+          <div class="ring-inner"><b>{% if summary.holding_avg %}{{ summary.holding_avg|fanum }}٪{% else %}—{% endif %}</b><span>میانگین</span></div>
+        </div>
+        <div>
+          <div class="lbl">میانگین تحقق اهداف سازمان</div>
+        </div>
+      </div>
+      <div class="exec-cell">
+        <div class="lbl">کسب‌وکارهای پایش‌شده</div>
+        <div class="val">{{ summary.bu_count|fanum }} <small>خط کسب‌وکار</small></div>
+        <div class="sub">{{ summary.total_objectives|fanum }} هدف راهبردی فعال</div>
+      </div>
+      <div class="exec-cell">
+        <div class="lbl">پروژه‌ها و اقدامات</div>
+        <div class="val">{{ summary.total_initiatives|fanum }} <small>مورد</small></div>
+        <div class="sub">{{ summary.done_initiatives|fanum }} تکمیل‌شده · {{ summary.active_initiatives|fanum }} در حال اجرا</div>
+      </div>
+      <div class="exec-cell">
+        <div class="lbl">برترین عملکرد</div>
+        {% if summary.best %}
+        <div class="val" style="font-size:16px; color:var(--green);">{{ summary.best.bu.name }}</div>
+        <div class="sub">{{ summary.best.overall_pct|fanum }}٪ تحقق اهداف</div>
+        {% else %}<div class="sub">—</div>{% endif %}
+      </div>
+      <div class="exec-cell">
+        <div class="lbl">نیازمند توجه فوری</div>
+        {% if summary.worst %}
+        <div class="val" style="font-size:16px; color:var(--red);">{{ summary.worst.bu.name }}</div>
+        <div class="sub">{{ summary.worst.overall_pct|fanum }}٪ تحقق اهداف</div>
+        {% else %}<div class="sub">—</div>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="wrap">
+
+    {% if cards %}
+    <div class="section-label"><span class="num">1</span><span>پرتفوی کسب‌وکارها — نمای کلی</span><span class="line"></span></div>
+    <div class="portfolio-grid">
+      {% for c in cards %}
+      <a class="p-card" href="#bu-{{ c.bu.pk }}" style="--rank-color:{{ c.overall_color }};">
+        <div class="p-card-top">
+          <div>
+            <div class="p-card-id">{{ c.bu.name }}</div>
+            <div class="p-card-arch">{{ c.archetype_label }}</div>
+          </div>
+          <div class="p-ring" style="--deg:{{ c.overall_deg }}deg; --ring-color:{{ c.overall_color }};">
+            <div class="p-ring-inner" style="color:{{ c.overall_color }};">{% if c.overall_pct %}{{ c.overall_pct|fanum }}{% else %}—{% endif %}</div>
+          </div>
+        </div>
+        <div class="p-card-foot">
+          <span>{{ c.objective_count|fanum }} هدف · {{ c.initiative_count|fanum }} پروژه</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+    <div class="section-label"><span class="num">2</span><span>داستان هر کسب‌وکار</span><span class="line"></span></div>
+
+    {% for c in cards %}
+    <section class="story" id="bu-{{ c.bu.pk }}">
+      <div class="story-head">
+        <div class="story-head-left">
+          <div class="story-num">{{ forloop.counter|stringformat:"02d"|fanum }}</div>
+          <div>
+            <h2>{{ c.bu.name }}</h2>
+            <div class="arche"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><use href="#ic-target"/></svg>رویکرد راهبردی: {{ c.archetype_label }}</div>
+          </div>
+        </div>
+        <div class="story-score">
+          <div class="story-score-label">میانگین تحقق<br><b>اهداف راهبردی</b></div>
+          <div class="s-ring" style="--deg:{{ c.overall_deg }}deg; --ring-color:{{ c.overall_color }};">
+            <div class="s-ring-inner"><b>{% if c.overall_pct %}{{ c.overall_pct|fanum }}٪{% else %}—{% endif %}</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-body">
+
+        <div class="story-row">
+          <div class="story-block" style="flex:1.3;">
+            <div class="blk-h"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-compass"/></svg></span>از کجا آمده</div>
+            <div class="origin-text">{{ c.origin_text }}</div>
+          </div>
+          <div class="story-block">
+            <div class="blk-h"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-link"/></svg></span>پیوند با استراتژی</div>
+            {% if c.tags %}
+            <div class="tag-row">{% for t in c.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+            {% else %}
+            <div class="perf-empty">هنوز محور استراتژیکی ثبت نشده است.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="story-row">
+          <div class="story-block" style="flex:1 1 100%;">
+            <div class="blk-h">
+              <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-target"/></svg></span>
+              استراتژی‌ها، شاخص‌ها و پروژه‌های اجراکننده هرکدام
+              <span class="blk-h-count">{{ c.objective_count|fanum }} هدف</span>
+            </div>
+            {% if c.objectives_top %}
+            <div class="obj-list">
+              {% for o in c.objectives_top %}{% include "strategic/_executive_obj_row.html" %}{% endfor %}
+            </div>
+            {% if c.objectives_rest %}
+            <details class="more-details">
+              <summary>مشاهده {{ c.objectives_rest_count|fanum }} هدف دیگر</summary>
+              <div class="obj-list" style="margin-top:10px;">
+                {% for o in c.objectives_rest %}{% include "strategic/_executive_obj_row.html" %}{% endfor %}
+              </div>
+            </details>
+            {% endif %}
+            {% if c.unlinked_count %}
+            <div class="unlinked-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-compass"/></svg>
+              {{ c.unlinked_count|fanum }} پروژه/اقدام این کسب‌وکار هنوز به هیچ هدف استراتژیکی وصل نشده است.
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="obj-empty">هنوز هدف استراتژیکی برای این کسب‌وکار ثبت نشده است.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="story-row">
+          <div class="story-block" style="flex:1 1 100%;">
+            <div class="blk-h"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-trophy"/></svg></span>نتیجه و تاثیر نهایی</div>
+            <div class="impact-box">{{ c.impact_text }}</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+    {% endfor %}
+
+    {% else %}
+    <div class="empty-state">هنوز هیچ کسب‌وکاری در سامانه تعریف نشده است.</div>
+    {% endif %}
+
+  </div>
+
+  <div class="footer-note">
+    <div class="rule"></div>
+    نمای اجرایی هیات مدیره — سامانه مدیریت راهبردی سایپا یدک · اداره مطالعات و برنامه‌ریزی استراتژیک
+  </div>
+
+  <!-- پنجره‌ی مشترک نمودار روند: با کلیک روی هر شاخصِ دارای روند، همین یک پنجره
+       باز می‌شود و همان نمودار روندِ Chart.js «بانک شاخص‌های عملیاتی» را از همان
+       endpoint موجود (operational_kpi_trend_data) برای آن شاخص می‌سازد. -->
+  <div class="trend-modal-backdrop" id="showTrendBackdrop" onclick="if(event.target===this) closeTrend()">
+    <div class="trend-modal">
+      <div class="trend-modal-head">
+        <div>
+          <div class="trend-modal-kicker" id="showTrendKicker">روند ماهانه</div>
+          <div class="trend-modal-title" id="showTrendTitle">—</div>
+        </div>
+        <button type="button" class="trend-close" onclick="closeTrend()" aria-label="بستن">✕</button>
+      </div>
+
+      <div class="trend-mode-row">
+        <button type="button" class="trend-mode-btn active" id="showTrendModeSingleBtn" onclick="showTrendSwitchMode('single')">یک سال</button>
+        <button type="button" class="trend-mode-btn" id="showTrendModeMultiBtn" onclick="showTrendSwitchMode('multi')">مقایسه چندسال</button>
+      </div>
+
+      <div id="showTrendSingleBlock">
+        <div class="trend-year-row" id="showTrendYearRow" style="display:none;">
+          <label>سال:</label>
+          <select id="showTrendYearSelect"></select>
+        </div>
+      </div>
+
+      <div id="showTrendMultiBlock" style="display:none;">
+        <div class="trend-multi-cols">
+          <div class="trend-multi-col">
+            <b>خط هدف — برای این سال‌ها نشان بده</b>
+            <div id="showTrendMultiTargetChecks"></div>
+          </div>
+          <div class="trend-multi-col">
+            <b>ستون عملکرد — برای این سال‌ها نشان بده</b>
+            <div id="showTrendMultiActualChecks"></div>
+          </div>
+        </div>
+        <div class="trend-multi-warning" id="showTrendMultiWarning" style="display:none;"></div>
+      </div>
+
+      <div class="trend-chart-wrap">
+        <div class="trend-loading" id="showTrendLoading">در حال بارگذاری نمودار...</div>
+        <div class="trend-empty" id="showTrendEmpty" style="display:none;"></div>
+        <canvas id="showTrendCanvas" style="display:none;"></canvas>
+      </div>
+      <div class="trend-project-note" id="showTrendProjectNote" style="display:none;">
+        <b>🚩</b> پرچم رنگی بالای نمودار یعنی در آن ماه، پروژه/اقدامی مرتبط با این شاخص شروع شده است (برای جزئیات، اشاره‌گر را روی همان ستون نگه دارید).
+      </div>
+    </div>
+  </div>
+
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script>
+  // پنجره‌ی نمودار روند این نما هیچ محاسبه‌ی جدیدی انجام نمی‌دهد؛ عیناً همان دو
+  // endpoint و همان منطق Chart.js «بانک شاخص‌های عملیاتی» را استفاده می‌کند —
+  // هم نمای «یک سال» با پرچم شروع پروژه‌ها روی نمودار، و هم «مقایسه‌ی چندسال».
+
+  // فونت پیش‌فرض Chart.js را با فونت رسمی سامانه یکی می‌کنیم — برخلاف عناصر HTML
+  // معمولی، بوم (canvas) نمودار از font-family صفحه ارث نمی‌برد و باید صریحاً
+  // همین‌جا تنظیم شود، وگرنه متن نمودار با فونت پیش‌فرض مرورگر نمایش داده می‌شود.
+  if (window.Chart) {
+    Chart.defaults.font.family = "'Vazirmatn','IRANSans',Tahoma,sans-serif";
+  }
+
+  const SHOW_TREND_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_data' 999999 %}";
+  const SHOW_TREND_MULTI_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_multi' 999999 %}";
+  const SHOW_YEAR_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'];
+  const SHOW_TREND_MAX_SERIES = 5;
+  const SHOW_FLAG_COLOR = '#B0413E';
+  const SHOW_FLAG_BAND_COLOR = 'rgba(176,65,62,0.08)';
+
+  let showTrendChartInstance = null;
+  let showTrendCurrentKpiId = null;
+  let showTrendMode = 'single';
+  let showTrendSingleData = null;
+  let showTrendMultiLoaded = false;
+  let showTrendMultiData = null;
+  let showTrendMultiColors = {};
+  let showTrendUnitLabel = '';
+
+  function showTrendUrl(kpiId, year){
+    let url = SHOW_TREND_URL_TEMPLATE.replace('999999', kpiId);
+    if(year){ url += '?year=' + encodeURIComponent(year); }
+    return url;
+  }
+
+  function showTrend(kpiId, code, name, unit){
+    if(!kpiId) return;
+    if(kpiId !== showTrendCurrentKpiId){
+      showTrendMultiLoaded = false;
+      showTrendMultiData = null;
+    }
+    showTrendCurrentKpiId = kpiId;
+    showTrendUnitLabel = unit ? ' (' + unit + ')' : '';
+    showTrendMode = 'single';
+    document.getElementById('showTrendModeSingleBtn').className = 'trend-mode-btn active';
+    document.getElementById('showTrendModeMultiBtn').className = 'trend-mode-btn';
+    document.getElementById('showTrendSingleBlock').style.display = 'block';
+    document.getElementById('showTrendMultiBlock').style.display = 'none';
+    document.getElementById('showTrendBackdrop').classList.add('open');
+    document.getElementById('showTrendKicker').textContent = 'روند ماهانه · ' + code;
+    document.getElementById('showTrendTitle').textContent = name;
+    document.getElementById('showTrendYearRow').style.display = 'none';
+    document.getElementById('showTrendLoading').style.display = 'block';
+    document.getElementById('showTrendEmpty').style.display = 'none';
+    document.getElementById('showTrendCanvas').style.display = 'none';
+    document.getElementById('showTrendProjectNote').style.display = 'none';
+
+    fetchSingleTrend(kpiId, null);
+  }
+
+  function fetchSingleTrend(kpiId, year){
+    fetch(showTrendUrl(kpiId, year))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        document.getElementById('showTrendLoading').style.display = 'none';
+        if(!res.ok || data.error){
+          document.getElementById('showTrendEmpty').textContent = data.error || 'خطا در دریافت داده نمودار.';
+          document.getElementById('showTrendEmpty').style.display = 'block';
+          return;
+        }
+        showTrendSingleData = data;
+        if(!data.years || data.years.length === 0){
+          document.getElementById('showTrendEmpty').textContent = 'هنوز داده روندی برای این شاخص ثبت نشده است.';
+          document.getElementById('showTrendEmpty').style.display = 'block';
+          return;
+        }
+        const yearSelect = document.getElementById('showTrendYearSelect');
+        yearSelect.innerHTML = '';
+        data.years.forEach(function(y){
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = 'سال ' + y;
+          if(y === data.selected_year){ opt.selected = true; }
+          yearSelect.appendChild(opt);
+        });
+        document.getElementById('showTrendYearRow').style.display = data.years.length > 1 ? 'flex' : 'none';
+        document.getElementById('showTrendCanvas').style.display = 'block';
+        renderShowTrendChart(data);
+      })
+      .catch(function(){
+        document.getElementById('showTrendLoading').style.display = 'none';
+        document.getElementById('showTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('showTrendEmpty').style.display = 'block';
+      });
+  }
+
+  document.getElementById('showTrendYearSelect').addEventListener('change', function(){
+    if(showTrendCurrentKpiId){ fetchSingleTrend(showTrendCurrentKpiId, this.value); }
+  });
+
+  function showTrendSwitchMode(mode){
+    if(!showTrendCurrentKpiId) return;
+    showTrendMode = mode;
+    document.getElementById('showTrendModeSingleBtn').className = mode === 'single' ? 'trend-mode-btn active' : 'trend-mode-btn';
+    document.getElementById('showTrendModeMultiBtn').className = mode === 'multi' ? 'trend-mode-btn active' : 'trend-mode-btn';
+    document.getElementById('showTrendSingleBlock').style.display = mode === 'single' ? 'block' : 'none';
+    document.getElementById('showTrendMultiBlock').style.display = mode === 'multi' ? 'block' : 'none';
+
+    if(mode === 'single'){
+      if(showTrendSingleData && showTrendSingleData.years && showTrendSingleData.years.length){
+        document.getElementById('showTrendEmpty').style.display = 'none';
+        document.getElementById('showTrendCanvas').style.display = 'block';
+        renderShowTrendChart(showTrendSingleData);
+      } else {
+        document.getElementById('showTrendCanvas').style.display = 'none';
+        document.getElementById('showTrendEmpty').textContent = 'هنوز داده روندی برای این شاخص ثبت نشده است.';
+        document.getElementById('showTrendEmpty').style.display = 'block';
+      }
+    } else {
+      document.getElementById('showTrendProjectNote').style.display = 'none';
+      if(showTrendMultiLoaded){
+        renderShowTrendMultiChart();
+      } else {
+        loadShowTrendMulti(showTrendCurrentKpiId);
+      }
+    }
+  }
+
+  function loadShowTrendMulti(kpiId){
+    document.getElementById('showTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">در حال بارگذاری...</span>';
+    document.getElementById('showTrendMultiActualChecks').innerHTML = '';
+    document.getElementById('showTrendMultiWarning').style.display = 'none';
+
+    fetch(SHOW_TREND_MULTI_URL_TEMPLATE.replace('999999', kpiId))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        if(!res.ok || data.error){
+          document.getElementById('showTrendMultiTargetChecks').innerHTML = '';
+          document.getElementById('showTrendCanvas').style.display = 'none';
+          document.getElementById('showTrendEmpty').textContent = data.error || 'خطا در دریافت داده.';
+          document.getElementById('showTrendEmpty').style.display = 'block';
+          return;
+        }
+        showTrendMultiData = data;
+        showTrendMultiLoaded = true;
+        showTrendMultiColors = {};
+        data.years.forEach(function(y, idx){ showTrendMultiColors[y] = SHOW_YEAR_PALETTE[idx % SHOW_YEAR_PALETTE.length]; });
+
+        if(!data.years || data.years.length === 0){
+          document.getElementById('showTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">داده‌ای ثبت نشده است.</span>';
+          document.getElementById('showTrendMultiActualChecks').innerHTML = '';
+          document.getElementById('showTrendCanvas').style.display = 'none';
+          document.getElementById('showTrendEmpty').textContent = 'هنوز داده روندی برای این شاخص ثبت نشده است.';
+          document.getElementById('showTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        const descYears = data.years.slice().reverse();
+        const defaultTargetYears = descYears.length ? [descYears[0]] : [];
+        const defaultActualYears = descYears.slice(0, Math.min(3, descYears.length));
+
+        const targetBox = document.getElementById('showTrendMultiTargetChecks');
+        const actualBox = document.getElementById('showTrendMultiActualChecks');
+        targetBox.innerHTML = '';
+        actualBox.innerHTML = '';
+
+        descYears.forEach(function(y){
+          const color = showTrendMultiColors[y];
+
+          const targetLabel = document.createElement('label');
+          targetLabel.className = 'trend-multi-check';
+          const targetCb = document.createElement('input');
+          targetCb.type = 'checkbox'; targetCb.dataset.role = 'target'; targetCb.dataset.year = y;
+          targetCb.checked = defaultTargetYears.indexOf(y) > -1;
+          const targetSwatch = document.createElement('span');
+          targetSwatch.className = 'trend-swatch'; targetSwatch.style.background = color;
+          targetLabel.appendChild(targetCb);
+          targetLabel.appendChild(targetSwatch);
+          targetLabel.appendChild(document.createTextNode('سال ' + y));
+          targetBox.appendChild(targetLabel);
+
+          const actualLabel = document.createElement('label');
+          actualLabel.className = 'trend-multi-check';
+          const actualCb = document.createElement('input');
+          actualCb.type = 'checkbox'; actualCb.dataset.role = 'actual'; actualCb.dataset.year = y;
+          actualCb.checked = defaultActualYears.indexOf(y) > -1;
+          const actualSwatch = document.createElement('span');
+          actualSwatch.className = 'trend-swatch'; actualSwatch.style.background = color;
+          actualLabel.appendChild(actualCb);
+          actualLabel.appendChild(actualSwatch);
+          actualLabel.appendChild(document.createTextNode('سال ' + y));
+          actualBox.appendChild(actualLabel);
+        });
+
+        targetBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', onShowTrendMultiCheckChange); });
+        actualBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', onShowTrendMultiCheckChange); });
+
+        document.getElementById('showTrendEmpty').style.display = 'none';
+        document.getElementById('showTrendCanvas').style.display = 'block';
+        renderShowTrendMultiChart();
+      })
+      .catch(function(){
+        document.getElementById('showTrendCanvas').style.display = 'none';
+        document.getElementById('showTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('showTrendEmpty').style.display = 'block';
+      });
+  }
+
+  function onShowTrendMultiCheckChange(e){
+    const totalChecked = document.querySelectorAll('#showTrendMultiBlock input[type=checkbox]:checked').length;
+    if(totalChecked > SHOW_TREND_MAX_SERIES){
+      e.target.checked = false;
+      document.getElementById('showTrendMultiWarning').textContent = 'برای خوانا ماندن نمودار، حداکثر ' + SHOW_TREND_MAX_SERIES + ' سری هم‌زمان قابل انتخاب است. یکی را بردارید تا بتوانید مورد دیگری اضافه کنید.';
+      document.getElementById('showTrendMultiWarning').style.display = 'block';
+      return;
+    }
+    document.getElementById('showTrendMultiWarning').style.display = 'none';
+    renderShowTrendMultiChart();
+  }
+
+  function renderShowTrendChart(data){
+    const canvas = document.getElementById('showTrendCanvas');
+    if(showTrendChartInstance){ showTrendChartInstance.destroy(); }
+    const unitLabel = showTrendUnitLabel || (data.unit ? ' (' + data.unit + ')' : '');
+    const projectStarts = data.project_starts || [];
+    const hasProjectMarkers = projectStarts.some(function(list){ return list && list.length > 0; });
+
+    // پرچم شروع پروژه/اقدام بالای هر ماه — عیناً همان پلاگین بانک شاخص‌های عملیاتی
+    const projectFlagPlugin = {
+      id: 'showProjectFlags',
+      afterDatasetsDraw: function(chart){
+        if(!hasProjectMarkers) return;
+        const { ctx, chartArea, scales } = chart;
+        const xScale = scales.x;
+        const actualMeta = chart.getDatasetMeta(1);
+        ctx.save();
+        projectStarts.forEach(function(list, i){
+          if(!list || !list.length) return;
+          const x = xScale.getPixelForValue(i);
+          const bandHalfWidth = Math.min(22, (xScale.width / Math.max(projectStarts.length, 1)) / 2);
+          ctx.fillStyle = SHOW_FLAG_BAND_COLOR;
+          ctx.fillRect(x - bandHalfWidth, chartArea.top, bandHalfWidth * 2, chartArea.bottom - chartArea.top);
+
+          const poleTop = chartArea.top + 6;
+          const poleBottom = chartArea.top + 30;
+          const pointEl = actualMeta.data[i];
+          const pointY = pointEl ? pointEl.y : chartArea.bottom;
+
+          ctx.beginPath();
+          ctx.setLineDash([3, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = SHOW_FLAG_COLOR;
+          ctx.moveTo(x, poleBottom);
+          ctx.lineTo(x, pointY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.beginPath();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = SHOW_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x, poleBottom);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.fillStyle = SHOW_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x + 15, poleTop + 5.5);
+          ctx.lineTo(x, poleTop + 11);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.fillStyle = SHOW_FLAG_COLOR;
+          ctx.arc(x, poleBottom, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      },
+    };
+
+    showTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: data.months,
+        datasets: [
+          {
+            label: 'هدف' + unitLabel,
+            data: data.target,
+            borderColor: '#2E5C8A',
+            backgroundColor: '#2E5C8A',
+            borderDash: [6, 4],
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#2E5C8A',
+          },
+          {
+            label: 'عملکرد' + unitLabel,
+            data: data.actual,
+            borderColor: '#C97A2B',
+            backgroundColor: 'rgba(201,122,43,0.10)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#C97A2B',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: hasProjectMarkers ? 26 : 4 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true, font: { size: 11 } } },
+          tooltip: {
+            rtl: true,
+            titleAlign: 'right',
+            bodyAlign: 'right',
+            callbacks: {
+              afterBody: function(items){
+                if(!items || !items.length) return [];
+                const idx = items[0].dataIndex;
+                const list = projectStarts[idx];
+                if(!list || !list.length) return [];
+                const lines = ['', '🚩 شروع پروژه/اقدام در این ماه:'];
+                list.forEach(function(p){ lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title); });
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10.5 } } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' }, ticks: { font: { size: 10.5 } } },
+        },
+      },
+      plugins: [projectFlagPlugin],
+    });
+
+    document.getElementById('showTrendProjectNote').style.display = hasProjectMarkers ? 'block' : 'none';
+  }
+
+  function renderShowTrendMultiChart(){
+    if(!showTrendMultiData) return;
+    const data = showTrendMultiData;
+    const canvas = document.getElementById('showTrendCanvas');
+    if(showTrendChartInstance){ showTrendChartInstance.destroy(); }
+    const unitLabel = showTrendUnitLabel || (data.unit ? ' (' + data.unit + ')' : '');
+
+    const targetYears = Array.prototype.slice.call(document.querySelectorAll('#showTrendMultiTargetChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+    const actualYears = Array.prototype.slice.call(document.querySelectorAll('#showTrendMultiActualChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+
+    const datasets = [];
+    targetYears.forEach(function(y){
+      const color = showTrendMultiColors[y];
+      datasets.push({
+        type: 'line', label: 'هدف ' + y + unitLabel, data: data.series[y].target,
+        borderColor: color, backgroundColor: color, borderDash: [6, 4], borderWidth: 2.5,
+        tension: 0.3, spanGaps: false, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: color, order: 1,
+      });
+    });
+    actualYears.forEach(function(y){
+      const color = showTrendMultiColors[y];
+      datasets.push({
+        type: 'bar', label: 'عملکرد ' + y + unitLabel, data: data.series[y].actual,
+        backgroundColor: color + 'AA', borderColor: color, borderWidth: 1, order: 2,
+      });
+    });
+
+    showTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: data.months, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true, font: { size: 11 } } },
+          tooltip: { rtl: true, titleAlign: 'right', bodyAlign: 'right' },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10.5 } } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' }, ticks: { font: { size: 10.5 } } },
+        },
+      },
+    });
+  }
+
+  function closeTrend(){
+    document.getElementById('showTrendBackdrop').classList.remove('open');
+  }
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ closeTrend(); }
+  });
+</script>
+</body>
+</html>

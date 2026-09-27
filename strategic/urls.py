@@ -103,4 +103,9 @@ urlpatterns = [
 
     path("login/", auth_views.LoginView.as_view(template_name="strategic/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(next_page="strategic:login"), name="logout"),
+
+    # نمای اجرایی/هیات مدیره — عمداً در هیچ منویی لینک نشده، فقط با تایپ دستی /show/
+    path("show/", views.executive_show, name="executive_show"),
+
+    path("kpi-heatmap/", views.kpi_heatmap, name="kpi_heatmap"),
 ]

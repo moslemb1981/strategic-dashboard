@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}پورتال اداره مطالعات و توسعه استراتژیک{% endblock %} | سایپا یدک</title>
+<title>{% block title %}پورتال اداره مطالعات و برنامه‌ریزی استراتژیک{% endblock %} | سایپا یدک</title>
 
 <!-- همه چیز لوکال است — هیچ درخواستی به اینترنت زده نمی‌شود -->
 <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
@@ -44,7 +44,7 @@
       <div class="brand">
         <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="سایپا یدک">
         <div class="company">سایپا یدک</div>
-        <div class="office">اداره مطالعات و توسعه استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
+        <div class="office">اداره مطالعات و برنامه‌ریزی استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
       </div>
       <nav class="nav">
         <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه <small style="opacity:.6;font-size:9px;">(اینفوگرافی)</small></a>
@@ -86,6 +86,7 @@
         <div class="nav-label">اجرا و پایش</div>
         <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت</a>
         <a class="nav-item {% if active_page == 'operational_kpis' %}active{% endif %}" href="{% url 'strategic:operational_kpis' %}"><i class="fa-solid fa-chart-line"></i>بانک شاخص‌های عملیاتی</a>
+        <a class="nav-item {% if active_page == 'kpi_heatmap' %}active{% endif %}" href="{% url 'strategic:kpi_heatmap' %}"><i class="fa-solid fa-border-all"></i>نقشه حرارتی شاخص‌ها</a>
         <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>پروژه‌های تحول</a>
         <a class="nav-item {% if active_page == 'market_intel' %}active{% endif %}" href="{% url 'strategic:market_intel' %}"><i class="fa-solid fa-earth-americas"></i>هوش بازار</a>
         {% if user.is_superuser %}

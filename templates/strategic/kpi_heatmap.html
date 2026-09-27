@@ -1,0 +1,337 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}نقشه حرارتی شاخص‌ها{% endblock %}
+{% block crumb %}نقشه حرارتی شاخص‌ها{% endblock %}
+
+<!-- نقشه‌ی حرارتی (Treemap) همه‌ی شاخص‌های سامانه (کلان + عملیاتی) در یک نگاه،
+     با الگوبرداری از نقشه‌ی بازار بورس: هر خانه یک شاخص، رنگ = وضعیت تحقق،
+     اندازه = اهمیت راهبردی (تعداد اتصال به هدف‌های استراتژیک). دسته‌بندی بر
+     اساس دپارتمانِ مالکِ شاخص است، نه کسب‌وکار — دلیلش در views.py (تابع
+     kpi_heatmap) به‌طور کامل توضیح داده شده. الگوریتم چیدمان، پیاده‌سازی
+     استاندارد Squarified Treemap است که کاملاً لوکال (بدون کتابخانه‌ی خارجی)
+     در پایین همین فایل نوشته شده. -->
+
+{% block extra_css %}
+<style>
+  .hm-wrap{margin:-24px -28px;padding:20px 28px 32px;background:#0d1b2e;color:#fff;min-height:calc(100vh - 0px);}
+  @media(max-width:900px){.hm-wrap{margin:-16px;padding:16px;}}
+
+  .hm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:14px;}
+  .hm-head h1{margin:0;font-size:19px;font-weight:800;color:#fff;}
+  .hm-head p{margin:6px 0 0;color:#9db3ca;font-size:11.5px;line-height:1.8;max-width:620px;}
+  .hm-stats{display:flex;gap:10px;flex-wrap:wrap;}
+  .hm-stat{min-width:92px;padding:8px 14px;border:1px solid rgba(255,255,255,.09);border-radius:11px;
+    background:rgba(255,255,255,.035);text-align:center;}
+  .hm-stat strong{display:block;font-size:16px;}
+  .hm-stat span{display:block;margin-top:2px;font-size:9px;color:#8198b1;}
+
+  .hm-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+    background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 14px;}
+  .hm-search{flex:1;min-width:200px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+    border-radius:9px;padding:8px 12px;color:#fff;font-size:12px;font-family:inherit;}
+  .hm-search::placeholder{color:#7f96b8;}
+  .hm-search:focus{outline:none;border-color:#4cc4ff;}
+  .hm-kind-btns{display:flex;gap:6px;}
+  .hm-kind-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#c7d2e0;
+    border-radius:999px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+  .hm-kind-btn.active{background:#1f7a52;border-color:#1f7a52;color:#fff;}
+  .hm-back-btn{display:flex;align-items:center;gap:7px;border:1px solid #4cc4ff;background:rgba(76,196,255,.12);
+    color:#4cc4ff;border-radius:999px;padding:6px 14px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .hm-back-btn:hover{background:rgba(76,196,255,.22);}
+  .hm-back-btn i{font-size:10px;}
+  .hm-legend{display:flex;align-items:center;gap:12px;font-size:10.5px;color:#c7d2e0;margin-inline-start:auto;flex-wrap:wrap;}
+  .hm-legend-item{display:flex;align-items:center;gap:5px;}
+  .hm-legend-dot{width:11px;height:11px;border-radius:3px;flex:none;}
+
+  .hm-empty{padding:60px 20px;text-align:center;color:#8198b1;font-size:13px;display:none;}
+  .hm-empty.show{display:block;}
+
+  #hm-canvas{position:relative;width:100%;height:76vh;min-height:560px;}
+
+  .hm-dept{position:absolute;box-sizing:border-box;padding:2px;overflow:hidden;}
+  .hm-dept-inner{position:relative;width:100%;height:100%;border-radius:6px;overflow:hidden;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);}
+  .hm-dept-head{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
+    gap:8px;padding:4px 9px;background:rgba(8,17,30,.88);backdrop-filter:blur(2px);
+    border-bottom:1px solid rgba(255,255,255,.1);font-size:10.5px;font-weight:800;white-space:nowrap;cursor:zoom-in;}
+  .hm-dept-head:hover{background:rgba(20,36,58,.95);}
+  .hm-dept-head .n{overflow:hidden;text-overflow:ellipsis;color:#e8edf5;}
+  .hm-dept-head .p{flex:none;font-weight:800;}
+  .hm-dept-body{position:absolute;inset:0;}
+
+  .hm-item{position:absolute;box-sizing:border-box;padding:1px;}
+  .hm-item-inner{width:100%;height:100%;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;overflow:hidden;cursor:default;transition:filter .12s, transform .12s; position:relative;}
+  .hm-item-inner:hover{filter:brightness(1.18);transform:scale(1.015);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.4);}
+  .hm-item-code{font-size:9.5px;font-weight:800;color:rgba(255,255,255,.95);line-height:1.3;}
+  .hm-item-pct{font-size:9px;font-weight:700;color:rgba(255,255,255,.85);line-height:1.3;}
+  .hm-item.tiny .hm-item-code, .hm-item.tiny .hm-item-pct{font-size:0;}
+  .hm-item-title{font-size:9px;font-weight:600;color:rgba(255,255,255,.78);line-height:1.35;
+    margin-top:4px;padding:0 5px;max-width:100%;display:-webkit-box;-webkit-line-clamp:3;
+    -webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;}
+
+  .hm-tip{position:fixed;z-index:999;pointer-events:none;background:#0d1b2e;border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:10px 13px;font-size:11px;color:#e8edf5;max-width:280px;line-height:1.8;
+    box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;}
+  .hm-tip b{display:block;font-size:12px;margin-bottom:3px;color:#fff;}
+  .hm-tip .hm-tip-code{color:#8198b1;font-size:10px;}
+  .hm-tip .hm-tip-row{display:flex;justify-content:space-between;gap:14px;margin-top:5px;}
+  .hm-tip .hm-tip-row span:first-child{color:#8198b1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hm-wrap">
+  <div class="hm-head">
+    <div>
+      <h1>نقشه حرارتی شاخص‌ها</h1>
+      <p>همه‌ی شاخص‌های کلان و عملیاتی سامانه در یک نگاه — دسته‌بندی‌شده بر اساس دپارتمانِ مالکِ هر شاخص.</p>
+    </div>
+    <div class="hm-stats">
+      <div class="hm-stat"><strong>{{ total_kpis|fanum }}</strong><span>کل شاخص‌ها</span></div>
+      <div class="hm-stat"><strong>{{ total_departments|fanum }}</strong><span>دپارتمان</span></div>
+      <div class="hm-stat"><strong>{{ scored_total|fanum }}</strong><span>دارای مقدار</span></div>
+    </div>
+  </div>
+
+  <div class="hm-toolbar">
+    <button type="button" id="hmBackBtn" class="hm-back-btn" style="display:none;">
+      <i class="fa-solid fa-arrow-right"></i>بازگشت به همه‌ی دپارتمان‌ها
+    </button>
+    <input type="text" id="hmSearch" class="hm-search" placeholder="جست‌وجوی کد یا عنوان شاخص…">
+    <div class="hm-kind-btns">
+      <button type="button" class="hm-kind-btn active" data-kind="all">همه</button>
+      <button type="button" class="hm-kind-btn" data-kind="عملیاتی">عملیاتی</button>
+      <button type="button" class="hm-kind-btn" data-kind="کلان">کلان</button>
+    </div>
+    <div class="hm-legend">
+      <div class="hm-legend-item"><span class="hm-legend-dot" style="background:#3E7A52;"></span>در مسیر (≥۹۰٪)</div>
+      <div class="hm-legend-item"><span class="hm-legend-dot" style="background:#C97A2B;"></span>نیازمند پیگیری (۸۰-۸۹٪)</div>
+      <div class="hm-legend-item"><span class="hm-legend-dot" style="background:#B0413E;"></span>در معرض ریسک (زیر ۸۰٪)</div>
+      <div class="hm-legend-item"><span class="hm-legend-dot" style="background:#9aa1ab;"></span>بدون مقدار</div>
+    </div>
+  </div>
+
+  <div id="hm-canvas"></div>
+  <div class="hm-empty" id="hmEmpty">هیچ شاخصی با این فیلتر پیدا نشد.</div>
+</div>
+
+<div class="hm-tip" id="hmTip"></div>
+
+{{ departments|json_script:"hm-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const RAW = JSON.parse(document.getElementById('hm-data').textContent);
+  const canvas = document.getElementById('hm-canvas');
+  const emptyEl = document.getElementById('hmEmpty');
+  const tip = document.getElementById('hmTip');
+  const searchEl = document.getElementById('hmSearch');
+  const kindBtns = document.querySelectorAll('.hm-kind-btn');
+  let activeKind = 'all';
+
+  // ---------- الگوریتم استاندارد Squarified Treemap ----------
+  // ورودی: آرایه‌ای از {value, ...}. خروجی: همان آیتم‌ها به‌همراه {x,y,w,h}.
+  function squarify(data, x, y, w, h) {
+    const items = data.filter(d => d.value > 0);
+    const total = items.reduce((s, d) => s + d.value, 0);
+    if (total <= 0 || w <= 0 || h <= 0) return [];
+    const scale = (w * h) / total;
+    let rest = items.map(d => Object.assign({}, d, {area: d.value * scale}))
+                     .sort((a, b) => b.area - a.area);
+    const rects = [];
+    let rx = x, ry = y, rw = w, rh = h;
+
+    function worst(row, length) {
+      const sum = row.reduce((s, r) => s + r.area, 0);
+      const rmax = Math.max.apply(null, row.map(r => r.area));
+      const rmin = Math.min.apply(null, row.map(r => r.area));
+      const s2 = sum * sum, l2 = length * length;
+      return Math.max((l2 * rmax) / s2, s2 / (l2 * rmin));
+    }
+
+    while (rest.length) {
+      const length = Math.min(rw, rh);
+      let row = [rest[0]];
+      let i = 1;
+      while (i < rest.length) {
+        const testRow = row.concat([rest[i]]);
+        if (worst(testRow, length) <= worst(row, length)) { row = testRow; i++; }
+        else break;
+      }
+      const rowSum = row.reduce((s, r) => s + r.area, 0);
+      if (rw >= rh) {
+        const stripW = Math.max(rowSum / rh, 0.0001);
+        let cy = ry;
+        row.forEach(r => {
+          const rectH = r.area / stripW;
+          rects.push(Object.assign({}, r, {x: rx, y: cy, w: stripW, h: rectH}));
+          cy += rectH;
+        });
+        rx += stripW; rw -= stripW;
+      } else {
+        const stripH = Math.max(rowSum / rw, 0.0001);
+        let cx = rx;
+        row.forEach(r => {
+          const rectW = r.area / stripH;
+          rects.push(Object.assign({}, r, {x: cx, y: ry, w: rectW, h: stripH}));
+          cx += rectW;
+        });
+        ry += stripH; rh -= stripH;
+      }
+      rest = rest.slice(row.length);
+    }
+    return rects;
+  }
+
+  function fmtNum(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    const s = String(v);
+    const fa = '۰۱۲۳۴۵۶۷۸۹';
+    return s.replace(/[0-9]/g, d => fa[d]);
+  }
+
+  function itemMatches(item) {
+    if (activeKind !== 'all' && item.kind !== activeKind) return false;
+    const q = searchEl.value.trim();
+    if (!q) return true;
+    const hay = (item.code + ' ' + item.title).toLowerCase();
+    return hay.indexOf(q.toLowerCase()) !== -1;
+  }
+
+  let zoomedDept = null;
+  const backBtn = document.getElementById('hmBackBtn');
+
+  function buildDeptData() {
+    return RAW.map(d => {
+      const items = d.items.filter(itemMatches);
+      const value = items.reduce((s, it) => s + Math.max(it.links, 1), 0);
+      return {name: d.name, avg_pct: d.avg_pct, avg_color: d.avg_color, count: items.length, items: items, value: value};
+    }).filter(d => d.value > 0);
+  }
+
+  function renderItemsInto(body, items, w, h, showTitle) {
+    const itemData = items.map(it => Object.assign({}, it, {value: Math.max(it.links, 1)}));
+    const itemRects = squarify(itemData, 0, 0, Math.max(w, 0), Math.max(h, 0));
+    itemRects.forEach(ir => {
+      const cell = document.createElement('div');
+      const isTiny = ir.w < 30 || ir.h < 22;
+      cell.className = 'hm-item' + (isTiny ? ' tiny' : '');
+      cell.style.left = ir.x + 'px'; cell.style.top = ir.y + 'px';
+      cell.style.width = ir.w + 'px'; cell.style.height = ir.h + 'px';
+
+      const cellInner = document.createElement('div');
+      cellInner.className = 'hm-item-inner';
+      cellInner.style.background = ir.color;
+      // اسم کامل شاخص فقط وقتی نشون داده می‌شه که هم درخواست شده باشه (حالت
+      // زوم‌شده روی یک دپارتمان) و هم خانه به اندازه‌ی کافی بزرگ باشه؛ در نمای
+      // کلی (همه‌ی دپارتمان‌ها کنار هم) که خانه‌ها ریزن، شلوغ نمی‌شه.
+      const canShowTitle = showTitle && !isTiny && ir.w >= 70 && ir.h >= 46;
+      cellInner.innerHTML = '<div class="hm-item-code">' + ir.code + '</div>' +
+        (ir.pct !== null ? '<div class="hm-item-pct">' + fmtNum(ir.pct) + '٪</div>' : '') +
+        (canShowTitle ? '<div class="hm-item-title">' + ir.title + '</div>' : '');
+
+      cellInner.addEventListener('mousemove', function(e){ showTip(e, ir); });
+      cellInner.addEventListener('mouseleave', hideTip);
+
+      cell.appendChild(cellInner);
+      body.appendChild(cell);
+    });
+  }
+
+  function render() {
+    canvas.innerHTML = '';
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const deptData = buildDeptData();
+
+    // اگه روی یک دپارتمان زوم کرده باشیم، فقط همون یکی رو با تمام فضای
+    // نقشه (بدون تقسیم بین دپارتمان‌های دیگه) نشون بده تا بشه دقیق‌تر بررسیش کرد.
+    const zoomed = zoomedDept ? deptData.find(d => d.name === zoomedDept) : null;
+    backBtn.style.display = zoomed ? 'flex' : 'none';
+
+    if (zoomedDept && !zoomed) { zoomedDept = null; }
+
+    if (zoomed) {
+      if (!zoomed.items.length) { emptyEl.classList.add('show'); return; }
+      emptyEl.classList.remove('show');
+      const body = document.createElement('div');
+      body.style.position = 'absolute'; body.style.inset = '0';
+      canvas.appendChild(body);
+      renderItemsInto(body, zoomed.items, W, H, true);
+      return;
+    }
+
+    if (!deptData.length) { emptyEl.classList.add('show'); return; }
+    emptyEl.classList.remove('show');
+
+    const deptRects = squarify(deptData, 0, 0, W, H);
+
+    deptRects.forEach(dr => {
+      const box = document.createElement('div');
+      box.className = 'hm-dept';
+      box.style.left = dr.x + 'px'; box.style.top = dr.y + 'px';
+      box.style.width = dr.w + 'px'; box.style.height = dr.h + 'px';
+
+      const inner = document.createElement('div');
+      inner.className = 'hm-dept-inner';
+
+      const headH = dr.h > 30 ? 22 : 0;
+      if (headH) {
+        const head = document.createElement('div');
+        head.className = 'hm-dept-head';
+        head.innerHTML = '<span class="n" title="' + dr.name + '">' + dr.name + ' (' + fmtNum(dr.count) + ')</span>' +
+          '<span class="p" style="color:' + dr.avg_color + ';">' + (dr.avg_pct !== null ? fmtNum(dr.avg_pct) + '٪' : '—') + '</span>';
+        head.addEventListener('click', function(){ zoomedDept = dr.name; render(); });
+        inner.appendChild(head);
+      }
+
+      const body = document.createElement('div');
+      body.className = 'hm-dept-body';
+      body.style.top = headH + 'px';
+
+      const bw = dr.w - 2, bh = dr.h - headH - 2;
+      renderItemsInto(body, dr.items, bw, bh);
+
+      inner.appendChild(body);
+      box.appendChild(inner);
+      canvas.appendChild(box);
+    });
+  }
+
+  function showTip(e, it) {
+    tip.style.display = 'block';
+    tip.style.left = Math.min(e.clientX + 16, window.innerWidth - 300) + 'px';
+    tip.style.top = Math.min(e.clientY + 16, window.innerHeight - 160) + 'px';
+    const targetLine = (it.target || it.actual)
+      ? '<div class="hm-tip-row"><span>هدف / عملکرد</span><span>' + fmtNum(it.actual || '—') + ' از ' + fmtNum(it.target || '—') + (it.unit ? ' ' + it.unit : '') + '</span></div>'
+      : '';
+    tip.innerHTML = '<b>' + it.title + '</b>' +
+      '<span class="hm-tip-code">' + it.code + ' · ' + it.kind + '</span>' +
+      '<div class="hm-tip-row"><span>درصد تحقق</span><span style="color:' + it.color + ';font-weight:800;">' + (it.pct !== null ? fmtNum(it.pct) + '٪' : '—') + '</span></div>' +
+      targetLine +
+      '<div class="hm-tip-row"><span>اتصال به اهداف</span><span>' + fmtNum(it.links) + ' هدف</span></div>';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+
+  backBtn.addEventListener('click', function(){ zoomedDept = null; render(); });
+  searchEl.addEventListener('input', render);
+  kindBtns.forEach(btn => btn.addEventListener('click', function(){
+    kindBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeKind = btn.dataset.kind;
+    render();
+  }));
+
+  let resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 150);
+  });
+
+  render();
+})();
+</script>
+{% endblock %}
