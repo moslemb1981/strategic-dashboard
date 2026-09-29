@@ -78,10 +78,19 @@
     width:16px;height:16px;flex:none;cursor:pointer;font-size:11px;line-height:1;display:flex;
     align-items:center;justify-content:center;padding:0;}
   .picker-chip button:hover{background:#B0413E;color:#fff;}
+
+  /* --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) --- */
+  .cg-tip{position:fixed;z-index:999;pointer-events:auto;background:#0d1b2e;border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:10px 13px;font-size:11px;color:#e8edf5;max-width:min(560px,90vw);max-height:min(70vh,340px);
+    overflow-y:auto;line-height:1.8;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;}
+  .cg-tip b{display:block;font-size:12px;margin-bottom:5px;color:#fff;}
+  .cg-tip .cg-tip-text{white-space:normal;word-break:break-word;overflow-wrap:break-word;}
+  .cg-tip .cg-tip-item{white-space:normal;word-break:break-word;overflow-wrap:break-word;text-indent:-1em;padding-inline-start:1em;padding-block:2px;}
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="cg-tip" id="cgTip"></div>
 <div class="topbar">
   <div><h1>اهداف کلان و KPI شرکت</h1><div class="sub">اهداف سطح کل سایپا یدک، مرتبط با نقشه استراتژیک ۳ ساله گروه سایپا</div></div>
   {% if perms.strategic.add_companyobjective %}
@@ -181,11 +190,11 @@
   <tbody id="kpiBody">
     {% for k in kpis %}
     <tr>
-      <td{% if k.source_operational_kpi %} style="cursor:help;" title="برگرفته از شاخص عملیاتی:&#10;{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.code }}{% if k.source_operational_kpi %} <i class="fa-solid fa-link" style="font-size:9px;color:var(--primary);"></i>{% endif %}</td>
-      <td{% if k.source_operational_kpi %} style="cursor:help;" title="برگرفته از شاخص عملیاتی:&#10;{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}</td>
+      <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.code }}{% if k.source_operational_kpi %} <i class="fa-solid fa-link" style="font-size:9px;color:var(--primary);"></i>{% endif %}</td>
+      <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}</td>
       <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
       <td>
-        {% if k.initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="پروژه‌های تحول متصل:&#10;{% for init in k.initiatives.all %}● {{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ k.initiatives.all|length }}</span>{% else %}<span style="color:var(--ink-faint);font-size:10.5px;">—</span>{% endif %}
+        {% if k.initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" data-tip-label="پروژه‌های تحول متصل" data-tip-items="{% for init in k.initiatives.all %}{{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ k.initiatives.all|length }}</span>{% else %}<span style="color:var(--ink-faint);font-size:10.5px;">—</span>{% endif %}
       </td>
       <td>{{ k.unit }}</td>
       <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}
@@ -202,7 +211,7 @@
       </td>
       <td>
         {% if k.is_monitoring %}<span class="kpi-monitor">پایشی</span>{% endif %}
-        {% for o in k.objectives.all %}<span class="kpi-tag" title="{{ o.title }}">{{ o.code }}</span>{% endfor %}
+        {% for o in k.objectives.all %}<span class="kpi-tag" style="cursor:help;" data-tip-text="{{ o.title }}">{{ o.code }}</span>{% endfor %}
       </td>
       <td style="white-space:nowrap;">
         {% if perms.strategic.change_companykpi %}
@@ -337,6 +346,63 @@
 
 {% block extra_js %}
 <script>
+  // --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) ---
+  (function(){
+    var cgTipEl = document.getElementById('cgTip');
+    if (!cgTipEl) return;
+    var hideTimer = null;
+    function esc(s){
+      return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function cancelHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+    function scheduleHide(){ cancelHide(); hideTimer = setTimeout(hideTip, 220); }
+    function hideTip(){ cancelHide(); cgTipEl.style.display = 'none'; }
+    function buildContent(el){
+      var label = el.getAttribute('data-tip-label') || '';
+      var text = el.getAttribute('data-tip-text') || '';
+      var items = (el.getAttribute('data-tip-items') || '').split('\n').filter(function(l){ return l.trim(); });
+      if (!label && !text && !items.length) return '';
+      var html = '';
+      if (label) html += '<b>' + esc(label) + '</b>';
+      if (text) html += '<div class="cg-tip-text">' + esc(text) + '</div>';
+      items.forEach(function(l){ html += '<div class="cg-tip-item">• ' + esc(l) + '</div>'; });
+      return html;
+    }
+    function showTipNear(el){
+      cancelHide();
+      var html = buildContent(el);
+      if (!html) { hideTip(); return; }
+      cgTipEl.innerHTML = html;
+      cgTipEl.style.display = 'block';
+      var r = el.getBoundingClientRect();
+      var w = cgTipEl.offsetWidth, h = cgTipEl.offsetHeight;
+      var left = r.left;
+      var top = r.bottom + 8;
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+      if (left < 8) left = 8;
+      if (top + h > window.innerHeight - 8) top = r.top - h - 8;
+      if (top < 8) top = 8;
+      cgTipEl.style.left = left + 'px';
+      cgTipEl.style.top = top + 'px';
+    }
+    document.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-items]');
+      if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
+      showTipNear(el);
+    });
+    document.addEventListener('mouseout', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-items]');
+      if (!el) return;
+      if (e.relatedTarget && (el.contains(e.relatedTarget) || cgTipEl.contains(e.relatedTarget))) return;
+      scheduleHide();
+    });
+    cgTipEl.addEventListener('mouseover', cancelHide);
+    cgTipEl.addEventListener('mouseout', function(e){
+      if (e.relatedTarget && cgTipEl.contains(e.relatedTarget)) return;
+      scheduleHide();
+    });
+  })();
+
   (function(){
     const inputs = {
       code: document.getElementById('kpiLiveCode'),

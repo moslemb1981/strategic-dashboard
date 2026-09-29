@@ -82,6 +82,7 @@
         <div class="nav-label">تدوین راهبرد</div>
         <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT</a>
         <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
+        <a class="nav-item {% if active_page == 'functional_strategies' %}active{% endif %}" href="{% url 'strategic:functional_strategies' %}"><i class="fa-solid fa-sitemap"></i>استراتژی‌های وظیفه‌ای</a>
         <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک</a>
         <div class="nav-label">اجرا و پایش</div>
         <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت</a>

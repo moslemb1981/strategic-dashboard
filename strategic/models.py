@@ -1978,3 +1978,98 @@ class AuditFinding(models.Model):
     def __str__(self):
         return self.description[:60]
 
+
+class OrgUnit(models.Model):
+    """واحد سطح بالای چارت سازمانی — «مدیریت مستقل» (زیرمجموعه‌ی مستقیم مدیرعامل) یا «معاونت».
+    قابل افزودن/حذف/تغییر ترتیب از پنل مدیریت، بدون نیاز به تغییر کد."""
+
+    KIND_CHOICES = [
+        ("ceo_direct", "مدیریت مستقل (زیرمجموعه‌ی مستقیم مدیرعامل)"),
+        ("deputy", "معاونت"),
+    ]
+
+    name = models.CharField(max_length=200, unique=True, verbose_name="نام")
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default="deputy", verbose_name="نوع واحد")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش (راست به چپ)")
+
+    class Meta:
+        ordering = ["kind", "order", "name"]
+        verbose_name = "واحد سطح بالای چارت سازمانی"
+        verbose_name_plural = "واحدهای سطح بالای چارت سازمانی (مدیریت‌های مستقل / معاونت‌ها)"
+
+    def __str__(self):
+        return self.name
+
+
+class FunctionalStrategy(models.Model):
+    """استراتژی‌های وظیفه‌ای مدیریت‌ها — بر اساس چارت سازمانی (مدیرعامل ← معاونت‌ها/مدیریت‌های مستقل ← مدیریت‌ها).
+
+    هر ردیف به هدف(های) نقشه استراتژیک مرتبط می‌شود (linked_objectives)؛ شاخص‌ها و پروژه‌های
+    مرتبط به‌صورت مستقیم ذخیره نمی‌شوند بلکه همیشه زنده از طریق اهداف مرتبط خوانده می‌شوند
+    (StrategicObjective.linked_kpis / linked_operational_kpis / initiatives)."""
+
+    org_unit = models.ForeignKey(
+        OrgUnit, on_delete=models.PROTECT, related_name="functional_strategies",
+        verbose_name="معاونت / واحد سازمانی",
+    )
+    management = models.CharField(max_length=200, verbose_name="مدیریت")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب در مدیریت")
+    title = models.CharField(max_length=400, verbose_name="عنوان استراتژی وظیفه‌ای")
+    detail = models.TextField(blank=True, verbose_name="شرح (اقدام / فرآیند / نتیجه)")
+    business_unit_text = models.CharField(
+        max_length=300, blank=True, verbose_name="کسب‌وکار مرتبط (متن اصلی فایل، قدیمی)",
+    )
+    objective_text = models.CharField(
+        max_length=500, blank=True, verbose_name="هدف بالادستی (متن اصلی فایل، قدیمی)",
+    )
+    basis = models.TextField(blank=True, verbose_name="مبنا / استناد")
+    linked_objectives = models.ManyToManyField(
+        StrategicObjective, blank=True, related_name="functional_strategies",
+        verbose_name="اهداف نقشه استراتژیک مرتبط",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["org_unit", "management", "order"]
+        verbose_name = "استراتژی وظیفه‌ای"
+        verbose_name_plural = "استراتژی‌های وظیفه‌ای"
+
+    def __str__(self):
+        return f"{self.management} — {self.title}"
+
+    @property
+    def resolved_kpis(self):
+        """شاخص‌های شرکتی/عملیاتی مرتبط، از طریق اهداف مرتبط (بدون تکرار)."""
+        seen, out = set(), []
+        for obj in self.linked_objectives.all():
+            for k in obj.linked_operational_kpis.all():
+                key = ("op", k.pk)
+                if key not in seen:
+                    seen.add(key)
+                    out.append({"code": k.department or "", "label": str(k)})
+            for k in obj.linked_kpis.all():
+                key = ("co", k.pk)
+                if key not in seen:
+                    seen.add(key)
+                    out.append({"code": getattr(k, "code", "") or "", "label": str(k)})
+        return out
+
+    @property
+    def resolved_initiatives(self):
+        """پروژه‌ها/اقدامات مرتبط، از طریق اهداف مرتبط (بدون تکرار)."""
+        seen, out = set(), []
+        for obj in self.linked_objectives.all():
+            for init in obj.initiatives.all():
+                if init.pk not in seen:
+                    seen.add(init.pk)
+                    out.append(init)
+        return out
+
+    @property
+    def match_class(self):
+        """قوی: حداقل یک هدف مرتبط دارد و آن هدف حداقل یک شاخص دارد. در غیر این صورت: بدون هدف مصوب."""
+        for obj in self.linked_objectives.all():
+            if obj.linked_kpis.exists() or obj.linked_operational_kpis.exists():
+                return "strong"
+        return "none"
+

@@ -5,14 +5,11 @@
 {% block crumb %}پروژه‌های تحول{% endblock %}
 
 {% block content %}
+<div class="rm-tip" id="rmTip"></div>
 <div class="topbar">
   <div><h1>پروژه‌های تحول</h1><div class="sub">زمان‌بندی پروژه‌های تحول، وصل به اهداف نقشه استراتژیک همان کسب‌وکار</div></div>
   <div style="display:flex;gap:8px;">
     {% if user.is_superuser %}
-    <form method="post" action="{% url 'strategic:bsc_sync' %}" style="display:inline;" onsubmit="return confirm('پیشرفت همه‌ی پروژه‌های دارای کد، از سیستم BSC خوانده و جایگزین می‌شود. ادامه می‌دهید؟');">
-      {% csrf_token %}
-      <button type="submit" class="bsc-sync-btn"><i class="fa-solid fa-rotate"></i> به‌روزرسانی از سیستم BSC</button>
-    </form>
     <a href="{% url 'strategic:initiative_relationships_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-diagram-project"></i> خروجی ارتباطات</button></a>
     <a href="{% url 'strategic:initiative_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
     <button type="button" class="btn ghost" onclick="document.getElementById('initImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
@@ -296,23 +293,94 @@
   .picker-chip button:hover{background:#B0413E;color:#fff;}
   .used-badge{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;border-radius:6px;
     padding:3px 8px;cursor:help;}
-  .bsc-sync-btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;
-    padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;
-    background:linear-gradient(135deg,#1E6B52,#28876A);color:#fff;
-    animation:bscSyncPulse 2.2s ease-in-out infinite;
-    transition:transform .15s ease;}
-  .bsc-sync-btn:hover{transform:translateY(-1px);animation-play-state:paused;
-    box-shadow:0 6px 18px -2px rgba(30,107,82,.75);}
-  @keyframes bscSyncPulse{
-    0%,100%{box-shadow:0 4px 12px -3px rgba(30,107,82,.45);}
-    50%{box-shadow:0 4px 20px 2px rgba(30,107,82,.85);}
-  }
+
+  /* --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) --- */
+  .rm-tip{position:fixed;z-index:999;pointer-events:auto;background:#0d1b2e;border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:10px 13px;font-size:11px;color:#e8edf5;max-width:min(560px,90vw);max-height:min(70vh,340px);
+    overflow-y:auto;line-height:1.8;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;}
+  .rm-tip b{display:block;font-size:12px;margin-bottom:5px;color:#fff;}
+  .rm-tip .rm-tip-text{white-space:normal;word-break:break-word;overflow-wrap:break-word;}
+  .rm-tip .rm-tip-pre{white-space:pre-line;word-break:break-word;overflow-wrap:break-word;}
+  .rm-tip .rm-tip-sublabel{font-size:10px;color:#8198b1;margin-top:8px;margin-bottom:2px;}
+  .rm-tip .rm-tip-item{white-space:normal;word-break:break-word;overflow-wrap:break-word;text-indent:-1em;padding-inline-start:1em;padding-block:2px;}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/jalali-picker.js' %}"></script>
 <script>
+  // --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) — این بخش چند نوع
+  // هاور متفاوت داره: تک‌خطی ساده (عنوان/مسئول)، فهرست بولت‌دار (اهداف/شاخص/TOWS/ریسک)،
+  // فهرست دوبخشی (شاخص‌های شرکتی + عملیاتی با هم)، و متن سلسله‌مراتبی از پیش قالب‌بندی‌شده
+  // (ردیابی منشأ راهبردی). برای همین چند data-tip-* پشتیبانی می‌شه:
+  //   data-tip-label / data-tip-text / data-tip-pre / data-tip-items(+items-label) / data-tip-items2(+items2-label)
+  (function(){
+    var rmTipEl = document.getElementById('rmTip');
+    if (!rmTipEl) return;
+    var hideTimer = null;
+    function esc(s){
+      return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function cancelHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+    function scheduleHide(){ cancelHide(); hideTimer = setTimeout(hideTip, 220); }
+    function hideTip(){ cancelHide(); rmTipEl.style.display = 'none'; }
+    function itemsBlock(itemsAttr, labelAttr, el){
+      var lbl = el.getAttribute(labelAttr) || '';
+      var items = (el.getAttribute(itemsAttr) || '').split('\n').filter(function(l){ return l.trim(); });
+      if (!items.length) return '';
+      var html = lbl ? '<div class="rm-tip-sublabel">' + esc(lbl) + '</div>' : '';
+      items.forEach(function(l){ html += '<div class="rm-tip-item">• ' + esc(l) + '</div>'; });
+      return html;
+    }
+    function buildContent(el){
+      var label = el.getAttribute('data-tip-label') || '';
+      var text = el.getAttribute('data-tip-text') || '';
+      var pre = el.getAttribute('data-tip-pre') || '';
+      var items1 = itemsBlock('data-tip-items', 'data-tip-items-label', el);
+      var items2 = itemsBlock('data-tip-items2', 'data-tip-items2-label', el);
+      if (!label && !text && !pre && !items1 && !items2) return '';
+      var html = '';
+      if (label) html += '<b>' + esc(label) + '</b>';
+      if (text) html += '<div class="rm-tip-text">' + esc(text) + '</div>';
+      if (pre) html += '<div class="rm-tip-pre">' + esc(pre) + '</div>';
+      html += items1 + items2;
+      return html;
+    }
+    function showTipNear(el){
+      cancelHide();
+      var html = buildContent(el);
+      if (!html) { hideTip(); return; }
+      rmTipEl.innerHTML = html;
+      rmTipEl.style.display = 'block';
+      var r = el.getBoundingClientRect();
+      var w = rmTipEl.offsetWidth, h = rmTipEl.offsetHeight;
+      var left = r.left;
+      var top = r.bottom + 8;
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+      if (left < 8) left = 8;
+      if (top + h > window.innerHeight - 8) top = r.top - h - 8;
+      if (top < 8) top = 8;
+      rmTipEl.style.left = left + 'px';
+      rmTipEl.style.top = top + 'px';
+    }
+    document.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-pre],[data-tip-items]');
+      if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
+      showTipNear(el);
+    });
+    document.addEventListener('mouseout', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-pre],[data-tip-items]');
+      if (!el) return;
+      if (e.relatedTarget && (el.contains(e.relatedTarget) || rmTipEl.contains(e.relatedTarget))) return;
+      scheduleHide();
+    });
+    rmTipEl.addEventListener('mouseover', cancelHide);
+    rmTipEl.addEventListener('mouseout', function(e){
+      if (e.relatedTarget && rmTipEl.contains(e.relatedTarget)) return;
+      scheduleHide();
+    });
+  })();
+
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
 

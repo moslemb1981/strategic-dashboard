@@ -183,13 +183,23 @@
     border:1px solid var(--sm-hair) !important;border-radius:6px !important;
     padding:2px 3px !important;font-size:.72rem !important;text-align:center;font-family:inherit;
     background:#fff;color:var(--sm-ink);box-sizing:border-box !important;height:auto !important;}
+
+  /* --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) --- */
+  .sm-tip{position:fixed;z-index:999;pointer-events:auto;background:#0d1b2e;border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:10px 13px;font-size:11px;color:#e8edf5;max-width:min(560px,90vw);max-height:min(70vh,340px);
+    overflow-y:auto;line-height:1.8;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;}
+  .sm-tip b{display:block;font-size:12px;margin-bottom:5px;color:#fff;}
+  .sm-tip .sm-tip-text{white-space:normal;word-break:break-word;overflow-wrap:break-word;}
+  .sm-tip .sm-tip-sublabel{font-size:10px;color:#8198b1;margin-top:8px;margin-bottom:2px;}
+  .sm-tip .sm-tip-item{white-space:normal;word-break:break-word;overflow-wrap:break-word;text-indent:-1em;padding-inline-start:1em;padding-block:2px;}
+  .sm-tip .sm-tip-footer{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.14);font-weight:700;color:#fff;}
 </style>
 
 <style media="print">
   body{background:#fff !important;}
   .shell{border:none !important;}
   .topheader, .sidebar, .toolbar, .theme-bar .theme-add-form, .theme-chip form,
-  .node-actions, #overlay, #buOverlay, .bu-bar .bu-add-btn, .bu-tab{display:none !important;}
+  .node-actions, #overlay, #buOverlay, .bu-bar .bu-add-btn, .bu-tab, .sm-tip{display:none !important;}
   .bu-bar{display:none !important;}
   .main{padding:0 !important;}
   .sm .wrap{max-width:100% !important;}
@@ -225,6 +235,7 @@
 {% endblock %}
 
 {% block content %}
+<div class="sm-tip" id="smTip"></div>
 <div class="sm" id="smRoot">
   <div class="print-header">
     <div class="ph-brand"><img src="{% static 'images/logo.svg' %}" alt=""><span>سایپا یدک</span></div>
@@ -243,7 +254,7 @@
 
     <div class="bu-bar">
       {% for bu in business_units %}
-      <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}" title="{{ bu.name }} — {{ bu.get_archetype_display }}">{{ bu.name|cut:"کسب و کار " }}</a>
+      <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}" data-tip-text="{{ bu.name }} — {{ bu.get_archetype_display }}">{{ bu.name|cut:"کسب و کار " }}</a>
       {% endfor %}
       {% if perms.strategic.add_businessunit %}
       <button type="button" class="bu-add-btn" onclick="openBuModal()"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>
@@ -339,27 +350,31 @@
                 <div class="theme-badge" style="background:{{ n.theme_color }}22;color:{{ n.theme_color }};">{{ n.theme_name }}</div>
                 {% if n.computed_status %}
                 <div class="kpi" style="--ng:{{ n.computed_status_color }};color:{{ n.computed_status_color }};font-size:.68rem;font-weight:600;cursor:help;"
-                  title="{{ n.computed_status_tooltip }}">
+                  data-tip-label="{{ n.computed_status_tip_label }}" data-tip-text="{{ n.computed_status_tip_text }}"
+                  data-tip-items="{% for t in n.computed_status_tip_items %}{{ t }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"
+                  data-tip-footer="{{ n.computed_status_tip_footer }}">
                   {{ n.computed_pct }}٪ — {{ n.computed_status_label }}
                 </div>
                 {% else %}
                 <div class="kpi" style="--ng:#9fb2cb;opacity:.65;font-size:.68rem;font-weight:600;cursor:help;"
-                  title="{{ n.computed_status_tooltip }}">بدون شاخص وصل‌شده</div>
+                  data-tip-label="{{ n.computed_status_tip_label }}" data-tip-text="{{ n.computed_status_tip_text }}"
+                  data-tip-items="{% for t in n.computed_status_tip_items %}{{ t }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"
+                  data-tip-footer="{{ n.computed_status_tip_footer }}">بدون شاخص وصل‌شده</div>
                 {% endif %}
                 <div class="node-footer-row">
                   <div class="kpi-dots-area" onclick="event.stopPropagation(); openKpiModal('{{ n.pk }}', '{{ n.code }}');">
                   {% for c in n.kpi_circles %}
                   <div class="kpi-unit">
-                    <span class="kpi-circle" style="background:{{ c.color }};" title="{{ c.name }} — هدف: {{ c.target|default:'—' }} / عملکرد: {{ c.actual|default:'—' }}{% if c.pct is not None %} ({{ c.pct }}٪){% endif %}"></span>
-                    {% if c.project %}<span class="kpi-project-triangle" style="border-bottom-color:{{ c.project.color }};" title="{{ c.project.tooltip }}"></span>{% endif %}
+                    <span class="kpi-circle" style="background:{{ c.color }};" data-tip-text="{{ c.name }} — هدف: {{ c.target|default:'—' }} / عملکرد: {{ c.actual|default:'—' }}{% if c.pct is not None %} ({{ c.pct }}٪){% endif %}"></span>
+                    {% if c.project %}<span class="kpi-project-triangle" style="border-bottom-color:{{ c.project.color }};" data-tip-label="{{ c.project.tip_label }}" data-tip-items="{% for t in c.project.tip_items %}{{ t }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"></span>{% endif %}
                   </div>
                   {% endfor %}
                   <span class="kpi-circle-add" title="مدیریت شاخص‌ها"><i class="fa-solid fa-plus"></i></span>
                   </div>
                   {% if n.initiatives.all or n.source_tows %}
                   <div class="node-badges-stack">
-                    {% if n.initiatives.all %}<span class="init-mini-badge" title="پروژه‌های تحول متصل:&#10;{% for init in n.initiatives.all %}● {{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ n.initiatives.all|length }}</span>{% endif %}
-                    {% if n.source_tows %}<span class="tows-mini-badge" title="{{ n.source_tows.get_category_display }} · {{ n.source_tows.text }}{% if n.source_tows.source_items.all %}&#10;&#10;مبتنی بر:{% for si in n.source_tows.source_items.all %}&#10;- {{ si.get_category_display }}: {{ si.text }}{% endfor %}{% endif %}">TOWS</span>{% endif %}
+                    {% if n.initiatives.all %}<span class="init-mini-badge" data-tip-label="پروژه‌های تحول متصل" data-tip-items="{% for init in n.initiatives.all %}{{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ n.initiatives.all|length }}</span>{% endif %}
+                    {% if n.source_tows %}<span class="tows-mini-badge" data-tip-label="{{ n.source_tows.get_category_display }}" data-tip-text="{{ n.source_tows.text }}"{% if n.source_tows.source_items.all %} data-tip-items-label="مبتنی بر" data-tip-items="{% for si in n.source_tows.source_items.all %}{{ si.get_category_display }}: {{ si.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"{% endif %}>TOWS</span>{% endif %}
                   </div>
                   {% endif %}
                 </div>
@@ -521,6 +536,74 @@
 {% block extra_js %}
 {{ links|json_script:"links-data" }}
 <script>
+  // --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) — هر هاور اینجا
+  // اطلاعات متفاوتی نشون می‌ده: بعضی فقط یه متن ساده‌ن، بعضی فهرست بولت‌دار با یه
+  // خلاصه‌ی پایانی، بعضی هم متن + یه زیرلیست جدا. برای همین چند تا data-tip-* پشتیبانی می‌شه:
+  //   data-tip-label   : عنوان پررنگ بالای کادر (اختیاری)
+  //   data-tip-text     : یک پاراگراف ساده بدون بولت (اختیاری)
+  //   data-tip-items     : فهرست مواردی که با بولت • جدا نمایش داده می‌شن (با \n از هم جدا شده)
+  //   data-tip-items-label: زیرعنوان کوچیک بالای فهرست دوم (اختیاری، برای وقتی هم text هم items هست)
+  //   data-tip-footer   : یک خط پررنگ در پایین کادر (اختیاری، برای جمع‌بندی)
+  (function(){
+    var smTipEl = document.getElementById('smTip');
+    if (!smTipEl) return;
+    var hideTimer = null;
+    function esc(s){
+      return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function cancelHide(){ if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+    function scheduleHide(){ cancelHide(); hideTimer = setTimeout(hideTip, 220); }
+    function hideTip(){ cancelHide(); smTipEl.style.display = 'none'; }
+    function buildContent(el){
+      var label = el.getAttribute('data-tip-label') || '';
+      var text = el.getAttribute('data-tip-text') || '';
+      var itemsLabel = el.getAttribute('data-tip-items-label') || '';
+      var items = (el.getAttribute('data-tip-items') || '').split('\n').filter(function(l){ return l.trim(); });
+      var footer = el.getAttribute('data-tip-footer') || '';
+      if (!label && !text && !items.length && !footer) return '';
+      var html = '';
+      if (label) html += '<b>' + esc(label) + '</b>';
+      if (text) html += '<div class="sm-tip-text">' + esc(text) + '</div>';
+      if (itemsLabel) html += '<div class="sm-tip-sublabel">' + esc(itemsLabel) + '</div>';
+      items.forEach(function(l){ html += '<div class="sm-tip-item">• ' + esc(l) + '</div>'; });
+      if (footer) html += '<div class="sm-tip-footer">' + esc(footer) + '</div>';
+      return html;
+    }
+    function showTipNear(el){
+      cancelHide();
+      var html = buildContent(el);
+      if (!html) { hideTip(); return; }
+      smTipEl.innerHTML = html;
+      smTipEl.style.display = 'block';
+      var r = el.getBoundingClientRect();
+      var w = smTipEl.offsetWidth, h = smTipEl.offsetHeight;
+      var left = r.left;
+      var top = r.bottom + 8;
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+      if (left < 8) left = 8;
+      if (top + h > window.innerHeight - 8) top = r.top - h - 8;
+      if (top < 8) top = 8;
+      smTipEl.style.left = left + 'px';
+      smTipEl.style.top = top + 'px';
+    }
+    document.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-items]');
+      if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
+      showTipNear(el);
+    });
+    document.addEventListener('mouseout', function(e){
+      var el = e.target.closest('[data-tip-label],[data-tip-text],[data-tip-items]');
+      if (!el) return;
+      if (e.relatedTarget && (el.contains(e.relatedTarget) || smTipEl.contains(e.relatedTarget))) return;
+      scheduleHide();
+    });
+    smTipEl.addEventListener('mouseover', cancelHide);
+    smTipEl.addEventListener('mouseout', function(e){
+      if (e.relatedTarget && smTipEl.contains(e.relatedTarget)) return;
+      scheduleHide();
+    });
+  })();
+
   function openModal(){ document.getElementById('overlay').classList.add('open'); }
   function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
   function openBuModal(){ document.getElementById('buOverlay').classList.add('open'); }

@@ -28,6 +28,7 @@ from .models import (
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
     ObjectiveKPIWeight, ObjectiveOperationalKPIWeight, OperationalKPITrendPoint,
+    FunctionalStrategy, OrgUnit,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -38,6 +39,7 @@ from .forms import (
     ExchangeRateForm, LegalTradeRequirementForm, VehicleMarketStatForm, EVTrendForm, CustomerSatisfactionBenchmarkForm,
     SupplierConditionForm, InterestInflationRateForm, LaborMarketStatForm, DomesticRawMaterialForm,
     VehicleLoanRateForm, VehiclePartsTradeStatForm, StrategicElectronicPartForm, MarketIntelReportForm,
+    FunctionalStrategyForm,
     clean_number_string,
 )
 
@@ -98,25 +100,35 @@ def _pct_color_hex(pct):
 STATUS_LABEL_FA = {"on": "در مسیر", "watch": "نیازمند پیگیری", "risk": "در معرض ریسک"}
 
 
-def _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map):
-    """متن هاور برای خط وضعیت هر کارت: شفاف‌سازی اینکه عدد نهایی از کجا اومده —
-    تک‌تک شاخص‌های وصل‌شده با درصد تحقق و وزنشون، به‌علاوه جمع‌بندی نهایی."""
-    lines = []
+def _objective_status_tooltip_parts(o, pct, kpi_weight_map, opkpi_weight_map):
+    """اجزای هاور برای خط وضعیت هر کارت: شفاف‌سازی اینکه عدد نهایی از کجا اومده —
+    تک‌تک شاخص‌های وصل‌شده با درصد تحقق و وزنشون، به‌علاوه جمع‌بندی نهایی.
+    خروجی به‌صورت اجزای جدا (بدون کاراکتر ● روی هر خط) برگردونده می‌شه تا هم برای
+    هاور متنی ساده‌ی نسخه‌ی چاپی، هم برای هاور تعاملی صفحه‌ی زنده قابل استفاده باشه."""
+    items = []
     for k in o.linked_kpis.all():
         v = k.manual_progress_value
         w = kpi_weight_map.get((o.pk, k.pk), 100)
         pct_txt = f"{v}٪" if v is not None else "—"
-        lines.append(f"● {k.code} — {k.name} — تحقق: {pct_txt} — وزن: {w}")
+        items.append(f"{k.code} — {k.name} — تحقق: {pct_txt} — وزن: {w}")
     for k in o.linked_operational_kpis.all():
         v = k.manual_progress_value
         w = opkpi_weight_map.get((o.pk, k.pk), 100)
         pct_txt = f"{v}٪" if v is not None else "—"
-        lines.append(f"● {k.code} — {k.title} — تحقق: {pct_txt} — وزن: {w}")
-    if not lines:
-        return "هنوز هیچ شاخصی به این کارت وصل نشده است."
-    header = "شاخص‌های وصل‌شده به این کارت:"
+        items.append(f"{k.code} — {k.title} — تحقق: {pct_txt} — وزن: {w}")
+    if not items:
+        return {"text": "هنوز هیچ شاخصی به این کارت وصل نشده است.", "label": "", "items": [], "footer": ""}
     footer = f"میانگین وزن‌دار نهایی: {pct}٪" if pct is not None else "میانگین وزن‌دار نهایی: —"
-    return header + "\n" + "\n".join(lines) + "\n\n" + footer
+    return {"text": "", "label": "شاخص‌های وصل‌شده به این کارت", "items": items, "footer": footer}
+
+
+def _objective_status_tooltip_flat(parts):
+    """نسخه‌ی تخت (تک‌رشته‌ای) هاور بالا — برای نماهای چاپی که تعامل JS ندارن و
+    از title بومی مرورگر استفاده می‌کنن."""
+    if parts["text"]:
+        return parts["text"]
+    lines = [f"● {t}" for t in parts["items"]]
+    return parts["label"] + ":\n" + "\n".join(lines) + "\n\n" + parts["footer"]
 
 
 def _attach_computed_objective_status(objectives):
@@ -130,7 +142,12 @@ def _attach_computed_objective_status(objectives):
         o.computed_status = status
         o.computed_status_color = _pct_color_hex(pct)
         o.computed_status_label = STATUS_LABEL_FA.get(status, "")
-        o.computed_status_tooltip = _objective_status_tooltip(o, pct, kpi_weight_map, opkpi_weight_map)
+        tip_parts = _objective_status_tooltip_parts(o, pct, kpi_weight_map, opkpi_weight_map)
+        o.computed_status_tooltip = _objective_status_tooltip_flat(tip_parts)
+        o.computed_status_tip_text = tip_parts["text"]
+        o.computed_status_tip_label = tip_parts["label"]
+        o.computed_status_tip_items = tip_parts["items"]
+        o.computed_status_tip_footer = tip_parts["footer"]
 
 
 def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
@@ -1559,15 +1576,16 @@ def stratmap(request):
         if not inits:
             return None
         avg_progress = round(sum(i.progress for i in inits) / len(inits))
-        tooltip_lines = [
-            f"● {i.title}{f' ({i.code})' if i.code else ''} — مسئول: {i.owner or '—'} — وضعیت: {i.get_status_display()} — پیشرفت: {i.progress}٪"
+        tooltip_items = [
+            f"{i.title}{f' ({i.code})' if i.code else ''} — مسئول: {i.owner or '—'} — وضعیت: {i.get_status_display()} — پیشرفت: {i.progress}٪"
             for i in inits
         ]
         return {
             "color": _pct_color(avg_progress),
             "avg": avg_progress,
             "count": len(inits),
-            "tooltip": "پروژه‌های وصل به این شاخص:\n" + "\n".join(tooltip_lines),
+            "tip_label": "پروژه‌های وصل به این شاخص",
+            "tip_items": tooltip_items,
         }
 
     kpis_by_objective = {}
@@ -5035,7 +5053,6 @@ def executive_show(request):
     return render(request, "strategic/executive_show.html", {"cards": cards, "summary": summary})
 
 
-@login_required
 def kpi_heatmap(request):
     """نقشه‌ی حرارتی (Treemap) همه‌ی شاخص‌های سیستم — کلان و عملیاتی، در یک نگاه.
 
@@ -5120,3 +5137,326 @@ def kpi_heatmap(request):
         "total_departments": len(departments),
         "scored_total": scored_total,
     })
+
+
+# ---------------- استراتژی‌های وظیفه‌ای (بر اساس چارت سازمانی) ----------------
+
+_FS_PERSP_COLOR = {
+    "financial": "#C9A227", "customer": "#2E6F9E", "process": "#3E7A52", "learning": "#6C56A3",
+}
+
+
+def functional_strategies(request):
+    """صفحه استراتژی‌های وظیفه‌ای — چارت سازمانی (مدیرعامل ← مدیریت‌های مستقل / معاونت‌ها ← مدیریت‌ها)
+    با جدول فشرده‌ی هر مدیریت که شاخص‌ها و پروژه‌های مرتبط را زنده از نقشه استراتژیک نشان می‌دهد.
+
+    واحدهای سطح بالای چارت (مدیریت‌های مستقل / معاونت‌ها) از مدل OrgUnit خوانده می‌شوند و
+    از پنل ادمین (OrgUnit) قابل افزودن/حذف/تغییر ترتیب‌اند — چیزی در کد هاردکد نشده."""
+
+    form = FunctionalStrategyForm()
+    if request.method == "POST":
+        obj_id = request.POST.get("obj_id")
+        perm = "strategic.change_functionalstrategy" if obj_id else "strategic.add_functionalstrategy"
+        instance = get_object_or_404(FunctionalStrategy, pk=obj_id) if obj_id else None
+        if _has_perm(request, perm):
+            form = FunctionalStrategyForm(request.POST, instance=instance)
+            if form.is_valid():
+                obj = form.save()
+                _log_action(request, "UPDATE FunctionalStrategy" if obj_id else "CREATE FunctionalStrategy", str(obj))
+                return redirect("strategic:functional_strategies")
+            else:
+                messages.error(request, "فرم نامعتبر است؛ لطفاً موارد را بررسی کنید.")
+
+    qs = (
+        FunctionalStrategy.objects.all()
+        .select_related("org_unit")
+        .prefetch_related(
+            "linked_objectives", "linked_objectives__business_unit",
+            "linked_objectives__linked_kpis",
+            "linked_objectives__linked_operational_kpis",
+            "linked_objectives__initiatives",
+        )
+        .order_by("org_unit__kind", "org_unit__order", "management", "order")
+    )
+
+    def build_row(fs):
+        objs = list(fs.linked_objectives.all())
+        kpis = fs.resolved_kpis
+        inits = fs.resolved_initiatives
+        obj_short = ""
+        # تولتیپ باید کد هدف (مثل F2) و کسب‌وکارش را هم نشان دهد، نه فقط عنوان خام
+        obj_tooltip = "\n".join(
+            f"{o.code} — [{o.business_unit.name if o.business_unit else 'بدون کسب‌وکار'}] {o.title}" for o in objs
+        )
+        obj_color = _FS_PERSP_COLOR.get(objs[0].perspective, "#94A3B8") if objs else "#94A3B8"
+        if objs:
+            t = objs[0].title
+            obj_short = (t[:46] + "…") if len(t) > 46 else t
+            if len(objs) > 1:
+                obj_short += f" +{len(objs) - 1}"
+        kpi_tooltip = "\n".join(f"{k['code']} — {k['label']}" for k in kpis)
+        init_tooltip = "\n".join(
+            f"{i.title} — {i.get_status_display()} ({i.progress}٪)" for i in inits
+        )
+        return {
+            "id": fs.pk, "title": fs.title, "detail": fs.detail, "cls": fs.match_class,
+            "hasObj": bool(objs), "objShort": obj_short, "objTooltip": obj_tooltip, "objColor": obj_color,
+            "kpiCount": len(kpis), "kpiTooltip": kpi_tooltip,
+            "initCount": len(inits), "initTooltip": init_tooltip,
+            # برای پرشدن فرم ویرایش:
+            "orgUnitId": fs.org_unit_id, "management": fs.management, "order": fs.order,
+            "basis": fs.basis,
+            "linkedObjIds": [o.pk for o in objs],
+        }
+
+    # مدیریت‌ها به تفکیک واحد سازمانی، با ردیف‌های کامل هر مدیریت
+    by_unit = {}
+    for fs in qs:
+        by_unit.setdefault(fs.org_unit_id, {}).setdefault(fs.management, []).append(fs)
+
+    def build_group(unit):
+        mgmts_raw = by_unit.get(unit.pk, {})
+        managements = []
+        strong = none = 0
+        for mgmt_name, items in mgmts_raw.items():
+            rows = [build_row(fs) for fs in items]
+            m_strong = sum(1 for r in rows if r["cls"] == "strong")
+            m_none = len(rows) - m_strong
+            strong += m_strong
+            none += m_none
+            managements.append({
+                "name": mgmt_name, "strong": m_strong, "none": m_none, "rows": rows,
+            })
+        managements.sort(key=lambda m: m["name"])
+        total = strong + none
+        return {
+            "key": unit.pk, "title": unit.name,
+            "total": total, "strong": strong, "none": none,
+            "strongPct": round(strong / total * 100) if total else 0,
+            "nonePct": round(none / total * 100) if total else 0,
+            "managements": managements,
+        }
+
+    all_units = list(OrgUnit.objects.all().order_by("kind", "order", "name"))
+    ceo_direct_units = [u for u in all_units if u.kind == "ceo_direct"]
+    deputy_units = [u for u in all_units if u.kind == "deputy"]
+
+    # هر دو ردیف (مدیریت‌های مستقل و معاونت‌ها) از OrgUnit ساخته می‌شوند — از پنل ادمین
+    # قابل افزودن/حذف/تغییر ترتیب‌اند، هیچ‌کدام در کد هاردکد نیست.
+    ceo_direct_list = [build_group(u) for u in ceo_direct_units]
+    deputies = [build_group(u) for u in deputy_units]
+
+    return render(request, "strategic/functional_strategies.html", {
+        "active_page": "functional_strategies",
+        "ceo_direct_list_json": json.dumps(ceo_direct_list, ensure_ascii=False),
+        "deputies_json": json.dumps(deputies, ensure_ascii=False),
+        "total_count": qs.count(),
+        "total_managements": FunctionalStrategy.objects.values("management").distinct().count(),
+        "form": form,
+        "all_org_units": all_units,
+        "org_unit_kind_choices": OrgUnit.KIND_CHOICES,
+    })
+
+
+def functional_strategy_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_functionalstrategy"):
+        obj = get_object_or_404(FunctionalStrategy, pk=pk)
+        label = str(obj)
+        obj.delete()
+        _log_action(request, "DELETE FunctionalStrategy", label)
+    return redirect("strategic:functional_strategies")
+
+
+def org_unit_add(request):
+    """افزودن یک «مدیریت مستقل» یا «معاونت» جدید به ردیف بالای چارت سازمانی."""
+    if request.method == "POST" and _has_perm(request, "strategic.add_orgunit"):
+        name = request.POST.get("name", "").strip()
+        kind = request.POST.get("kind", "deputy")
+        if kind not in dict(OrgUnit.KIND_CHOICES):
+            kind = "deputy"
+        if name:
+            if OrgUnit.objects.filter(name=name).exists():
+                messages.error(request, "واحدی با همین نام از قبل وجود دارد.")
+            else:
+                next_order = OrgUnit.objects.filter(kind=kind).count()
+                OrgUnit.objects.create(name=name, kind=kind, order=next_order)
+                _log_action(request, "CREATE OrgUnit", name)
+    return redirect("strategic:functional_strategies")
+
+
+def org_unit_delete(request, pk):
+    """حذف یک واحد سطح بالای چارت سازمانی — فقط وقتی هیچ استراتژی وظیفه‌ای‌ای به آن وصل نباشد."""
+    if request.method == "POST" and _has_perm(request, "strategic.delete_orgunit"):
+        obj = get_object_or_404(OrgUnit, pk=pk)
+        label = str(obj)
+        if obj.functional_strategies.exists():
+            messages.error(
+                request,
+                f"«{label}» قابل حذف نیست چون استراتژی وظیفه‌ای به آن وصل است؛ "
+                "ابتدا آن‌ها را حذف یا به واحد دیگری منتقل کنید.",
+            )
+        else:
+            obj.delete()
+            _log_action(request, "DELETE OrgUnit", label)
+    return redirect("strategic:functional_strategies")
+
+
+def _fs_objective_label(o):
+    """برچسب یکتا و قابل‌خواندن برای یک هدف نقشه استراتژیک — چون کد (مثل F1) به‌تنهایی
+    یکتا نیست (هر کسب‌وکار شماره‌گذاری مستقل خودش را دارد)، کسب‌وکار هم در برچسب می‌آید."""
+    bu_name = o.business_unit.name if o.business_unit else "بدون کسب‌وکار"
+    return f"{o.code} — [{bu_name}] {o.title}"
+
+
+_FS_EXCEL_HEADERS = [
+    "شناسه", "معاونت / واحد سازمانی", "مدیریت", "ترتیب در مدیریت",
+    "عنوان استراتژی وظیفه‌ای", "شرح (اقدام / فرآیند / نتیجه)", "مبنا / استناد",
+    "اهداف نقشه استراتژیک مرتبط",
+]
+
+
+def functional_strategy_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:functional_strategies")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "استراتژی‌های وظیفه‌ای"
+    ws.sheet_view.rightToLeft = True
+
+    header_fill = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True)
+    for col, title in enumerate(_FS_EXCEL_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col, value=title)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    qs = (
+        FunctionalStrategy.objects.all()
+        .select_related("org_unit")
+        .prefetch_related("linked_objectives", "linked_objectives__business_unit")
+        .order_by("org_unit__kind", "org_unit__order", "management", "order")
+    )
+    for row_i, fs in enumerate(qs, start=2):
+        obj_label = "؛ ".join(_fs_objective_label(o) for o in fs.linked_objectives.all())
+        values = [
+            fs.pk, fs.org_unit.name, fs.management, fs.order,
+            fs.title, fs.detail, fs.basis, obj_label,
+        ]
+        for col, val in enumerate(values, start=1):
+            ws.cell(row=row_i, column=col, value=val)
+
+    widths = [10, 26, 22, 12, 40, 40, 28, 60]
+    for col, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+    ws.freeze_panes = "A2"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _log_action(request, "EXPORT FunctionalStrategy Excel", f"{qs.count()} ردیف")
+    response = HttpResponse(
+        buf.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="estratezhi-vazifeh-ei.xlsx"'
+    return response
+
+
+def functional_strategy_import(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:functional_strategies")
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:functional_strategies")
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:functional_strategies")
+
+    def _s(v):
+        return "" if v is None else str(v).strip()
+
+    def _i(v, default=0):
+        try:
+            return int(v)
+        except (TypeError, ValueError):
+            return default
+
+    org_units_by_name = {u.name: u for u in OrgUnit.objects.all()}
+
+    # نگاشت برچسب هدف ← شیء StrategicObjective، برای تطبیق ستون «اهداف نقشه استراتژیک مرتبط»
+    objectives_by_label = {
+        _fs_objective_label(o): o
+        for o in StrategicObjective.objects.select_related("business_unit").all()
+    }
+    # نگاشت کمکی صرفاً بر اساس کد، برای زمانی که کسب‌وکار در متن سلول نیامده و کد یکتاست
+    objectives_by_code = {}
+    for o in StrategicObjective.objects.all():
+        objectives_by_code.setdefault(o.code, []).append(o)
+
+    def _resolve_objectives(cell_text):
+        out = []
+        for piece in _s(cell_text).split("؛"):
+            label = piece.strip()
+            if not label:
+                continue
+            obj = objectives_by_label.get(label)
+            if not obj:
+                # تلاش دوم: فقط کد، اگر یکتا باشد
+                code = label.split("—")[0].strip()
+                candidates = objectives_by_code.get(code, [])
+                if len(candidates) == 1:
+                    obj = candidates[0]
+            if obj:
+                out.append(obj)
+        return out
+
+    created, updated, skipped = 0, 0, 0
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or not (row[4] if len(row) > 4 else None):
+            skipped += 1
+            continue
+        record_id = _i(row[0], None) if len(row) > 0 else None
+        org_unit = org_units_by_name.get(_s(row[1])) if len(row) > 1 else None
+        if not org_unit:
+            skipped += 1
+            continue
+        defaults = dict(
+            org_unit=org_unit,
+            management=_s(row[2]) if len(row) > 2 else "",
+            order=_i(row[3], 0) if len(row) > 3 else 0,
+            title=_s(row[4]),
+            detail=_s(row[5]) if len(row) > 5 else "",
+            basis=_s(row[6]) if len(row) > 6 else "",
+        )
+        objectives = _resolve_objectives(row[7]) if len(row) > 7 else []
+
+        existing = FunctionalStrategy.objects.filter(pk=record_id).first() if record_id else None
+        if existing:
+            for k, v in defaults.items():
+                setattr(existing, k, v)
+            existing.save()
+            existing.linked_objectives.set(objectives)
+            updated += 1
+        else:
+            obj = FunctionalStrategy.objects.create(**defaults)
+            obj.linked_objectives.set(objectives)
+            created += 1
+
+    _log_action(request, "IMPORT FunctionalStrategy Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
+    messages.success(
+        request,
+        f"وارد کردن انجام شد: {created} ردیف جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف رد شد "
+        "(عنوان خالی یا نام معاونت/واحد سازمانی نامعتبر).",
+    )
+    return redirect("strategic:functional_strategies")

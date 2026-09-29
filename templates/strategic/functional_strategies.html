@@ -1,0 +1,599 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}استراتژی‌های وظیفه‌ای{% endblock %}
+{% block crumb %}استراتژی‌های وظیفه‌ای{% endblock %}
+
+{% block content %}
+<style>
+  #fs-page{
+    --fs-navy:#141F33; --fs-brand:#1F4E78; --fs-brand-soft:#DCE6F1;
+    --fs-gold:#C9A227; --fs-green:#3E7A52; --fs-green-soft:#E1EFE6;
+    --fs-rose:#B0413E; --fs-rose-soft:#F7E3E2;
+    --fs-p-financial:#C9A227; --fs-p-customer:#2E6F9E; --fs-p-process:#3E7A52; --fs-p-learning:#6C56A3;
+    --fs-bg:#F3F5F8; --fs-ink:#1B2430; --fs-muted:#64748B; --fs-border:#DEE4EC; --fs-line:#C7D0DC;
+  }
+  #fs-page *{box-sizing:border-box;}
+  #fs-page table{border-collapse:collapse;width:100%;}
+  #fs-page button{font-family:inherit;cursor:pointer;}
+
+  #fs-page .fs-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+  #fs-page .fs-topbar h1{margin:0;font-size:22px;font-weight:800;color:var(--fs-ink);}
+  #fs-page .fs-sub{margin-top:6px;font-size:12.5px;color:var(--fs-muted);}
+
+  #fs-page .fs-org{background:#fff;border:1px solid var(--fs-border);border-radius:16px;padding:26px 20px 20px;}
+  #fs-page .fs-ceo-box{background:var(--fs-navy);color:#fff;font-size:12.5px;font-weight:800;padding:9px 26px;border-radius:9px;}
+  #fs-page .fs-connector{width:2px;background:var(--fs-line);margin:0 auto;}
+  #fs-page .fs-hbus{height:2px;background:var(--fs-line);margin:0 30px;}
+
+  #fs-page .fs-ceo-direct-btn{width:100%;max-width:300px;border-radius:10px;padding:8px 16px;text-align:center;border:1.6px dashed var(--fs-border);background:#fff;}
+  #fs-page .fs-ceo-direct-btn.active{background:var(--fs-brand);border-color:var(--fs-brand);box-shadow:0 4px 14px rgba(31,78,120,.3);}
+  #fs-page .fs-ceo-direct-bar{display:flex;height:5px;border-radius:4px;overflow:hidden;background:var(--fs-border);margin-top:7px;max-width:220px;margin-inline:auto;}
+
+  #fs-page .fs-deputy-row{display:flex;gap:10px;padding-top:16px;flex-wrap:wrap;justify-content:center;}
+  #fs-page .fs-deputy-col{display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px;max-width:170px;}
+  #fs-page .fs-deputy-btn{width:100%;border:1.6px solid var(--fs-border);border-radius:10px;padding:9px 10px;text-align:center;background:#fff;}
+  #fs-page .fs-deputy-btn.active{background:var(--fs-brand);border-color:var(--fs-brand);box-shadow:0 4px 14px rgba(31,78,120,.3);}
+  #fs-page .fs-deputy-title{font-size:11px;font-weight:700;line-height:1.5;min-height:32px;display:flex;align-items:center;justify-content:center;color:var(--fs-ink);}
+  #fs-page .fs-deputy-btn.active .fs-deputy-title{color:#fff;}
+  #fs-page .fs-deputy-bar{display:flex;height:5px;border-radius:4px;overflow:hidden;background:var(--fs-border);margin-top:7px;}
+  #fs-page .fs-deputy-sub{font-size:9px;color:var(--fs-muted);margin-top:5px;}
+  #fs-page .fs-deputy-btn.active .fs-deputy-sub{color:#CBD8E8;}
+
+  #fs-page .fs-drill{background:var(--fs-brand-soft);border:1.6px solid var(--fs-brand);border-radius:12px;padding:14px 16px;}
+  #fs-page .fs-drill-title{font-size:10.5px;font-weight:700;color:var(--fs-brand);margin-bottom:10px;}
+  #fs-page .fs-mgmt-chip{background:#fff;border:1.4px solid #B9CBE0;border-radius:9px;padding:7px 12px;display:flex;align-items:center;gap:8px;}
+  #fs-page .fs-mgmt-chip.active{background:var(--fs-brand);border-color:var(--fs-brand);}
+  #fs-page .fs-mgmt-chip.active span{color:#fff !important;}
+  #fs-page .fs-mgmt-chip-name{font-size:11.5px;font-weight:600;color:var(--fs-ink);}
+  #fs-page .fs-dot{width:6px;height:6px;border-radius:50%;display:inline-block;}
+  #fs-page .fs-dot-num{font-size:9.5px;color:var(--fs-muted);}
+
+  #fs-page .fs-table-card{margin-top:18px;background:#fff;border:1px solid var(--fs-border);border-radius:14px;overflow:hidden;}
+  #fs-page .fs-table-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--fs-border);}
+  #fs-page .fs-table-head .name{font-size:13.5px;font-weight:800;color:var(--fs-ink);}
+  #fs-page .fs-persp-legend{display:flex;gap:14px;font-size:10px;color:var(--fs-muted);}
+  #fs-page .fs-persp-legend span{display:flex;align-items:center;gap:5px;}
+  #fs-page .fs-persp-legend .fs-dot{width:8px;height:8px;}
+  #fs-page th{background:var(--fs-bg);padding:9px 10px;font-size:10px;color:var(--fs-muted);font-weight:700;}
+  #fs-page th.right, #fs-page td.right{text-align:right;}
+  #fs-page th.center, #fs-page td.center{text-align:center;}
+  #fs-page td{padding:10px;border-top:1px solid var(--fs-border);font-size:11.5px;vertical-align:middle;}
+  #fs-page .fs-badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;}
+  #fs-page .fs-badge.kpi{background:var(--fs-green-soft);color:var(--fs-green);}
+  #fs-page .fs-badge.init{background:var(--fs-brand-soft);color:var(--fs-brand);}
+  #fs-page .fs-muted-dash{font-size:10px;color:var(--fs-muted);}
+
+  #fs-page .fs-legend{margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;padding:12px 18px;background:#fff;border:1px solid var(--fs-border);border-radius:12px;font-size:10.5px;color:var(--fs-muted);}
+  #fs-page .fs-legend span{display:flex;align-items:center;gap:6px;}
+
+  #fs-page .fs-unit-toggle-row{margin-bottom:8px;}
+  #fs-page .fs-unit-toggle-btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--fs-border);
+    background:#fff;color:var(--fs-muted);font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;}
+  #fs-page .fs-unit-toggle-btn:hover{color:var(--fs-ink);background:var(--fs-bg);}
+  #fs-page .fs-unit-toggle-chevron{font-size:9px;transition:transform .15s;}
+  #fs-page .fs-unit-toggle-btn.open .fs-unit-toggle-chevron{transform:rotate(180deg);}
+  #fs-page .fs-unit-bar{display:none;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;
+    padding:10px;border:1px dashed var(--fs-border);border-radius:10px;background:#fbfcfe;}
+  #fs-page .fs-unit-bar.open{display:flex;}
+  #fs-page .fs-unit-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:14px;border:1px solid var(--fs-border);background:#fff;font-weight:600;}
+  #fs-page .fs-unit-chip.ceo-direct{border-style:dashed;}
+  #fs-page .fs-unit-chip button{border:none;background:none;color:var(--fs-muted);cursor:pointer;font-size:10px;opacity:.7;padding:0;}
+  #fs-page .fs-unit-chip button:hover{opacity:1;color:var(--fs-rose);}
+  #fs-page .fs-unit-add-form{display:flex;gap:4px;align-items:center;}
+  #fs-page .fs-unit-add-form input, #fs-page .fs-unit-add-form select{font-size:11px;border:1px solid var(--fs-border);border-radius:6px;padding:4px 8px;font-family:inherit;}
+  #fs-page .fs-unit-add-form button{border:none;background:var(--fs-navy);color:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;}
+
+  #fs-page .fs-deputy-btn.ceo-direct{border-style:dashed;}
+  #fs-page .fs-iconbtn{border:none;background:none;color:var(--fs-muted);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:6px;}
+  #fs-page .fs-iconbtn:hover{background:var(--fs-bg);color:var(--fs-ink);}
+  #fs-page td[title]{cursor:help;}
+
+  /* پیکر باکس‌های انتخابی (چندانتخابی + چیپ) — دقیقاً هم‌سبک با نقشه استراتژیک/ریسک */
+  .picker-box{max-height:200px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--fs-border);border-radius:8px;padding:6px 10px;background:#fff;}
+  .picker-chips{display:none;flex-wrap:wrap;gap:5px;max-height:64px;overflow-y:auto;padding:6px 2px;margin-bottom:4px;}
+  .picker-chips.has-items{display:flex;}
+  .picker-chip{display:inline-flex;align-items:center;gap:5px;background:#FDF3E7;
+    border:1px solid rgba(201,124,44,.35);border-radius:20px;padding:3px 6px 3px 10px;font-size:10.5px;
+    font-weight:600;max-width:260px;color:var(--fs-ink);}
+  .picker-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .picker-chip button{border:none;background:rgba(0,0,0,.08);color:var(--fs-muted);border-radius:50%;
+    width:16px;height:16px;flex:none;cursor:pointer;font-size:11px;line-height:1;display:flex;
+    align-items:center;justify-content:center;padding:0;}
+  .picker-chip button:hover{background:#B0413E;color:#fff;}
+  .picker-box ul{list-style:none;margin:0;padding:0;}
+  .picker-box li{padding:0;}
+  .picker-box label{display:block;font-size:.78rem;line-height:1.65;color:var(--fs-ink);
+    padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent;}
+  .picker-box label:hover{background:var(--fs-bg);}
+  .picker-box label.picked{background:rgba(214,69,40,.12);border-color:rgba(214,69,40,.35);font-weight:600;}
+  .picker-box input[type="checkbox"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0;}
+
+  .fs-tip{position:fixed;z-index:999;pointer-events:auto;background:#0d1b2e;border:1px solid rgba(255,255,255,.15);
+    border-radius:10px;padding:10px 13px;font-size:11px;color:#e8edf5;max-width:min(560px,90vw);max-height:min(70vh,340px);
+    overflow-y:auto;line-height:1.8;box-shadow:0 10px 28px rgba(0,0,0,.45);display:none;white-space:pre-line;}
+  .fs-tip b{display:block;font-size:12px;margin-bottom:5px;color:#fff;}
+  .fs-tip .fs-tip-code{color:#8198b1;font-size:10px;}
+  .fs-tip .fs-tip-row{display:flex;justify-content:space-between;gap:14px;margin-top:5px;}
+  .fs-tip .fs-tip-row span:first-child{color:#8198b1;}
+  .fs-tip .fs-tip-item{white-space:normal;word-break:break-word;overflow-wrap:break-word;text-indent:-1em;padding-inline-start:1em;padding-block:2px;}
+</style>
+
+<div id="fs-page">
+  <div class="fs-tip" id="fsTip"></div>
+  <div class="fs-topbar">
+    <div>
+      <h1>استراتژی‌های وظیفه‌ای</h1>
+      <div class="fs-sub">بر اساس چارت سازمانی — روی یک معاونت/واحد بزنید تا مدیریت‌های آن باز شود، سپس روی یک مدیریت بزنید</div>
+    </div>
+    <div style="display:flex;gap:8px;flex:none;flex-wrap:wrap;">
+      {% if perms.strategic.add_functionalstrategy %}
+      <button type="button" class="btn accent" onclick="fsNew()"><i class="fa-solid fa-plus"></i> افزودن استراتژی وظیفه‌ای</button>
+      {% endif %}
+      {% if request.user.is_superuser %}
+      <a href="{% url 'strategic:functional_strategy_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
+      <button type="button" class="btn ghost" onclick="document.getElementById('fsImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if perms.strategic.add_orgunit or perms.strategic.delete_orgunit %}
+  <div class="fs-unit-toggle-row">
+    <button type="button" class="fs-unit-toggle-btn" onclick="document.getElementById('fsUnitBar').classList.toggle('open'); this.classList.toggle('open');">
+      <i class="fa-solid fa-sliders"></i> مدیریت واحدهای چارت (مدیریت‌های مستقل / معاونت‌ها)
+      <i class="fa-solid fa-chevron-down fs-unit-toggle-chevron"></i>
+    </button>
+  </div>
+  <div class="fs-unit-bar" id="fsUnitBar">
+    {% for u in all_org_units %}
+    <span class="fs-unit-chip{% if u.kind == 'ceo_direct' %} ceo-direct{% endif %}">
+      {{ u.name }}
+      {% if perms.strategic.delete_orgunit %}
+      <form method="post" action="{% url 'strategic:org_unit_delete' u.pk %}" style="display:inline;margin:0;" onsubmit="return confirm('«{{ u.name|escapejs }}» حذف شود؟ (فقط در صورتی که هیچ استراتژی وظیفه‌ای به آن وصل نباشد)');">
+        {% csrf_token %}<button type="submit"><i class="fa-solid fa-xmark"></i></button>
+      </form>
+      {% endif %}
+    </span>
+    {% endfor %}
+    {% if perms.strategic.add_orgunit %}
+    <form method="post" action="{% url 'strategic:org_unit_add' %}" class="fs-unit-add-form">
+      {% csrf_token %}
+      <input type="text" name="name" placeholder="نام واحد جدید..." required>
+      <select name="kind">
+        {% for k, label in org_unit_kind_choices %}
+        <option value="{{ k }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit"><i class="fa-solid fa-plus"></i></button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="fs-org">
+    <div style="display:flex;justify-content:center;"><div class="fs-ceo-box">مدیرعامل</div></div>
+    <div style="display:flex;justify-content:center;"><div class="fs-connector" style="height:14px;"></div></div>
+
+    <div class="fs-deputy-row" id="fs-ceo-direct-row" style="padding-top:0;"></div>
+
+    <div style="display:flex;justify-content:center;"><div class="fs-connector" style="height:16px;"></div></div>
+    <div class="fs-hbus"></div>
+
+    <div class="fs-deputy-row" id="fs-deputy-row"></div>
+
+    <div style="display:flex;justify-content:center;"><div class="fs-connector" style="height:16px;background:var(--fs-brand);"></div></div>
+    <div class="fs-drill">
+      <div class="fs-drill-title" id="fs-drill-title"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="fs-mgmt-row"></div>
+    </div>
+  </div>
+
+  <div class="fs-table-card">
+    <div class="fs-table-head">
+      <div class="name" id="fs-mgmt-name"></div>
+      <div class="fs-persp-legend">
+        <span><span class="fs-dot" style="background:var(--fs-p-financial);"></span>مالی</span>
+        <span><span class="fs-dot" style="background:var(--fs-p-customer);"></span>مشتری</span>
+        <span><span class="fs-dot" style="background:var(--fs-p-process);"></span>فرآیند</span>
+        <span><span class="fs-dot" style="background:var(--fs-p-learning);"></span>یادگیری</span>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:34px;" class="center">#</th>
+          <th class="right">استراتژی وظیفه‌ای</th>
+          <th style="width:230px;" class="right">هدف بالادستی</th>
+          <th style="width:110px;" class="center">شاخص‌ها</th>
+          <th style="width:110px;" class="center">پروژه‌ها</th>
+          {% if perms.strategic.change_functionalstrategy or perms.strategic.delete_functionalstrategy %}
+          <th style="width:70px;" class="center">عملیات</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody id="fs-rows-body"></tbody>
+    </table>
+  </div>
+
+  <div class="fs-legend">
+    <span><span class="fs-dot" style="width:9px;height:9px;background:var(--fs-green);"></span>تطبیق قوی (هدف + شاخص)</span>
+    <span><span class="fs-dot" style="width:9px;height:9px;background:var(--fs-rose);"></span>بدون هدف مصوب</span>
+    <span style="border-inline-start:1px solid var(--fs-border);padding-inline-start:16px;">برای دیدن کد شاخص‌ها یا عنوان و وضعیت پروژه‌ها، نشانگر را روی بج «شاخص‌ها»/«پروژه‌ها» نگه دارید</span>
+  </div>
+</div>
+
+{% if perms.strategic.add_functionalstrategy or perms.strategic.change_functionalstrategy %}
+<div class="overlay" id="fsOverlay">
+  <div class="modal-card" style="max-width:560px;">
+    <h3 id="fsModalTitle">افزودن استراتژی وظیفه‌ای</h3>
+    <form method="post" id="fsForm" action="{% url 'strategic:functional_strategies' %}">
+      {% csrf_token %}
+      <input type="hidden" name="obj_id" id="fs_obj_id" value="">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="field-group"><label>معاونت / واحد سازمانی</label>{{ form.org_unit }}</div>
+        <div class="field-group"><label>مدیریت</label>{{ form.management }}</div>
+      </div>
+      <div class="field-group"><label>عنوان استراتژی وظیفه‌ای</label>{{ form.title }}</div>
+      <div class="field-group"><label>شرح (اقدام / فرآیند / نتیجه)</label>{{ form.detail }}</div>
+      <div class="field-group"><label>ترتیب در مدیریت</label>{{ form.order }}</div>
+      <div class="field-group"><label>مبنا / استناد</label>{{ form.basis }}</div>
+      <div class="field-group">
+        <label>اهداف نقشه استراتژیک مرتبط (برای اتصال شاخص‌ها و پروژه‌ها)</label>
+        <div class="picker-chips" id="fsChipsObjectives"></div>
+        <input type="text" id="fsObjectiveSearch" placeholder="جستجو در عنوان اهداف..."
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="fsObjectivesBox">{{ form.linked_objectives }}</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="fsCloseModal()">انصراف</button>
+        <button type="submit" class="btn accent" id="fsSubmitBtn">ثبت</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<form method="post" id="fsDeleteForm" style="display:none;">
+  {% csrf_token %}
+</form>
+{% endif %}
+
+{% if request.user.is_superuser %}
+<div class="overlay" id="fsImportOverlay">
+  <div class="modal-card">
+    <h3>ورود استراتژی‌های وظیفه‌ای از اکسل</h3>
+    <form method="post" action="{% url 'strategic:functional_strategy_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (باید دقیقاً مطابق ستون‌های خروجی اکسل همین صفحه باشد)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:#B0413E;line-height:1.7;font-weight:600;">
+        ✅ توجه: تطبیق بر پایه‌ی ستون «شناسه» (اولین ستون، دست‌نزنید) انجام می‌شه — اگه پر بود، دقیقاً همون ردیف به‌روزرسانی می‌شه؛ اگه خالی بود، ردیف جدید ساخته می‌شه. ستون «معاونت / واحد سازمانی» باید دقیقاً با نام یکی از واحدهای موجود یکی باشه. همیشه از همین «خروجی اکسل» شروع کنید.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('fsImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">جایگزینی و وارد کردن</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  var FS_CAN_EDIT = {{ perms.strategic.change_functionalstrategy|yesno:"true,false" }};
+  var FS_CAN_DELETE = {{ perms.strategic.delete_functionalstrategy|yesno:"true,false" }};
+
+  function fsOpenModal(){ document.getElementById('fsOverlay').classList.add('open'); }
+  function fsCloseModal(){ document.getElementById('fsOverlay').classList.remove('open'); }
+
+  function fsSyncPicker(boxId, chipsId){
+    var box = document.getElementById(boxId);
+    var chipsBox = document.getElementById(chipsId);
+    if (!box || !chipsBox) return;
+    box.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      cb.closest('label').classList.toggle('picked', cb.checked);
+    });
+    var checked = box.querySelectorAll('input[type="checkbox"]:checked');
+    chipsBox.innerHTML = '';
+    checked.forEach(function(cb){
+      var label = cb.closest('label');
+      var text = label ? label.textContent.trim() : '';
+      var chip = document.createElement('span');
+      chip.className = 'picker-chip';
+      var span = document.createElement('span');
+      span.textContent = text; span.title = text;
+      chip.appendChild(span);
+      var btn = document.createElement('button');
+      btn.type = 'button'; btn.innerHTML = '×'; btn.title = 'حذف از انتخاب';
+      btn.addEventListener('click', function(){ cb.checked = false; fsSyncPicker(boxId, chipsId); });
+      chip.appendChild(btn);
+      chipsBox.appendChild(chip);
+    });
+    chipsBox.classList.toggle('has-items', checked.length > 0);
+  }
+  function fsSyncObjectivePicked(){ fsSyncPicker('fsObjectivesBox', 'fsChipsObjectives'); }
+
+  function fsWirePicker(boxId, syncFn){
+    document.querySelectorAll('#' + boxId + ' label').forEach(function(lbl){
+      var cb = lbl.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      lbl.addEventListener('click', function(e){
+        if (e.target === cb) return;
+        e.preventDefault();
+        cb.checked = !cb.checked;
+        syncFn();
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var search = document.getElementById('fsObjectiveSearch');
+    if (search) {
+      search.addEventListener('input', function(){
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#fsObjectivesBox label').forEach(function(lbl){
+          lbl.style.display = (!q || lbl.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+        });
+      });
+    }
+    fsWirePicker('fsObjectivesBox', fsSyncObjectivePicked);
+    fsSyncObjectivePicked();
+  });
+
+  function fsResetForm(){
+    document.getElementById('fsForm').reset();
+    document.getElementById('fs_obj_id').value = '';
+    document.querySelectorAll('#fsObjectivesBox input[type="checkbox"]').forEach(function(cb){ cb.checked = false; });
+    fsSyncObjectivePicked();
+  }
+
+  window.fsNew = function(){
+    fsResetForm();
+    // پیش‌فرض: معاونت/واحد و مدیریت فعلی که کاربر در چارت باز کرده
+    if (window.fsCurrentSelection) {
+      var sel = window.fsCurrentSelection();
+      var gSel = document.getElementById('id_org_unit');
+      if (gSel && sel.orgUnitId) gSel.value = sel.orgUnitId;
+      if (sel.mgmt) document.getElementById('id_management').value = sel.mgmt;
+    }
+    document.getElementById('fsModalTitle').textContent = 'افزودن استراتژی وظیفه‌ای';
+    document.getElementById('fsSubmitBtn').textContent = 'ثبت';
+    fsOpenModal();
+  };
+
+  window.fsEdit = function(row){
+    fsResetForm();
+    document.getElementById('fs_obj_id').value = row.id;
+    document.getElementById('id_org_unit').value = row.orgUnitId;
+    document.getElementById('id_management').value = row.management;
+    document.getElementById('id_order').value = row.order;
+    document.getElementById('id_title').value = row.title;
+    document.getElementById('id_detail').value = row.detail;
+    document.getElementById('id_basis').value = row.basis;
+    var objIds = (row.linkedObjIds || []).map(String);
+    document.querySelectorAll('#fsObjectivesBox input[name="linked_objectives"]').forEach(function(cb){
+      cb.checked = objIds.indexOf(cb.value) !== -1;
+    });
+    fsSyncObjectivePicked();
+    document.getElementById('fsModalTitle').textContent = 'ویرایش استراتژی وظیفه‌ای';
+    document.getElementById('fsSubmitBtn').textContent = 'ذخیره تغییرات';
+    fsOpenModal();
+  };
+
+  var FS_DELETE_URL_TMPL = "{% url 'strategic:functional_strategy_delete' 0 %}";
+  window.fsDelete = function(id, title){
+    if (!confirm('استراتژی «' + title + '» حذف شود؟')) return;
+    var f = document.getElementById('fsDeleteForm');
+    f.action = FS_DELETE_URL_TMPL.replace('/0/', '/' + id + '/');
+    f.submit();
+  };
+</script>
+
+<script>
+(function(){
+  var CEO_DIRECT_LIST = {{ ceo_direct_list_json|safe }};
+  var DEPUTIES = {{ deputies_json|safe }};
+  var ALL_GROUPS = CEO_DIRECT_LIST.concat(DEPUTIES);
+  var DOT = {strong:'#3E7A52', none:'#B0413E'};
+
+  var firstGroup = ALL_GROUPS[0] || null;
+  var state = {activeGroup: firstGroup ? firstGroup.key : null, activeMgmt: null};
+
+  // --- تولتیپ سفارشی (همون سبک نقشه حرارتی شاخص‌ها) ---
+  var TABLE_ROWS = [];
+  var fsTipEl = document.getElementById('fsTip');
+  var FS_TIP_LABEL = {
+    detail: 'شرح (اقدام / فرآیند / نتیجه)',
+    obj: 'هدف بالادستی',
+    kpi: 'شاخص‌های مرتبط',
+    init: 'پروژه‌ها / اقدامات مرتبط',
+  };
+  var FS_TIP_SOURCE = {detail: 'detail', obj: 'objTooltip', kpi: 'kpiTooltip', init: 'initTooltip'};
+  function fsTipContent(row, field){
+    var text = row[FS_TIP_SOURCE[field]];
+    if (!text) return '';
+    var body;
+    if (field === 'detail') {
+      // شرح یک متنِ پیوسته است، نه فهرست — بدون بولت
+      body = esc(text);
+    } else {
+      // فهرست موارد (اهداف/شاخص‌ها/پروژه‌ها) — هر مورد با یک بولت جدا، در خط خودش
+      body = text.split('\n').filter(function(l){ return l.trim(); })
+        .map(function(l){ return '<div class="fs-tip-item">• ' + esc(l) + '</div>'; }).join('');
+    }
+    return '<b>' + FS_TIP_LABEL[field] + '</b>' + body;
+  }
+  // تولتیپ کنار المان ثابت می‌مونه (نه دنبال ماوس) تا بشه ماوس رو داخلش برد و اسکرول کرد؛
+  // با یه تأخیر کوچیک هم می‌بندیمش تا رفتن از المان به سمت خود تولتیپ باعث بسته‌شدنش نشه.
+  var fsTipHideTimer = null;
+  function fsCancelHideTip(){ if (fsTipHideTimer) { clearTimeout(fsTipHideTimer); fsTipHideTimer = null; } }
+  function fsScheduleHideTip(){ fsCancelHideTip(); fsTipHideTimer = setTimeout(fsHideTip, 220); }
+  function fsHideTip(){ fsCancelHideTip(); fsTipEl.style.display = 'none'; }
+
+  function fsShowTipNear(el, html){
+    fsCancelHideTip();
+    if (!html) { fsHideTip(); return; }
+    fsTipEl.innerHTML = html;
+    fsTipEl.style.display = 'block';
+    var r = el.getBoundingClientRect();
+    var w = fsTipEl.offsetWidth, h = fsTipEl.offsetHeight;
+    var left = r.left;
+    var top = r.bottom + 8;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (left < 8) left = 8;
+    if (top + h > window.innerHeight - 8) top = r.top - h - 8; // اگه پایین جا نشد، بالای المان
+    if (top < 8) top = 8;
+    fsTipEl.style.left = left + 'px';
+    fsTipEl.style.top = top + 'px';
+  }
+
+  (function(){
+    var body = document.getElementById('fs-rows-body');
+    body.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-tip-field]');
+      if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
+      var row = TABLE_ROWS[parseInt(el.getAttribute('data-tip-row'), 10)];
+      if (!row) return;
+      fsShowTipNear(el, fsTipContent(row, el.getAttribute('data-tip-field')));
+    });
+    body.addEventListener('mouseout', function(e){
+      var el = e.target.closest('[data-tip-field]');
+      if (!el) return;
+      if (e.relatedTarget && (el.contains(e.relatedTarget) || fsTipEl.contains(e.relatedTarget))) return;
+      fsScheduleHideTip();
+    });
+    fsTipEl.addEventListener('mouseover', fsCancelHideTip);
+    fsTipEl.addEventListener('mouseout', function(e){
+      if (e.relatedTarget && fsTipEl.contains(e.relatedTarget)) return;
+      fsScheduleHideTip();
+    });
+  })();
+
+  function esc(s){
+    return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  window.fsSelectGroup = function(key){
+    if (key === null || key === undefined) return;
+    var g = ALL_GROUPS.find(function(x){return x.key === key;});
+    state.activeGroup = key;
+    state.activeMgmt = (g && g.managements[0]) ? g.managements[0].name : null;
+    render();
+  };
+  window.fsSelectMgmt = function(name){
+    state.activeMgmt = name;
+    render();
+  };
+
+  function renderGroupRow(containerId, groups, ceoDirect){
+    var row = document.getElementById(containerId);
+    row.innerHTML = '';
+    groups.forEach(function(g){
+      var isActive = state.activeGroup === g.key;
+      var col = document.createElement('div');
+      col.className = 'fs-deputy-col';
+      col.innerHTML =
+        '<div class="fs-connector" style="height:14px;"></div>' +
+        '<button type="button" class="fs-deputy-btn' + (ceoDirect ? ' ceo-direct' : '') + (isActive ? ' active' : '') + '" onclick="fsSelectGroup(' + JSON.stringify(g.key) + ')">' +
+          '<div class="fs-deputy-title">' + esc(g.title) + '</div>' +
+          '<div class="fs-deputy-bar"><div style="width:' + g.strongPct + '%;background:var(--fs-green);"></div><div style="width:' + g.nonePct + '%;background:var(--fs-rose);"></div></div>' +
+          '<div class="fs-deputy-sub">' + g.total + ' استراتژی</div>' +
+        '</button>';
+      row.appendChild(col);
+    });
+  }
+
+  function renderDrill(){
+    var activeGroup = ALL_GROUPS.find(function(g){return g.key === state.activeGroup;}) || ALL_GROUPS[0];
+    if (!activeGroup) {
+      document.getElementById('fs-drill-title').textContent = 'هیچ معاونت یا مدیریت مستقلی ثبت نشده است';
+      document.getElementById('fs-mgmt-row').innerHTML = '';
+      return {activeGroup: {managements: []}, activeMgmtName: null};
+    }
+    document.getElementById('fs-drill-title').textContent = 'مدیریت‌های زیرمجموعه‌ «' + activeGroup.title + '»';
+    var wrap = document.getElementById('fs-mgmt-row');
+    wrap.innerHTML = '';
+    var activeMgmtName = state.activeMgmt || (activeGroup.managements[0] && activeGroup.managements[0].name);
+    activeGroup.managements.forEach(function(m){
+      var isActive = m.name === activeMgmtName;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fs-mgmt-chip' + (isActive ? ' active' : '');
+      btn.onclick = function(){ fsSelectMgmt(m.name); };
+      btn.innerHTML =
+        '<span class="fs-mgmt-chip-name">' + esc(m.name) + '</span>' +
+        '<span style="display:flex;gap:4px;align-items:center;">' +
+          '<span class="fs-dot" style="background:var(--fs-green);"></span><span class="fs-dot-num">' + m.strong + '</span>' +
+          '<span class="fs-dot" style="background:var(--fs-rose);margin-inline-start:4px;"></span><span class="fs-dot-num">' + m.none + '</span>' +
+        '</span>';
+      wrap.appendChild(btn);
+    });
+    return {activeGroup: activeGroup, activeMgmtName: activeMgmtName};
+  }
+
+  function renderTable(activeGroup, activeMgmtName){
+    var mgmtRaw = activeGroup.managements.find(function(m){return m.name === activeMgmtName;}) || activeGroup.managements[0];
+    document.getElementById('fs-mgmt-name').textContent = mgmtRaw ? mgmtRaw.name : '';
+    var body = document.getElementById('fs-rows-body');
+    body.innerHTML = '';
+    var rows = mgmtRaw ? mgmtRaw.rows : [];
+    TABLE_ROWS = rows;
+    rows.forEach(function(r, idx){
+      var tr = document.createElement('tr');
+      var dotColor = DOT[r.cls] || DOT.none;
+      var objCell = r.hasObj
+        ? '<div data-tip-row="' + idx + '" data-tip-field="obj" style="display:flex;align-items:center;gap:6px;"><span class="fs-dot" style="background:' + r.objColor + ';flex:none;"></span><span style="font-size:10.5px;line-height:1.4;">' + esc(r.objShort) + '</span></div>'
+        : '<span style="font-size:10px;color:var(--fs-rose);">بدون هدف مصوب</span>';
+      var kpiCell = r.kpiCount > 0
+        ? '<span class="fs-badge kpi" data-tip-row="' + idx + '" data-tip-field="kpi"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--fs-green)" stroke-width="2.4"><path d="M4 19V10M12 19V5m8 14v-8" stroke-linecap="round"/></svg>' + r.kpiCount + '</span>'
+        : '<span class="fs-muted-dash">—</span>';
+      var initCell = r.initCount > 0
+        ? '<span class="fs-badge init" data-tip-row="' + idx + '" data-tip-field="init"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--fs-brand)" stroke-width="2.4"><path d="M3 12h5l2-8 4 16 2-8h5" stroke-linecap="round" stroke-linejoin="round"/></svg>' + r.initCount + '</span>'
+        : '<span class="fs-muted-dash">—</span>';
+      tr.innerHTML =
+        '<td class="center"><span class="fs-dot" style="background:' + dotColor + ';"></span></td>' +
+        '<td data-tip-row="' + idx + '" data-tip-field="detail" style="max-width:340px;line-height:1.5;">' + esc(r.title) + '</td>' +
+        '<td>' + objCell + '</td>' +
+        '<td class="center">' + kpiCell + '</td>' +
+        '<td class="center">' + initCell + '</td>';
+      if (FS_CAN_EDIT || FS_CAN_DELETE) {
+        var actionsTd = document.createElement('td');
+        actionsTd.className = 'center';
+        actionsTd.style.whiteSpace = 'nowrap';
+        if (FS_CAN_EDIT) {
+          var editBtn = document.createElement('button');
+          editBtn.type = 'button'; editBtn.className = 'fs-iconbtn';
+          editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+          editBtn.title = 'ویرایش';
+          editBtn.onclick = function(){ fsEdit(r); };
+          actionsTd.appendChild(editBtn);
+        }
+        if (FS_CAN_DELETE) {
+          var delBtn = document.createElement('button');
+          delBtn.type = 'button'; delBtn.className = 'fs-iconbtn';
+          delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+          delBtn.title = 'حذف';
+          delBtn.onclick = function(){ fsDelete(r.id, r.title); };
+          actionsTd.appendChild(delBtn);
+        }
+        tr.appendChild(actionsTd);
+      }
+      body.appendChild(tr);
+    });
+  }
+
+  function render(){
+    renderGroupRow('fs-ceo-direct-row', CEO_DIRECT_LIST, true);
+    renderGroupRow('fs-deputy-row', DEPUTIES, false);
+    var d = renderDrill();
+    renderTable(d.activeGroup, d.activeMgmtName);
+  }
+
+  window.fsCurrentSelection = function(){
+    return {orgUnitId: state.activeGroup, mgmt: state.activeMgmt};
+  };
+
+  state.activeMgmt = firstGroup && firstGroup.managements[0] ? firstGroup.managements[0].name : null;
+  render();
+})();
+</script>
+{% endblock %}

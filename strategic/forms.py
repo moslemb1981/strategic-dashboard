@@ -7,6 +7,7 @@ from .models import (
     ExchangeRate, LegalTradeRequirement, VehicleMarketStat, EVTrend, CustomerSatisfactionBenchmark,
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
+    FunctionalStrategy, OrgUnit,
 )
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
@@ -744,3 +745,34 @@ class EnvironmentalFactorForm(forms.ModelForm):
             "effect_type": forms.TextInput(attrs={"placeholder": "فرصت / تهدید / فرصت‌تهدید"}),
             "scoring_guide": forms.TextInput(attrs={"placeholder": "راهنمای امتیازدهی"}),
         }
+
+
+class FunctionalStrategyForm(forms.ModelForm):
+    class Meta:
+        model = FunctionalStrategy
+        fields = [
+            "org_unit", "management", "order", "title", "detail",
+            "basis", "linked_objectives",
+        ]
+        widgets = {
+            "management": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت ارتباطات"}),
+            "order": forms.NumberInput(attrs={"min": 0}),
+            "title": forms.TextInput(attrs={"placeholder": "عنوان استراتژی وظیفه‌ای"}),
+            "detail": forms.Textarea(attrs={"rows": 4, "placeholder": "اقدام / فرآیند / نتیجه"}),
+            "basis": forms.Textarea(attrs={"rows": 2, "placeholder": "مبنا / استناد"}),
+            "linked_objectives": forms.CheckboxSelectMultiple(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["org_unit"].queryset = OrgUnit.objects.all().order_by("kind", "order", "name")
+
+        self.fields["linked_objectives"].required = False
+        self.fields["linked_objectives"].queryset = StrategicObjective.objects.select_related("business_unit").order_by(
+            "business_unit__name", "order", "code",
+        )
+        self.fields["linked_objectives"].label_from_instance = (
+            lambda o: f"{o.code} — [{o.business_unit.name.replace('کسب و کار ', '') if o.business_unit else '—'}] {o.title}"
+        )
+        self.fields["basis"].required = False
+        self.fields["detail"].required = False

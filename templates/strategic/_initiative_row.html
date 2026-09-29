@@ -3,8 +3,8 @@
     data-search="{{ i.title|lower }} {{ i.code|lower }} {{ i.owner|lower }} {{ i.division|lower }} {{ i.work_group|lower }}">
     <span class="init-row-code">{{ i.code|default:"—" }}</span>
     <span class="type-pill {% if i.item_type == 'action' %}type-action{% endif %}">{{ i.get_item_type_display }}</span>
-    <span class="init-row-title" title="{{ i.title }}">{{ i.title }}</span>
-    <span class="init-row-owner" title="{{ i.owner }}">{{ i.owner|default:"—" }}</span>
+    <span class="init-row-title" data-tip-text="{{ i.title }}">{{ i.title }}</span>
+    <span class="init-row-owner" data-tip-text="{{ i.owner }}">{{ i.owner|default:"—" }}</span>
     <span class="init-row-progress">
       {% if i.item_type == 'project' %}
       <span class="share-track"><span class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></span></span>
@@ -14,13 +14,17 @@
       {% endif %}
     </span>
     <span class="init-row-badges">
-      {% if i.objectives.all %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" title="اهداف استراتژیک مرتبط:&#10;{% for o in i.objectives.all %}● {{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ i.objectives.all|length }}</span>{% endif %}
+      {% if i.objectives.all %}<span class="used-badge" style="background:var(--primary-soft);color:var(--primary-dark);" data-tip-label="اهداف استراتژیک مرتبط" data-tip-items="{% for o in i.objectives.all %}{{ o.code }}: {{ o.title }} — منظر: {{ o.get_perspective_display }} — وضعیت: {{ o.get_status_display }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-bullseye"></i> {{ i.objectives.all|length }}</span>{% endif %}
       {% with kc=i.source_kpi.count opkc=i.source_operational_kpi.count %}
-      {% if kc or opkc %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;" title="{% if kc %}شاخص‌های مبنا:&#10;{% for k in i.source_kpi.all %}● شاخص {{ k.code }} — {{ k.name }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% endif %}{% if kc and opkc %}&#10;{% endif %}{% if opkc %}شاخص‌های عملیاتی مبنا:&#10;{% for k in i.source_operational_kpi.all %}● {{ k.code }} — {{ k.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% endif %}"><i class="fa-solid fa-chart-line"></i> {{ kc|add:opkc }}</span>{% endif %}
+      {% if kc or opkc %}<span class="used-badge" style="background:var(--accent-soft);color:#7A4711;"
+        data-tip-label="{% if kc %}شاخص‌های مبنا{% else %}شاخص‌های عملیاتی مبنا{% endif %}"
+        data-tip-items="{% if kc %}{% for k in i.source_kpi.all %}شاخص {{ k.code }} — {{ k.name }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% else %}{% for k in i.source_operational_kpi.all %}{{ k.code }} — {{ k.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}{% endif %}"
+        {% if kc and opkc %}data-tip-items2-label="شاخص‌های عملیاتی مبنا" data-tip-items2="{% for k in i.source_operational_kpi.all %}{{ k.code }} — {{ k.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"{% endif %}
+        ><i class="fa-solid fa-chart-line"></i> {{ kc|add:opkc }}</span>{% endif %}
       {% endwith %}
-      {% if i.source_tows.all %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" title="راهبردهای TOWS مبنا:&#10;{% for t in i.source_tows.all %}● {{ t.get_category_display }}: {{ t.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-board"></i> {{ i.source_tows.all|length }}</span>{% endif %}
-      {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" title="ریسک‌های مبنا:&#10;{% for rk in i.source_risk.all %}● {{ rk.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ i.source_risk.all|length }}</span>{% endif %}
-      {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" title="ردیابی خودکار منشأ راهبردی این پروژه:&#10;&#10;{{ i.traced_origins_hover_text }}"><i class="fa-solid fa-route"></i> {{ i.traced_origins|length }}</span>{% endif %}
+      {% if i.source_tows.all %}<span class="used-badge" style="background:#EAF1F7;color:#2E5C8A;" data-tip-label="راهبردهای TOWS مبنا" data-tip-items="{% for t in i.source_tows.all %}{{ t.get_category_display }}: {{ t.text }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-chess-board"></i> {{ i.source_tows.all|length }}</span>{% endif %}
+      {% if i.source_risk.all %}<span class="used-badge" style="background:#FBEAEA;color:#B0413E;" data-tip-label="ریسک‌های مبنا" data-tip-items="{% for rk in i.source_risk.all %}{{ rk.title }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-triangle-exclamation"></i> {{ i.source_risk.all|length }}</span>{% endif %}
+      {% if i.traced_origins %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" data-tip-label="ردیابی خودکار منشأ راهبردی این پروژه" data-tip-pre="{{ i.traced_origins_hover_text }}"><i class="fa-solid fa-route"></i> {{ i.traced_origins|length }}</span>{% endif %}
     </span>
     <span class="init-row-actions">
       {% if perms.strategic.change_initiative %}
