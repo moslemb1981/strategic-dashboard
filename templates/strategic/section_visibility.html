@@ -1,0 +1,78 @@
+{% extends "strategic/base.html" %}
+{% block title %}دسترسی عمومی بخش‌ها{% endblock %}
+{% block crumb %}مدیریت سامانه &raquo; دسترسی عمومی بخش‌ها{% endblock %}
+
+{% block content %}
+<div class="topbar">
+  <div><h1>دسترسی عمومی بخش‌ها</h1>
+  <div class="sub">مشخص کنید کاربرِ بدون ورود (مهمان) کدام بخش‌های سامانه را ببیند. بخش‌هایی که «قفل» شوند، فقط برای کاربران واردشده نمایش داده می‌شوند.</div></div>
+</div>
+
+<form method="post" class="sv-form">
+  {% csrf_token %}
+  <div class="sv-actions-top">
+    <button type="button" class="btn" onclick="svSetAll(true)"><i class="fa-solid fa-lock-open"></i> باز کردن همه</button>
+    <button type="button" class="btn" onclick="svSetAll(false)"><i class="fa-solid fa-lock"></i> قفل‌کردن همه</button>
+  </div>
+
+  <table class="sv-table">
+    <thead>
+      <tr><th>بخش</th><th style="width:140px;">وضعیت برای مهمان</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td>
+          <label class="sv-switch">
+            <input type="checkbox" name="public_keys" value="{{ row.key }}" {% if row.is_public %}checked{% endif %}>
+            <span class="sv-slider"></span>
+            <span class="sv-switch-text">{% if row.is_public %}عمومی{% else %}قفل{% endif %}</span>
+          </label>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sv-save-bar">
+    <button type="submit" class="btn primary"><i class="fa-solid fa-floppy-disk"></i> ذخیره تنظیمات</button>
+  </div>
+</form>
+
+<style>
+  .sv-form{max-width:720px;}
+  .sv-actions-top{display:flex;gap:8px;margin-bottom:12px;}
+  .sv-table{width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .sv-table th{background:var(--ink);color:#fff;padding:10px 12px;text-align:right;}
+  .sv-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+  .sv-table tr:last-child td{border-bottom:none;}
+  .sv-switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+  .sv-switch input{display:none;}
+  .sv-slider{position:relative;width:38px;height:20px;background:#d9dde3;border-radius:20px;transition:.15s;flex:none;}
+  .sv-slider::before{content:"";position:absolute;top:2px;right:2px;width:16px;height:16px;background:#fff;border-radius:50%;
+    transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .sv-switch input:checked + .sv-slider{background:var(--success, #1E6B52);}
+  .sv-switch input:checked + .sv-slider::before{transform:translateX(-18px);}
+  .sv-switch-text{font-size:11px;font-weight:700;color:var(--ink-faint);min-width:34px;}
+  .sv-switch input:checked ~ .sv-switch-text{color:var(--success, #1E6B52);}
+  .sv-save-bar{margin-top:16px;}
+</style>
+
+<script>
+  function svSetAll(makePublic){
+    document.querySelectorAll('.sv-table input[type=checkbox]').forEach(function(cb){
+      cb.checked = makePublic;
+      var text = cb.closest('.sv-switch').querySelector('.sv-switch-text');
+      text.textContent = makePublic ? 'عمومی' : 'قفل';
+    });
+  }
+  document.querySelectorAll('.sv-table input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      var text = cb.closest('.sv-switch').querySelector('.sv-switch-text');
+      text.textContent = cb.checked ? 'عمومی' : 'قفل';
+    });
+  });
+</script>
+{% endblock %}

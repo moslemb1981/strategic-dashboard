@@ -1211,7 +1211,7 @@ class CompanyKPI(models.Model):
             return "#9aa3ac"
         if p >= 90:
             return "#3E7A52"
-        if p >= 60:
+        if p >= 80:
             return "#C97A2B"
         return "#B0413E"
 
@@ -1317,7 +1317,7 @@ class OperationalKPI(models.Model):
             return "#9aa3ac"
         if p >= 90:
             return "#3E7A52"
-        if p >= 60:
+        if p >= 80:
             return "#C97A2B"
         return "#B0413E"
 
@@ -1341,7 +1341,7 @@ class OperationalKPI(models.Model):
             return "#9aa3ac"
         if p >= 90:
             return "#3E7A52"
-        if p >= 60:
+        if p >= 80:
             return "#C97A2B"
         return "#B0413E"
 
@@ -1371,7 +1371,7 @@ class OperationalKPI(models.Model):
             return "#9aa3ac"
         if p >= 90:
             return "#3E7A52"
-        if p >= 60:
+        if p >= 80:
             return "#C97A2B"
         return "#B0413E"
 
@@ -2039,19 +2039,28 @@ class FunctionalStrategy(models.Model):
 
     @property
     def resolved_kpis(self):
-        """شاخص‌های شرکتی/عملیاتی مرتبط، از طریق اهداف مرتبط (بدون تکرار)."""
+        """شاخص‌های شرکتی/عملیاتی مرتبط، از طریق اهداف مرتبط (بدون تکرار)، به‌همراه
+        هدف/عملکرد/درصد تحقق ۱۴۰۵ هر شاخص برای نمایش کمی در هاور."""
         seen, out = set(), []
         for obj in self.linked_objectives.all():
             for k in obj.linked_operational_kpis.all():
                 key = ("op", k.pk)
                 if key not in seen:
                     seen.add(key)
-                    out.append({"code": k.department or "", "label": str(k)})
+                    out.append({
+                        "code": k.department or "", "label": str(k),
+                        "target": k.target_1405, "actual": k.actual_1405,
+                        "pct": k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405,
+                    })
             for k in obj.linked_kpis.all():
                 key = ("co", k.pk)
                 if key not in seen:
                     seen.add(key)
-                    out.append({"code": getattr(k, "code", "") or "", "label": str(k)})
+                    out.append({
+                        "code": getattr(k, "code", "") or "", "label": str(k),
+                        "target": k.target_1405, "actual": k.actual_1405,
+                        "pct": k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405,
+                    })
         return out
 
     @property
@@ -2072,4 +2081,24 @@ class FunctionalStrategy(models.Model):
             if obj.linked_kpis.exists() or obj.linked_operational_kpis.exists():
                 return "strong"
         return "none"
+
+
+class SectionVisibility(models.Model):
+    """تنظیم نمایش عمومی/خصوصی هر بخش از سامانه برای کاربر مهمان (بدون ورود).
+    کلید (key) با کلیدهای VISIBILITY_SECTIONS در permission_sections.py مطابقت دارد.
+    اگر برای یک کلید ردیفی وجود نداشته باشد، رفتار پیش‌فرض «عمومی» است (سازگار با
+    رفتار قبلی سامانه که هیچ بخشی قفل نبود)."""
+
+    key = models.CharField(max_length=60, unique=True, verbose_name="کلید بخش")
+    label = models.CharField(max_length=150, blank=True, verbose_name="عنوان نمایشی")
+    is_public = models.BooleanField(default=True, verbose_name="نمایش برای کاربر مهمان (بدون ورود)")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرین تغییر")
+
+    class Meta:
+        ordering = ["label"]
+        verbose_name = "دسترسی عمومی بخش"
+        verbose_name_plural = "تنظیمات دسترسی عمومی بخش‌ها"
+
+    def __str__(self):
+        return f"{self.label or self.key} — {'عمومی' if self.is_public else 'قفل (فقط کاربر عضو)'}"
 

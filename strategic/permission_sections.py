@@ -29,9 +29,42 @@ SECTIONS = {
     "operational_kpis": ("بانک شاخص‌های عملیاتی", ["OperationalKPI"], False),
     "roadmap": ("پروژه‌های تحول", ["Initiative"], True),
     "market_intel": ("هوش بازار", ["Competitor", "CustomerSatisfactionBenchmark", "DomesticRawMaterial", "MarketIntelReport"], False),
+    "functional_strategies": ("استراتژی وظیفه‌ای", ["FunctionalStrategy"], False),
 }
 
 BU_SCOPED_SECTION_KEYS = [key for key, (_, _, bu_scoped) in SECTIONS.items() if bu_scoped]
+
+
+# کلید (مطابق نام URL صفحه) → عنوان فارسی — فهرست بخش‌هایی که می‌توان دیدنشان را
+# برای کاربر مهمان (بدون ورود) قفل/باز کرد. جدا از SECTIONS بالا نگه داشته شده چون
+# اینجا موضوع «نمایش صفحه» است، نه «مجوز ویرایش مدل».
+VISIBILITY_SECTIONS = {
+    "home": "خانه (داشبورد)",
+    "documents": "اسناد و دستورالعمل‌ها",
+    "org_identity": "ارکان جهت‌ساز سازمان",
+    "research": "پیشینه‌پژوهی (بنچمارکینگ)",
+    "legal_requirements": "الزامات قانونی",
+    "audit_findings": "نتایج ممیزی‌ها",
+    "stakeholders": "تحلیل ذینفعان",
+    "raw_factors_archive": "آرشیو عوامل اولیه",
+    "environmental_factors": "بانک عوامل محیطی",
+    "pestel": "تحلیل PESTEL",
+    "porter": "تحلیل Porter",
+    "mckinsey7s": "تحلیل McKinsey 7S",
+    "value_chain": "زنجیره ارزش",
+    "cross_impact": "ماتریس اثر متقابل",
+    "scenarios": "سناریوهای راهبردی",
+    "swot": "تحلیل SWOT",
+    "stratmap": "نقشه استراتژیک",
+    "functional_strategies": "استراتژی وظیفه‌ای",
+    "risk": "نقشه ریسک",
+    "company_goals": "اهداف کلان و KPI شرکت",
+    "operational_kpis": "بانک شاخص‌های عملیاتی",
+    "kpi_heatmap": "نقشه حرارتی شاخص‌ها",
+    "roadmap": "پروژه‌های تحول",
+    "market_intel": "هوش بازار",
+    "market": "رصد بازار رقبا",
+}
 
 
 def permissions_for_section(section_key):

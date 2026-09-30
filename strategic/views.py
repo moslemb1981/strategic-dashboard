@@ -6,6 +6,7 @@ import uuid
 import math
 import json
 import requests
+from functools import wraps
 
 from django.conf import settings
 from django.contrib import messages
@@ -54,6 +55,31 @@ def _has_perm(request, perm):
     messages.error(request, "شما اجازه انجام این عملیات را ندارید. برای دسترسی ویرایش با مدیر سیستم هماهنگ کنید.")
     logger.warning("PERMISSION DENIED: user=%s perm=%s", request.user, perm)
     return False
+
+
+def is_section_public(key):
+    """آیا این بخش برای کاربر مهمان (بدون ورود) قابل مشاهده است؟
+    اگر مدیر هنوز برای این بخش تنظیمی ثبت نکرده باشد، پیش‌فرض «عمومی» است —
+    یعنی رفتار فعلی سامانه (همه‌چیز بدون ورود قابل دیدن) دست‌نخورده می‌ماند
+    تا مدیر صراحتاً از پنل «دسترسی عمومی بخش‌ها» یک بخش را قفل کند."""
+    from strategic.models import SectionVisibility
+    row = SectionVisibility.objects.filter(key=key).only("is_public").first()
+    return True if row is None else row.is_public
+
+
+def guest_gate(section_key):
+    """دکوریتور: اگر بخش قفل باشد و کاربر وارد نشده باشد، به صفحه ورود می‌فرستد
+    (با پارامتر next تا بعد از ورود به همین صفحه برگردد). کاربر واردشده همیشه
+    عبور می‌کند — این دکوریتور فقط برای کاربر مهمان محدودیت ایجاد می‌کند."""
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            if not request.user.is_authenticated and not is_section_public(section_key):
+                from django.contrib.auth.views import redirect_to_login
+                return redirect_to_login(request.get_full_path(), login_url=reverse("strategic:login"))
+            return view_func(request, *args, **kwargs)
+        return _wrapped
+    return decorator
 
 
 def _scoped_business_units(request):
@@ -184,6 +210,7 @@ def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
     return round(avg), status
 
 
+@guest_gate('home')
 def home(request):
     objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis"))
 
@@ -332,6 +359,7 @@ def home(request):
 
 # ---------------- Research library ----------------
 
+@guest_gate('research')
 def research(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -363,6 +391,7 @@ def research(request):
 
 # ---------------- ذینفعان ----------------
 
+@guest_gate('stakeholders')
 def stakeholders(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -463,6 +492,7 @@ def study_delete(request, pk):
 
 # ---------------- Roadmap / initiatives ----------------
 
+@guest_gate('roadmap')
 def roadmap(request):
     business_units = _scoped_business_units(request)
     group_mode = request.POST.get("group_mode") or request.GET.get("group_mode") or "bu"
@@ -1038,6 +1068,7 @@ def market_intel_import(request):
     return redirect("strategic:market_intel")
 
 
+@guest_gate('market_intel')
 def market_intel(request):
     # نگاشت هر «نوع فرم» به (مدل، فرم، مجوز پایه‌ی نام مدل جنگو)
     FORM_MAP = {
@@ -1123,6 +1154,7 @@ def market_intel_delete(request, model_key, pk):
     return redirect(f"{reverse('strategic:market_intel')}?tab={active_panel}")
 
 
+@guest_gate('market')
 def market(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -1157,6 +1189,7 @@ def competitor_delete(request, pk):
 
 # ---------------- PESTEL ----------------
 
+@guest_gate('pestel')
 def pestel(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -1211,6 +1244,7 @@ def pestel_delete(request, pk):
 
 # ---------------- تحلیل اثرات متقابل (MICMAC) ----------------
 
+@guest_gate('cross_impact')
 def cross_impact(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -1270,6 +1304,7 @@ def _suggest_quadrant(influence, dependence, median_influence, median_dependence
 
 
 @login_required
+@guest_gate('cross_impact_matrix')
 def cross_impact_matrix(request):
     factors = list(CrossImpactFactor.objects.all().order_by("order"))
 
@@ -1348,6 +1383,7 @@ def cross_impact_matrix(request):
 
 # ---------------- Porter's Five Forces ----------------
 
+@guest_gate('porter')
 def porter(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -1403,6 +1439,7 @@ def porter_delete(request, pk):
 
 # ---------------- McKinsey 7S ----------------
 
+@guest_gate('mckinsey7s')
 def mckinsey7s(request):
     for key, _ in McKinsey7S.COMPONENT_CHOICES:
         McKinsey7S.objects.get_or_create(component=key)
@@ -1441,6 +1478,7 @@ def mckinsey7s(request):
 
 # ---------------- زنجیره ارزش پورتر (تحلیل محیطی) ----------------
 
+@guest_gate('value_chain')
 def value_chain(request):
     for key, _ in ValueChainActivity.ACTIVITY_CHOICES:
         ValueChainActivity.objects.get_or_create(activity=key)
@@ -1498,6 +1536,7 @@ def _save_objective_kpi_weights(request, obj):
         )
 
 
+@guest_gate('stratmap')
 def stratmap(request):
     business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
@@ -1791,6 +1830,7 @@ def business_unit_add(request):
 
 # ---------------- SWOT ----------------
 
+@guest_gate('swot')
 def swot(request):
     business_units = _scoped_business_units(request)
     bu_id = request.POST.get("business_unit") or request.GET.get("bu")
@@ -1957,6 +1997,7 @@ def tows_delete(request, pk):
 
 # ---------------- Risk register ----------------
 
+@guest_gate('risk')
 def risk(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -2092,6 +2133,7 @@ ORG_VALUE_CHAIN_SAMPLES = [
 ]
 
 
+@guest_gate('org_identity')
 def org_identity(request):
     identity, _ = OrgIdentity.objects.get_or_create(pk=1)
 
@@ -2224,6 +2266,7 @@ def policy_point_delete(request, pk):
 
 # ---------------- سناریوهای راهبردی ----------------
 
+@guest_gate('scenarios')
 def scenarios(request):
     for key, _ in Scenario.QUADRANT_CHOICES:
         Scenario.objects.get_or_create(quadrant=key)
@@ -2320,6 +2363,7 @@ def scenario_response_strategy_delete(request, pk):
 
 # ---------------- اهداف کلان و شاخص‌های سطح کل شرکت ----------------
 
+@guest_gate('company_goals')
 def company_goals(request):
     if request.method == "POST":
         form_kind = request.POST.get("form_kind")
@@ -2426,6 +2470,7 @@ def company_kpi_delete(request, pk):
 
 # ---------------- اسناد و دستورالعمل‌ها ----------------
 
+@guest_gate('documents')
 def documents(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -2622,6 +2667,7 @@ _OPKPI_TREND_HEADERS = ["کد شاخص", "عنوان شاخص", "سال"] + [
 _OPKPI_TREND_CURRENT_YEAR = "1405"
 
 
+@guest_gate('raw_factors_archive')
 def raw_factors_archive(request):
     form = RawIdentifiedFactorForm()
     if request.method == "POST" and request.POST.get("form_kind") == "raw_factor":
@@ -2758,6 +2804,7 @@ def raw_factors_import(request):
     return redirect("strategic:raw_factors_archive")
 
 
+@guest_gate('operational_kpis')
 def operational_kpis(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -3614,6 +3661,7 @@ def stakeholder_import(request):
 
 # ---------------- بانک الزامات قانونی ----------------
 
+@guest_gate('legal_requirements')
 def legal_requirements(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -3805,6 +3853,7 @@ def legal_requirement_import(request):
 
 # ---------------- بانک عوامل محیطی ----------------
 
+@guest_gate('environmental_factors')
 def environmental_factors(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -3982,7 +4031,7 @@ def environmental_factor_import(request):
 def _kpi_pct_color(pct):
     if pct is None:
         return None
-    if pct < 60:
+    if pct < 80:
         return "red"
     if pct < 90:
         return "yellow"
@@ -4529,8 +4578,42 @@ def user_toggle_active(request, pk):
     return redirect("strategic:user_list")
 
 
+@login_required
+def section_visibility(request):
+    """پنل مدیریتی: کدام بخش‌های سامانه برای کاربر مهمان (بدون ورود) قابل مشاهده
+    باشند. فقط مدیر کل (superuser) به این صفحه دسترسی دارد."""
+    if not _superuser_required(request):
+        messages.error(request, "دسترسی به این بخش فقط برای مدیر سامانه مجاز است.")
+        return redirect("strategic:home")
+
+    from strategic.models import SectionVisibility
+    from strategic.permission_sections import VISIBILITY_SECTIONS
+
+    if request.method == "POST":
+        public_keys = set(request.POST.getlist("public_keys"))
+        for key, label in VISIBILITY_SECTIONS.items():
+            obj, _created = SectionVisibility.objects.get_or_create(key=key, defaults={"label": label})
+            obj.label = label
+            obj.is_public = key in public_keys
+            obj.save()
+        locked = [label for key, label in VISIBILITY_SECTIONS.items() if key not in public_keys]
+        _log_action(request, "UPDATE SectionVisibility", f"بخش‌های قفل‌شده برای مهمان: {', '.join(locked) or 'هیچ‌کدام'}")
+        messages.success(request, "تنظیمات دسترسی عمومی بخش‌ها ذخیره شد.")
+        return redirect("strategic:section_visibility")
+
+    existing = {row.key: row.is_public for row in SectionVisibility.objects.all()}
+    rows = [
+        {"key": key, "label": label, "is_public": existing.get(key, True)}
+        for key, label in VISIBILITY_SECTIONS.items()
+    ]
+    return render(request, "strategic/section_visibility.html", {
+        "active_page": "section_visibility", "rows": rows,
+    })
+
+
 # ---------------- نتایج ممیزی‌ها ----------------
 
+@guest_gate('audit_findings')
 def audit_findings(request):
     if request.method == "POST":
         obj_id = request.POST.get("obj_id")
@@ -5053,6 +5136,7 @@ def executive_show(request):
     return render(request, "strategic/executive_show.html", {"cards": cards, "summary": summary})
 
 
+@guest_gate('kpi_heatmap')
 def kpi_heatmap(request):
     """نقشه‌ی حرارتی (Treemap) همه‌ی شاخص‌های سیستم — کلان و عملیاتی، در یک نگاه.
 
@@ -5146,6 +5230,7 @@ _FS_PERSP_COLOR = {
 }
 
 
+@guest_gate('functional_strategies')
 def functional_strategies(request):
     """صفحه استراتژی‌های وظیفه‌ای — چارت سازمانی (مدیرعامل ← مدیریت‌های مستقل / معاونت‌ها ← مدیریت‌ها)
     با جدول فشرده‌ی هر مدیریت که شاخص‌ها و پروژه‌های مرتبط را زنده از نقشه استراتژیک نشان می‌دهد.
@@ -5163,7 +5248,13 @@ def functional_strategies(request):
             if form.is_valid():
                 obj = form.save()
                 _log_action(request, "UPDATE FunctionalStrategy" if obj_id else "CREATE FunctionalStrategy", str(obj))
-                return redirect("strategic:functional_strategies")
+                # بعد از ذخیره، کاربر را به همان معاونت/مدیریتی که رویش کار می‌کرد برگردان —
+                # نه به اولین گروه چارت (پیش‌فرض صفحه). به همین دلیل شناسه واحد سازمانی و
+                # نام مدیریت در querystring پاس داده می‌شود تا جاوااسکریپت صفحه، انتخاب
+                # فعلی را بازیابی کند.
+                from urllib.parse import urlencode
+                qs = urlencode({"unit": obj.org_unit_id, "mgmt": obj.management})
+                return redirect(f"{reverse('strategic:functional_strategies')}?{qs}")
             else:
                 messages.error(request, "فرم نامعتبر است؛ لطفاً موارد را بررسی کنید.")
 
@@ -5194,15 +5285,28 @@ def functional_strategies(request):
             obj_short = (t[:46] + "…") if len(t) > 46 else t
             if len(objs) > 1:
                 obj_short += f" +{len(objs) - 1}"
-        kpi_tooltip = "\n".join(f"{k['code']} — {k['label']}" for k in kpis)
+        def _kpi_line(k):
+            head = f"{k['code']} — {k['label']}" if k["code"] else k["label"]
+            target_txt = k["target"] or "—"
+            actual_txt = k["actual"] or "—"
+            pct_txt = f"{k['pct']}٪" if k["pct"] is not None else "—"
+            return f"{head} — هدف: {target_txt} — عملکرد: {actual_txt} — تحقق: {pct_txt}"
+        kpi_tooltip = "\n".join(_kpi_line(k) for k in kpis)
         init_tooltip = "\n".join(
             f"{i.title} — {i.get_status_display()} ({i.progress}٪)" for i in inits
         )
+        # میانگین تحقق شاخص‌ها: فقط شاخص‌هایی که درصد تحقق دارند (بدون اونایی که هنوز
+        # عددی ثبت نشده). میانگین پیشرفت پروژه‌ها: فقط آیتم‌های نوع «پروژه» (نه «اقدام»)،
+        # چون فقط برای پروژه‌ها فیلد پیشرفت معنادار پایش می‌شود.
+        scored_kpis = [k for k in kpis if k["pct"] is not None]
+        kpi_avg_pct = round(sum(k["pct"] for k in scored_kpis) / len(scored_kpis)) if scored_kpis else None
+        project_inits = [i for i in inits if i.item_type == "project"]
+        init_avg_pct = round(sum(i.progress for i in project_inits) / len(project_inits)) if project_inits else None
         return {
             "id": fs.pk, "title": fs.title, "detail": fs.detail, "cls": fs.match_class,
             "hasObj": bool(objs), "objShort": obj_short, "objTooltip": obj_tooltip, "objColor": obj_color,
-            "kpiCount": len(kpis), "kpiTooltip": kpi_tooltip,
-            "initCount": len(inits), "initTooltip": init_tooltip,
+            "kpiCount": len(kpis), "kpiTooltip": kpi_tooltip, "kpiAvgPct": kpi_avg_pct,
+            "initCount": len(inits), "initTooltip": init_tooltip, "initAvgPct": init_avg_pct,
             # برای پرشدن فرم ویرایش:
             "orgUnitId": fs.org_unit_id, "management": fs.management, "order": fs.order,
             "basis": fs.basis,
@@ -5218,8 +5322,10 @@ def functional_strategies(request):
         mgmts_raw = by_unit.get(unit.pk, {})
         managements = []
         strong = none = 0
+        all_rows = []
         for mgmt_name, items in mgmts_raw.items():
             rows = [build_row(fs) for fs in items]
+            all_rows.extend(rows)
             m_strong = sum(1 for r in rows if r["cls"] == "strong")
             m_none = len(rows) - m_strong
             strong += m_strong
@@ -5229,11 +5335,21 @@ def functional_strategies(request):
             })
         managements.sort(key=lambda m: m["name"])
         total = strong + none
+
+        # میانگین تحقق شاخص‌ها/پروژه‌های کل معاونت — میانگین همان مقادیر kpiAvgPct/initAvgPct
+        # هر استراتژی وظیفه‌ای این معاونت (نه میانگین مستقیم روی همه‌ی شاخص‌ها؛ یعنی ابتدا
+        # هر استراتژی یک عدد می‌شود، بعد میانگین بین استراتژی‌ها گرفته می‌شود).
+        scored_kpi_rows = [r["kpiAvgPct"] for r in all_rows if r["kpiAvgPct"] is not None]
+        group_kpi_avg = round(sum(scored_kpi_rows) / len(scored_kpi_rows)) if scored_kpi_rows else None
+        scored_init_rows = [r["initAvgPct"] for r in all_rows if r["initAvgPct"] is not None]
+        group_init_avg = round(sum(scored_init_rows) / len(scored_init_rows)) if scored_init_rows else None
+
         return {
             "key": unit.pk, "title": unit.name,
             "total": total, "strong": strong, "none": none,
             "strongPct": round(strong / total * 100) if total else 0,
             "nonePct": round(none / total * 100) if total else 0,
+            "kpiAvgPct": group_kpi_avg, "initAvgPct": group_init_avg,
             "managements": managements,
         }
 
@@ -5342,11 +5458,16 @@ def functional_strategy_export(request):
         .prefetch_related("linked_objectives", "linked_objectives__business_unit")
         .order_by("org_unit__kind", "org_unit__order", "management", "order")
     )
+    def _clean_line_endings(s):
+        # از نوشتن \r خام در فایل اکسل خودداری می‌کنیم تا اکسل هنگام باز/ذخیره‌ی
+        # فایل آن را به رشته‌ی تحت‌اللفظی «_x000D_» تبدیل نکند (نگاه کنید به _fs_s).
+        return (s or "").replace("\r\n", "\n").replace("\r", "\n")
+
     for row_i, fs in enumerate(qs, start=2):
         obj_label = "؛ ".join(_fs_objective_label(o) for o in fs.linked_objectives.all())
         values = [
             fs.pk, fs.org_unit.name, fs.management, fs.order,
-            fs.title, fs.detail, fs.basis, obj_label,
+            fs.title, _clean_line_endings(fs.detail), _clean_line_endings(fs.basis), obj_label,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
@@ -5367,52 +5488,52 @@ def functional_strategy_export(request):
     return response
 
 
-def functional_strategy_import(request):
-    if not request.user.is_superuser:
-        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
-        return redirect("strategic:functional_strategies")
-    if request.method != "POST" or not request.FILES.get("excel_file"):
-        messages.error(request, "فایلی انتخاب نشده است.")
-        return redirect("strategic:functional_strategies")
+def _fs_s(v):
+    """رشته‌ی سلول اکسل را تمیز می‌کند. اکسل گاهی خط‌های نویسه‌ی carriage-return
+    (\\r) داخل متن‌های چندخطی را هنگام باز/ذخیره‌کردن فایل به رشته‌ی تحت‌اللفظی
+    «_x000D_» تبدیل می‌کند (یک ایراد شناخته‌شده‌ی سازگاری اکسل/XML) — بدون این
+    نرمال‌سازی، این پرانتزها به‌اشتباه به‌عنوان «تغییر واقعی» در دیف نمایش داده
+    می‌شوند. \\r\\n و \\r هم به \\n یکسان‌سازی می‌شوند تا با متن ذخیره‌شده در
+    دیتابیس (که همیشه \\n خالص دارد) قابل مقایسه باشد."""
+    if v is None:
+        return ""
+    s = str(v).replace("_x000D_", "\n").replace("\r\n", "\n").replace("\r", "\n")
+    return s.strip()
 
-    import openpyxl
+
+def _fs_i(v, default=0):
     try:
-        wb = openpyxl.load_workbook(request.FILES["excel_file"], data_only=True)
-        ws = wb.active
-    except Exception:
-        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
-        return redirect("strategic:functional_strategies")
+        return int(v)
+    except (TypeError, ValueError):
+        return default
 
-    def _s(v):
-        return "" if v is None else str(v).strip()
 
-    def _i(v, default=0):
-        try:
-            return int(v)
-        except (TypeError, ValueError):
-            return default
+def _fs_import_tmp_path(token):
+    tmp_dir = os.path.join(settings.BASE_DIR, "tmp_imports")
+    os.makedirs(tmp_dir, exist_ok=True)
+    return os.path.join(tmp_dir, f"fs_{token}.xlsx")
 
+
+def _fs_parse_import_sheet(ws):
+    """فایل اکسل را می‌خواند و برای هر ردیف معتبر یک دیکشنری آماده‌ی مقایسه/ذخیره
+    برمی‌گرداند. هیچ‌چیزی در دیتابیس نوشته نمی‌شود — فقط parse خام."""
     org_units_by_name = {u.name: u for u in OrgUnit.objects.all()}
-
-    # نگاشت برچسب هدف ← شیء StrategicObjective، برای تطبیق ستون «اهداف نقشه استراتژیک مرتبط»
     objectives_by_label = {
         _fs_objective_label(o): o
         for o in StrategicObjective.objects.select_related("business_unit").all()
     }
-    # نگاشت کمکی صرفاً بر اساس کد، برای زمانی که کسب‌وکار در متن سلول نیامده و کد یکتاست
     objectives_by_code = {}
     for o in StrategicObjective.objects.all():
         objectives_by_code.setdefault(o.code, []).append(o)
 
     def _resolve_objectives(cell_text):
         out = []
-        for piece in _s(cell_text).split("؛"):
+        for piece in _fs_s(cell_text).split("؛"):
             label = piece.strip()
             if not label:
                 continue
             obj = objectives_by_label.get(label)
             if not obj:
-                # تلاش دوم: فقط کد، اگر یکتا باشد
                 code = label.split("—")[0].strip()
                 candidates = objectives_by_code.get(code, [])
                 if len(candidates) == 1:
@@ -5421,37 +5542,197 @@ def functional_strategy_import(request):
                 out.append(obj)
         return out
 
-    created, updated, skipped = 0, 0, 0
+    parsed_rows, skipped = [], 0
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not row or not (row[4] if len(row) > 4 else None):
             skipped += 1
             continue
-        record_id = _i(row[0], None) if len(row) > 0 else None
-        org_unit = org_units_by_name.get(_s(row[1])) if len(row) > 1 else None
+        record_id = _fs_i(row[0], None) if len(row) > 0 else None
+        org_unit = org_units_by_name.get(_fs_s(row[1])) if len(row) > 1 else None
         if not org_unit:
             skipped += 1
             continue
-        defaults = dict(
-            org_unit=org_unit,
-            management=_s(row[2]) if len(row) > 2 else "",
-            order=_i(row[3], 0) if len(row) > 3 else 0,
-            title=_s(row[4]),
-            detail=_s(row[5]) if len(row) > 5 else "",
-            basis=_s(row[6]) if len(row) > 6 else "",
-        )
         objectives = _resolve_objectives(row[7]) if len(row) > 7 else []
+        parsed_rows.append({
+            "record_id": record_id,
+            "org_unit": org_unit,
+            "management": _fs_s(row[2]) if len(row) > 2 else "",
+            "order": _fs_i(row[3], 0) if len(row) > 3 else 0,
+            "title": _fs_s(row[4]),
+            "detail": _fs_s(row[5]) if len(row) > 5 else "",
+            "basis": _fs_s(row[6]) if len(row) > 6 else "",
+            "objectives": objectives,
+        })
+    return parsed_rows, skipped
 
-        existing = FunctionalStrategy.objects.filter(pk=record_id).first() if record_id else None
+
+_FS_DIFF_FIELDS = [
+    ("org_unit_name", "معاونت / واحد سازمانی"),
+    ("management", "مدیریت"),
+    ("order", "ترتیب در مدیریت"),
+    ("title", "عنوان استراتژی وظیفه‌ای"),
+    ("detail", "شرح"),
+    ("basis", "مبنا / استناد"),
+    ("objectives_label", "اهداف نقشه استراتژیک مرتبط"),
+]
+
+
+def _fs_row_snapshot(r):
+    """نمایش قابل‌مقایسه‌ی یک ردیف parse‌شده (برای دیف با رکورد موجود)."""
+    return {
+        "org_unit_name": r["org_unit"].name,
+        "management": r["management"],
+        "order": r["order"],
+        "title": r["title"],
+        "detail": r["detail"],
+        "basis": r["basis"],
+        "objectives_label": "؛ ".join(_fs_objective_label(o) for o in r["objectives"]),
+    }
+
+
+def _fs_existing_snapshot(fs):
+    # همان نرمال‌سازی _fs_s (یکسان‌سازی \r\n/\r به \n) روی مقدار موجود در دیتابیس هم
+    # اعمال می‌شود، وگرنه رکوردهایی که قبلاً با خط‌جدید ویندوزی (\r\n) ثبت شده‌اند
+    # همیشه به‌اشتباه «تغییریافته» نشان داده می‌شوند، حتی وقتی فایل اکسل دست‌نخورده است.
+    return {
+        "org_unit_name": fs.org_unit.name,
+        "management": fs.management,
+        "order": fs.order,
+        "title": _fs_s(fs.title),
+        "detail": _fs_s(fs.detail),
+        "basis": _fs_s(fs.basis),
+        "objectives_label": "؛ ".join(_fs_objective_label(o) for o in fs.linked_objectives.all()),
+    }
+
+
+def _fs_diff_import_rows(parsed_rows):
+    """پیش‌نمایش «قبل → بعد»: کدام ردیف‌ها جدیدند، کدام به‌روز می‌شوند (با فهرست
+    دقیق فیلدهای تغییریافته) و چند ردیف بدون تغییر است."""
+    existing_by_pk = {fs.pk: fs for fs in FunctionalStrategy.objects.select_related("org_unit").prefetch_related("linked_objectives", "linked_objectives__business_unit")}
+    new_items, updated_items, unchanged_count = [], [], 0
+
+    for r in parsed_rows:
+        new_snap = _fs_row_snapshot(r)
+        existing = existing_by_pk.get(r["record_id"]) if r["record_id"] else None
+        if not existing:
+            new_items.append({
+                "title": r["title"], "management": r["management"],
+                "org_unit_name": r["org_unit"].name, "basis": r["basis"],
+                "objectives_label": new_snap["objectives_label"],
+            })
+            continue
+
+        old_snap = _fs_existing_snapshot(existing)
+        changes = [
+            (label, old_snap[key], new_snap[key])
+            for key, label in _FS_DIFF_FIELDS
+            if str(old_snap[key]) != str(new_snap[key])
+        ]
+        if changes:
+            updated_items.append({"pk": existing.pk, "title": r["title"] or existing.title, "changes": changes})
+        else:
+            unchanged_count += 1
+
+    return new_items, updated_items, unchanged_count
+
+
+def functional_strategy_import(request):
+    """قدم اول: فایل اکسل را می‌خواند، با اطلاعات فعلی سامانه مقایسه می‌کند و یک
+    صفحه‌ی پیش‌نمایش («قبل → بعد») نشان می‌دهد — هنوز هیچ‌چیزی در دیتابیس
+    نوشته نمی‌شود. تأیید نهایی با functional_strategy_import_apply انجام می‌شود."""
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:functional_strategies")
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:functional_strategies")
+
+    import openpyxl
+
+    uploaded = request.FILES["excel_file"]
+    file_bytes = uploaded.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً فرمت را بررسی کنید.")
+        return redirect("strategic:functional_strategies")
+
+    parsed_rows, skipped = _fs_parse_import_sheet(ws)
+    new_items, updated_items, unchanged_count = _fs_diff_import_rows(parsed_rows)
+
+    if not new_items and not updated_items:
+        messages.info(request, "هیچ تغییری در این فایل نسبت به اطلاعات فعلی سامانه پیدا نشد؛ چیزی برای اعمال وجود ندارد.")
+        return redirect("strategic:functional_strategies")
+
+    old_token = request.session.get("fs_import_pending_token")
+    if old_token:
+        old_path = _fs_import_tmp_path(old_token)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    token = uuid.uuid4().hex
+    with open(_fs_import_tmp_path(token), "wb") as f:
+        f.write(file_bytes)
+    request.session["fs_import_pending_token"] = token
+
+    return render(request, "strategic/functional_strategy_import_preview.html", {
+        "active_page": "functional_strategies",
+        "token": token, "original_filename": uploaded.name,
+        "new_items": new_items, "updated_items": updated_items,
+        "unchanged_count": unchanged_count, "skipped": skipped,
+    })
+
+
+@login_required
+def functional_strategy_import_apply(request):
+    """قدم دوم (تأیید نهایی): فایل موقتی که در قدم پیش‌نمایش ذخیره شده بود را
+    واقعاً در دیتابیس می‌نویسد."""
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:functional_strategies")
+    if request.method != "POST":
+        return redirect("strategic:functional_strategies")
+
+    token = request.POST.get("token", "")
+    if not token or token != request.session.get("fs_import_pending_token"):
+        messages.error(request, "این پیش‌نمایش دیگر معتبر نیست (شاید منقضی شده). لطفاً دوباره فایل اکسل را انتخاب کنید.")
+        return redirect("strategic:functional_strategies")
+
+    tmp_path = _fs_import_tmp_path(token)
+    if not os.path.exists(tmp_path):
+        messages.error(request, "فایل موقت پیدا نشد؛ لطفاً دوباره فایل اکسل را وارد کنید.")
+        return redirect("strategic:functional_strategies")
+
+    import openpyxl
+    with open(tmp_path, "rb") as f:
+        wb = openpyxl.load_workbook(f, data_only=True)
+    ws = wb.active
+
+    parsed_rows, skipped = _fs_parse_import_sheet(ws)
+    created, updated = 0, 0
+    for r in parsed_rows:
+        defaults = dict(
+            org_unit=r["org_unit"], management=r["management"], order=r["order"],
+            title=r["title"], detail=r["detail"], basis=r["basis"],
+        )
+        existing = FunctionalStrategy.objects.filter(pk=r["record_id"]).first() if r["record_id"] else None
         if existing:
             for k, v in defaults.items():
                 setattr(existing, k, v)
             existing.save()
-            existing.linked_objectives.set(objectives)
+            existing.linked_objectives.set(r["objectives"])
             updated += 1
         else:
             obj = FunctionalStrategy.objects.create(**defaults)
-            obj.linked_objectives.set(objectives)
+            obj.linked_objectives.set(r["objectives"])
             created += 1
+
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+    request.session.pop("fs_import_pending_token", None)
 
     _log_action(request, "IMPORT FunctionalStrategy Excel", f"{created} جدید، {updated} به‌روزشده، {skipped} رد‌شده")
     messages.success(
@@ -5459,4 +5740,16 @@ def functional_strategy_import(request):
         f"وارد کردن انجام شد: {created} ردیف جدید، {updated} به‌روزرسانی‌شده. {skipped} ردیف رد شد "
         "(عنوان خالی یا نام معاونت/واحد سازمانی نامعتبر).",
     )
+    return redirect("strategic:functional_strategies")
+
+
+@login_required
+def functional_strategy_import_cancel(request):
+    token = request.session.get("fs_import_pending_token")
+    if token:
+        tmp_path = _fs_import_tmp_path(token)
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        request.session.pop("fs_import_pending_token", None)
+    messages.info(request, "وارد کردن لغو شد؛ هیچ تغییری اعمال نشد.")
     return redirect("strategic:functional_strategies")

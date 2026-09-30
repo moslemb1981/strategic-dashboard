@@ -92,18 +92,16 @@
 {% block content %}
 <div class="cg-tip" id="cgTip"></div>
 <div class="topbar">
-  <div><h1>اهداف کلان و KPI شرکت</h1><div class="sub">اهداف سطح کل سایپا یدک، مرتبط با نقشه استراتژیک ۳ ساله گروه سایپا</div></div>
+  <div><h1>اهداف کلان و KPI شرکت</h1><div class="sub">اهداف کلان سازمان و مرتبط با نقشه استراتژیک</div></div>
   {% if perms.strategic.add_companyobjective %}
   <button class="btn accent" onclick="newObjective()"><i class="fa-solid fa-plus"></i> افزودن هدف</button>
   {% endif %}
 </div>
 
-<div class="cg-note"><i class="fa-solid fa-circle-info"></i> این اهداف، سطح کل شرکت‌اند (نه یکی از ۵ کسب‌وکار) و مستقیماً به اهداف کلان استراتژیک گروه سایپا وصل می‌شوند.</div>
-
 <div class="cg-master-detail">
   <div>
     <div class="cg-col-title">
-      <span><i class="fa-solid fa-sitemap"></i> اهداف استراتژیک گروه سایپا</span>
+      <span><i class="fa-solid fa-sitemap"></i> اهداف استراتژیک گروه</span>
       <span class="cg-col-title-count">{{ grouped|length }} مورد</span>
     </div>
     <div class="cg-groups-col">
@@ -117,7 +115,7 @@
   </div>
   <div>
     <div class="cg-col-title">
-      <span><i class="fa-solid fa-bullseye"></i> اهداف استراتژیک سایپا یدک</span>
+      <span><i class="fa-solid fa-bullseye"></i> اهداف استراتژیک سازمان</span>
       <span class="cg-col-title-count">{{ total_objectives }} مورد</span>
     </div>
     <div class="cg-objectives-col">
@@ -199,14 +197,14 @@
       <td>{{ k.unit }}</td>
       <td>{{ k.target_1404|default:"—" }} / {{ k.actual_1404|default:"—" }}
         {% if k.progress_pct is not None %}
-        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.progress_pct }}%;background:{% if k.progress_pct >= 90 %}var(--success){% elif k.progress_pct >= 60 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.progress_pct }}%;background:{% if k.progress_pct >= 90 %}var(--success){% elif k.progress_pct >= 80 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
         {% endif %}
       </td>
       <td>{{ k.target_1405|default:"—" }}</td>
       <td>{{ k.actual_1405|default:"—" }}</td>
       <td>{{ k.progress_1405|default:"—" }}
         {% if k.manual_progress_value is not None %}
-        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.manual_progress_value }}%;background:{% if k.manual_progress_value >= 90 %}var(--success){% elif k.manual_progress_value >= 60 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:{{ k.manual_progress_value }}%;background:{% if k.manual_progress_value >= 90 %}var(--success){% elif k.manual_progress_value >= 80 %}var(--accent){% else %}#B0413E{% endif %};"></div></div>
         {% endif %}
       </td>
       <td>

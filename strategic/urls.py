@@ -43,6 +43,7 @@ urlpatterns = [
     path("users/add/", views.user_edit, name="user_add"),
     path("users/<int:pk>/edit/", views.user_edit, name="user_edit"),
     path("users/<int:pk>/toggle/", views.user_toggle_active, name="user_toggle_active"),
+    path("section-visibility/", views.section_visibility, name="section_visibility"),
     path("market/", views.market, name="market"),
     path("market/delete/<int:pk>/", views.competitor_delete, name="competitor_delete"),
 
@@ -88,6 +89,8 @@ urlpatterns = [
     path("functional-strategies/org-unit/delete/<int:pk>/", views.org_unit_delete, name="org_unit_delete"),
     path("functional-strategies/export/", views.functional_strategy_export, name="functional_strategy_export"),
     path("functional-strategies/import/", views.functional_strategy_import, name="functional_strategy_import"),
+    path("functional-strategies/import/apply/", views.functional_strategy_import_apply, name="functional_strategy_import_apply"),
+    path("functional-strategies/import/cancel/", views.functional_strategy_import_cancel, name="functional_strategy_import_cancel"),
     path("stratmap/", views.stratmap, name="stratmap"),
     path("stratmap/print/", views.stratmap_print, name="stratmap_print"),
     path("stratmap/print-full/", views.stratmap_print_full, name="stratmap_print_full"),

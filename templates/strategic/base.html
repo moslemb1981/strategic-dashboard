@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}پورتال اداره مطالعات و برنامه‌ریزی استراتژیک{% endblock %} | سایپا یدک</title>
+<title>{% block title %}پورتال اداره مطالعات و برنامه‌ریزی استراتژیک{% endblock %} | سیستم مدیریت استراتژیک</title>
 
 <!-- همه چیز لوکال است — هیچ درخواستی به اینترنت زده نمی‌شود -->
 <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
@@ -13,6 +13,9 @@
 <link rel="stylesheet" href="{% static 'css/solid.min.css' %}"><!-- FontAwesome solid glyphs + font-face -->
 <link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
 <link rel="stylesheet" href="{% static 'css/strategic.css' %}">
+<style>
+  .nav-item .nav-lock-ico{margin-inline-start:6px;font-size:10px;opacity:.7;color:#B0413E;}
+</style>
 {% block extra_css %}{% endblock %}
 </head>
 <body class="page-{{ active_page }}">
@@ -20,7 +23,7 @@
 <div class="shell">
   <div class="topheader">
     <div class="crumb">
-      <i class="fa-solid fa-industry"></i><span>سایپا یدک</span>
+      <i class="fa-solid fa-industry"></i><span>سامانه</span>
       <i class="fa-solid fa-chevron-left"></i><b>{% block crumb %}خانه{% endblock %}</b>
     </div>
     <div class="right">
@@ -42,14 +45,14 @@
     <!-- aside اول در DOM می‌آید تا در RTL سمت راست بنشیند -->
     <aside class="sidebar">
       <div class="brand">
-        <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="سایپا یدک">
-        <div class="company">سایپا یدک</div>
+        <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="سیستم مدیریت استراتژیک">
+        <div class="company">سیستم مدیریت استراتژیک</div>
         <div class="office">اداره مطالعات و برنامه‌ریزی استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
       </div>
       <nav class="nav">
-        <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه <small style="opacity:.6;font-size:9px;">(اینفوگرافی)</small></a>
-        <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها</a>
-        <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان</a>
+        <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه <small style="opacity:.6;font-size:9px;">(اینفوگرافی)</small>{% if 'home' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها{% if 'documents' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان{% if 'org_identity' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
 
         <button type="button" class="nav-parent {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'audit_findings' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
           <i class="fa-solid fa-earth-americas nav-ico"></i>تحلیل محیط بیرونی
@@ -57,13 +60,13 @@
         </button>
         <div class="nav-children {% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'audit_findings' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}open{% endif %}"
              style="display:{% if active_page == 'legal_requirements' or active_page == 'stakeholders' or active_page == 'audit_findings' or active_page == 'raw_factors_archive' or active_page == 'environmental_factors' or active_page == 'pestel' or active_page == 'porter' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
-          <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی</a>
-          <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-user"></i>تحلیل ذینفعان</a>
-          <a class="nav-item {% if active_page == 'audit_findings' %}active{% endif %}" href="{% url 'strategic:audit_findings' %}"><i class="fa-solid fa-clipboard-check"></i>نتایج ممیزی‌ها</a>
-          <a class="nav-item {% if active_page == 'raw_factors_archive' %}active{% endif %}" href="{% url 'strategic:raw_factors_archive' %}"><i class="fa-solid fa-box-archive"></i>آرشیو عوامل اولیه</a>
-          <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی</a>
-          <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل Pestel (محیط بیرون دور)</a>
-          <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>تحلیل Porter (محیط بیرون نزدیک)</a>
+          <a class="nav-item {% if active_page == 'legal_requirements' %}active{% endif %}" href="{% url 'strategic:legal_requirements' %}"><i class="fa-solid fa-scale-balanced"></i>الزامات قانونی{% if 'legal_requirements' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'stakeholders' %}active{% endif %}" href="{% url 'strategic:stakeholders' %}"><i class="fa-solid fa-user"></i>تحلیل ذینفعان{% if 'stakeholders' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'audit_findings' %}active{% endif %}" href="{% url 'strategic:audit_findings' %}"><i class="fa-solid fa-clipboard-check"></i>نتایج ممیزی‌ها{% if 'audit_findings' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'raw_factors_archive' %}active{% endif %}" href="{% url 'strategic:raw_factors_archive' %}"><i class="fa-solid fa-box-archive"></i>آرشیو عوامل اولیه{% if 'raw_factors_archive' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'environmental_factors' %}active{% endif %}" href="{% url 'strategic:environmental_factors' %}"><i class="fa-solid fa-magnifying-glass-chart"></i>بانک عوامل محیطی{% if 'environmental_factors' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'pestel' %}active{% endif %}" href="{% url 'strategic:pestel' %}"><i class="fa-solid fa-earth-americas"></i>تحلیل Pestel (محیط بیرون دور){% if 'pestel' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'porter' %}active{% endif %}" href="{% url 'strategic:porter' %}"><i class="fa-solid fa-chess-knight"></i>تحلیل Porter (محیط بیرون نزدیک){% if 'porter' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         </div>
 
         <button type="button" class="nav-parent {% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}open has-active{% endif %}" onclick="toggleNavGroup(this)">
@@ -72,27 +75,28 @@
         </button>
         <div class="nav-children {% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}open{% endif %}"
              style="display:{% if active_page == 'mckinsey7s' or active_page == 'value_chain' %}flex{% else %}none{% endif %};flex-direction:column;gap:2px;">
-          <a class="nav-item {% if active_page == 'mckinsey7s' %}active{% endif %}" href="{% url 'strategic:mckinsey7s' %}"><i class="fa-solid fa-diagram-project"></i>تحلیل McKinsey 7S</a>
-          <a class="nav-item {% if active_page == 'value_chain' %}active{% endif %}" href="{% url 'strategic:value_chain' %}"><i class="fa-solid fa-link"></i>زنجیره ارزش پورتر <small style="opacity:.6;font-size:9px;">(تحلیل محیطی)</small></a>
+          <a class="nav-item {% if active_page == 'mckinsey7s' %}active{% endif %}" href="{% url 'strategic:mckinsey7s' %}"><i class="fa-solid fa-diagram-project"></i>تحلیل McKinsey 7S{% if 'mckinsey7s' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+          <a class="nav-item {% if active_page == 'value_chain' %}active{% endif %}" href="{% url 'strategic:value_chain' %}"><i class="fa-solid fa-link"></i>زنجیره ارزش پورتر <small style="opacity:.6;font-size:9px;">(تحلیل محیطی)</small>{% if 'value_chain' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         </div>
 
         <div class="nav-label">آینده‌پژوهی (سناریوپردازی)</div>
-        <a class="nav-item {% if active_page == 'cross_impact' %}active{% endif %}" href="{% url 'strategic:cross_impact' %}"><i class="fa-solid fa-table-cells"></i>ماتریس اثر متقابل</a>
-        <a class="nav-item {% if active_page == 'scenarios' %}active{% endif %}" href="{% url 'strategic:scenarios' %}"><i class="fa-solid fa-road"></i>سناریوهای راهبردی</a>
+        <a class="nav-item {% if active_page == 'cross_impact' %}active{% endif %}" href="{% url 'strategic:cross_impact' %}"><i class="fa-solid fa-table-cells"></i>ماتریس اثر متقابل{% if 'cross_impact' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'scenarios' %}active{% endif %}" href="{% url 'strategic:scenarios' %}"><i class="fa-solid fa-road"></i>سناریوهای راهبردی{% if 'scenarios' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <div class="nav-label">تدوین راهبرد</div>
-        <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT</a>
-        <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک</a>
-        <a class="nav-item {% if active_page == 'functional_strategies' %}active{% endif %}" href="{% url 'strategic:functional_strategies' %}"><i class="fa-solid fa-sitemap"></i>استراتژی‌های وظیفه‌ای</a>
-        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک</a>
+        <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT{% if 'swot' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک <small style="opacity:.6;font-size:9px;">(کسب و کارها)</small>{% if 'stratmap' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'functional_strategies' %}active{% endif %}" href="{% url 'strategic:functional_strategies' %}"><i class="fa-solid fa-sitemap"></i>استراتژی وظیفه‌ای{% if 'functional_strategies' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if 'risk' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <div class="nav-label">اجرا و پایش</div>
-        <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت</a>
-        <a class="nav-item {% if active_page == 'operational_kpis' %}active{% endif %}" href="{% url 'strategic:operational_kpis' %}"><i class="fa-solid fa-chart-line"></i>بانک شاخص‌های عملیاتی</a>
-        <a class="nav-item {% if active_page == 'kpi_heatmap' %}active{% endif %}" href="{% url 'strategic:kpi_heatmap' %}"><i class="fa-solid fa-border-all"></i>نقشه حرارتی شاخص‌ها</a>
-        <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>پروژه‌های تحول</a>
-        <a class="nav-item {% if active_page == 'market_intel' %}active{% endif %}" href="{% url 'strategic:market_intel' %}"><i class="fa-solid fa-earth-americas"></i>هوش بازار</a>
+        <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت{% if 'company_goals' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'operational_kpis' %}active{% endif %}" href="{% url 'strategic:operational_kpis' %}"><i class="fa-solid fa-chart-line"></i>بانک شاخص‌های عملیاتی{% if 'operational_kpis' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'kpi_heatmap' %}active{% endif %}" href="{% url 'strategic:kpi_heatmap' %}"><i class="fa-solid fa-border-all"></i>نقشه حرارتی شاخص‌ها{% if 'kpi_heatmap' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'roadmap' %}active{% endif %}" href="{% url 'strategic:roadmap' %}"><i class="fa-solid fa-route"></i>پروژه‌های تحول{% if 'roadmap' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'market_intel' %}active{% endif %}" href="{% url 'strategic:market_intel' %}"><i class="fa-solid fa-earth-americas"></i>هوش بازار{% if 'market_intel' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         {% if user.is_superuser %}
         <div class="nav-label">مدیریت سامانه</div>
         <a class="nav-item {% if active_page == 'user_list' %}active{% endif %}" href="{% url 'strategic:user_list' %}"><i class="fa-solid fa-users-gear"></i>مدیریت کاربران</a>
+        <a class="nav-item {% if active_page == 'section_visibility' %}active{% endif %}" href="{% url 'strategic:section_visibility' %}"><i class="fa-solid fa-lock"></i>دسترسی عمومی بخش‌ها</a>
         {% endif %}
       </nav>
       <div class="sidebar-footer">نسخه داخلی — تیر ۱۴۰۵</div>
