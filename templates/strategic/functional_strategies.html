@@ -597,8 +597,8 @@
         ? '<span style="font-weight:700;font-size:11px;color:' + fsPctColor(r.initAvgPct) + ';">' + r.initAvgPct + '٪</span>'
         : '<span class="fs-muted-dash">—</span>';
       tr.innerHTML =
-        '<td class="center"><span class="fs-dot" style="background:' + dotColor + ';"></span></td>' +
-        '<td data-tip-row="' + idx + '" data-tip-field="detail" style="max-width:340px;line-height:1.5;">' + esc(r.title) + '</td>' +
+        '<td class="center"><span class="fs-dot" data-tip-row="' + idx + '" data-tip-field="detail" style="background:' + dotColor + ';"></span></td>' +
+        '<td style="max-width:340px;line-height:1.5;">' + esc(r.title) + '</td>' +
         '<td>' + objCell + '</td>' +
         '<td class="center">' + kpiCell + '</td>' +
         '<td class="center">' + kpiPctCell + '</td>' +
