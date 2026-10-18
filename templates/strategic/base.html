@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}پورتال اداره مطالعات و برنامه‌ریزی استراتژیک{% endblock %} | سیستم مدیریت استراتژیک</title>
+<title>{% block title %}پورتال اداره مطالعات و برنامه‌ریزی استراتژیک{% endblock %} | {{ product_name }}</title>
 
 <!-- همه چیز لوکال است — هیچ درخواستی به اینترنت زده نمی‌شود -->
 <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
@@ -45,9 +45,9 @@
     <!-- aside اول در DOM می‌آید تا در RTL سمت راست بنشیند -->
     <aside class="sidebar">
       <div class="brand">
-        <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="سیستم مدیریت استراتژیک">
-        <div class="company">سیستم مدیریت استراتژیک</div>
-        <div class="office">اداره مطالعات و برنامه‌ریزی استراتژیک<br>مدیریت برنامه‌ریزی و نظارت راهبردی</div>
+        <img class="mark" src="{% static 'images/logo-mark.png' %}" alt="{{ product_name }}">
+        <div class="company">{{ product_name }}<span style="display:block;font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">{{ product_tagline }}</span></div>
+        <div class="office">{{ org_office }}<br>{{ org_management }}</div>
       </div>
       <nav class="nav">
         <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه <small style="opacity:.6;font-size:9px;">(اینفوگرافی)</small>{% if 'home' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
@@ -86,6 +86,7 @@
         <a class="nav-item {% if active_page == 'swot' %}active{% endif %}" href="{% url 'strategic:swot' %}"><i class="fa-solid fa-table-cells"></i>تحلیل SWOT{% if 'swot' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'stratmap' %}active{% endif %}" href="{% url 'strategic:stratmap' %}"><i class="fa-solid fa-map"></i>نقشه استراتژیک <small style="opacity:.6;font-size:9px;">(کسب و کارها)</small>{% if 'stratmap' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'functional_strategies' %}active{% endif %}" href="{% url 'strategic:functional_strategies' %}"><i class="fa-solid fa-sitemap"></i>استراتژی وظیفه‌ای{% if 'functional_strategies' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item {% if active_page == 'okr' %}active{% endif %}" href="{% url 'strategic:okr' %}"><i class="fa-solid fa-bullseye"></i>اهداف و نتایج کلیدی (OKR){% if 'okr' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'risk' %}active{% endif %}" href="{% url 'strategic:risk' %}"><i class="fa-solid fa-triangle-exclamation"></i>نقشه ریسک{% if 'risk' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <div class="nav-label">اجرا و پایش</div>
         <a class="nav-item {% if active_page == 'company_goals' %}active{% endif %}" href="{% url 'strategic:company_goals' %}"><i class="fa-solid fa-bullseye"></i>اهداف کلان و KPI شرکت{% if 'company_goals' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>

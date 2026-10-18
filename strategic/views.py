@@ -123,6 +123,31 @@ def _pct_color_hex(pct):
     return "#3E7A52"
 
 
+def _objective_support_kpis(o):
+    """شاخص‌های پشتیبان یک کارت: شاخص‌های عملیاتیِ استراتژی‌های وظیفه‌ای وصل‌شده به آن
+    (بدون تکرار). خروجی: لیستی از (شاخص، مدیریت‌های مرتبط)."""
+    seen = {}
+    for fs in o.functional_strategies.all():
+        for k in fs.linked_operational_kpis.all():
+            seen.setdefault(k.pk, [k, []])
+            if fs.management not in seen[k.pk][1]:
+                seen[k.pk][1].append(fs.management)
+    return [(k, m) for k, m in seen.values()]
+
+
+# درصد کارت = میانگین وزن‌دار «شاخص‌های کلان وصل‌شده به کارت» و «شاخص‌های پشتیبان» (عملیاتیِ
+# استراتژی‌های وظیفه‌ایِ وصل‌شده به کارت). شاخص‌های عملیاتیِ قدیمیِ مستقیمِ کارت دیگر در محاسبه
+# نیستند. اگر کارتی هیچ شاخص کلان و پشتیبانی نداشته باشد، بدون درصد می‌ماند.
+CARD_STATUS_USE_SUPPORT_KPIS = True
+
+
+def _objective_op_kpis_for_status(o):
+    """شاخص‌های عملیاتی مؤثر در درصد کارت: شاخص‌های پشتیبان (به توضیح بالا نگاه کنید)."""
+    if CARD_STATUS_USE_SUPPORT_KPIS:
+        return [k for k, _ in _objective_support_kpis(o)]
+    return list(o.linked_operational_kpis.all())
+
+
 STATUS_LABEL_FA = {"on": "در مسیر", "watch": "نیازمند پیگیری", "risk": "در معرض ریسک"}
 
 
@@ -137,7 +162,7 @@ def _objective_status_tooltip_parts(o, pct, kpi_weight_map, opkpi_weight_map):
         w = kpi_weight_map.get((o.pk, k.pk), 100)
         pct_txt = f"{v}٪" if v is not None else "—"
         items.append(f"{k.code} — {k.name} — تحقق: {pct_txt} — وزن: {w}")
-    for k in o.linked_operational_kpis.all():
+    for k in _objective_op_kpis_for_status(o):
         v = k.manual_progress_value
         w = opkpi_weight_map.get((o.pk, k.pk), 100)
         pct_txt = f"{v}٪" if v is not None else "—"
@@ -191,7 +216,7 @@ def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
         w = kpi_weight_map.get((o.pk, k.pk), 100)
         weighted_sum += v * w
         weight_total += w
-    for k in o.linked_operational_kpis.all():
+    for k in _objective_op_kpis_for_status(o):
         v = k.manual_progress_value
         if v is None:
             continue
@@ -212,7 +237,7 @@ def _objective_weighted_pct_status(o, kpi_weight_map, opkpi_weight_map):
 
 @guest_gate('home')
 def home(request):
-    objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis"))
+    objectives = list(StrategicObjective.objects.all().prefetch_related("linked_kpis", "linked_operational_kpis", "functional_strategies__linked_operational_kpis"))
 
     kpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveKPIWeight.objects.all()}
     opkpi_weight_map = {(w.objective_id, w.kpi_id): w.weight for w in ObjectiveOperationalKPIWeight.objects.all()}
@@ -1530,7 +1555,10 @@ def _save_objective_kpi_weights(request, obj):
             objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
         )
     for k in obj.linked_operational_kpis.all():
+        # فرم کارت دیگر شاخص عملیاتی ندارد؛ وزن‌های قبلی فقط اگر صریحاً ارسال شده باشند تغییر می‌کنند.
         raw = request.POST.get(f"opkpi_weight_{k.pk}")
+        if raw is None:
+            continue
         ObjectiveOperationalKPIWeight.objects.update_or_create(
             objective=obj, kpi=k, defaults={"weight": _clean_weight(raw)},
         )
@@ -1577,7 +1605,7 @@ def stratmap(request):
         form = StrategicObjectiveForm(business_unit=current_bu)
 
     objectives = list(
-        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme", "source_tows").prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis", "source_tows__source_items")
+        StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme", "source_tows").prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis", "functional_strategies__linked_operational_kpis", "source_tows__source_items")
         if current_bu else StrategicObjective.objects.none()
     )
     for o in objectives:
@@ -1629,15 +1657,6 @@ def stratmap(request):
 
     kpis_by_objective = {}
     circles_by_objective = {}
-    for k in StrategicKPI.objects.filter(objective__in=objectives).select_related("objective"):
-        kpis_by_objective.setdefault(k.objective_id, []).append({
-            "type": "custom", "id": k.pk, "name": k.name, "unit": k.unit, "target": k.target, "actual": k.actual,
-            "trend": k.trend, "status": k.status, "owner": k.owner, "period": k.period,
-        })
-        circles_by_objective.setdefault(k.objective_id, []).append({
-            "name": k.name, "target": k.target, "actual": k.actual, "unit": k.unit,
-            "pct": k.progress_pct, "color": _pct_color(k.progress_pct), "project": None,
-        })
 
     for o in objectives:
         for k in o.linked_kpis.all():
@@ -1650,15 +1669,19 @@ def stratmap(request):
                 "name": f"{k.code} — {k.name}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
                 "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
             })
-        for k in o.linked_operational_kpis.all():
+        # شاخص‌های پشتیبان (فقط‌خواندنی): عملیاتیِ استراتژی‌های وظیفه‌ای وصل‌شده به این کارت
+        support = _objective_support_kpis(o)
+        o.support_count = len(support)
+        o.support_tip_items = []
+        for k, mgmts in support:
+            pct = k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405
+            o.support_tip_items.append(
+                f"{k.code} — {k.title} — {'، '.join(mgmts)} — تحقق: {str(pct) + '٪' if pct is not None else '—'}"
+            )
             kpis_by_objective.setdefault(o.pk, []).append({
-                "type": "operational", "id": k.pk, "name": f"{k.code} — {k.title}", "unit": k.unit,
+                "type": "support", "id": k.pk, "name": f"{k.code} — {k.title}", "unit": k.unit,
                 "target": k.target_1405, "actual": k.actual_1405,
-                "trend": "flat", "status": "on_track", "owner": k.department, "period": "",
-            })
-            circles_by_objective.setdefault(o.pk, []).append({
-                "name": f"{k.code} — {k.title}", "target": k.target_1405, "actual": k.actual_1405, "unit": k.unit,
-                "pct": k.manual_progress_value, "color": _pct_color(k.manual_progress_value), "project": _project_square(k),
+                "trend": "flat", "status": "on_track", "owner": "، ".join(mgmts), "period": "",
             })
 
     for o in objectives:
@@ -1677,7 +1700,7 @@ def stratmap(request):
         "active_page": "stratmap", "bands": bands, "form": form,
         "links": links, "business_units": business_units, "current_bu": current_bu,
         "themes": themes, "theme_form": StrategyThemeForm(), "org_vision": org_identity.vision,
-        "kpis_by_objective": kpis_by_objective, "kpi_form": StrategicKPIForm(),
+        "kpis_by_objective": kpis_by_objective,
         "weights_by_objective": weights_by_objective,
     })
 
@@ -1723,7 +1746,7 @@ def stratmap_print(request):
 
     objectives = list(
         StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
-        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis", "functional_strategies__linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -1756,7 +1779,7 @@ def stratmap_print_full(request):
 
     objectives = list(
         StrategicObjective.objects.filter(business_unit=current_bu).select_related("theme")
-        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis")
+        .prefetch_related("feeds_into", "linked_kpis", "linked_operational_kpis", "functional_strategies__linked_operational_kpis")
         if current_bu else StrategicObjective.objects.none()
     )
     links = []
@@ -4100,7 +4123,7 @@ def stratmap_export_excel(request):
     objectives = list(
         StrategicObjective.objects.filter(business_unit=current_bu)
         .select_related("theme", "source_tows")
-        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "linked_operational_kpis", "kpis", "source_tows__source_items")
+        .prefetch_related("feeds_into", "fed_by", "linked_kpis", "linked_operational_kpis", "functional_strategies__linked_operational_kpis", "kpis", "source_tows__source_items")
     )
 
     HEADER_FILL = PatternFill(start_color="1B2430", end_color="1B2430", fill_type="solid")
@@ -5066,7 +5089,7 @@ def executive_show(request):
     objectives_all = list(
         StrategicObjective.objects.filter(business_unit__isnull=False)
         .select_related("theme", "business_unit")
-        .prefetch_related("linked_kpis", "linked_operational_kpis__trend_points")
+        .prefetch_related("linked_kpis", "linked_operational_kpis__trend_points", "functional_strategies__linked_operational_kpis")
     )
     _attach_computed_objective_status(objectives_all)
 
@@ -5264,8 +5287,7 @@ def functional_strategies(request):
         .prefetch_related(
             "linked_objectives", "linked_objectives__business_unit",
             "linked_objectives__linked_kpis",
-            "linked_objectives__linked_operational_kpis",
-            "linked_objectives__initiatives",
+            "linked_operational_kpis__initiatives",
         )
         .order_by("org_unit__kind", "org_unit__order", "management", "order")
     )
@@ -5276,9 +5298,13 @@ def functional_strategies(request):
         inits = fs.resolved_initiatives
         obj_short = ""
         # تولتیپ باید کد هدف (مثل F2) و کسب‌وکارش را هم نشان دهد، نه فقط عنوان خام
-        obj_tooltip = "\n".join(
-            f"{o.code} — [{o.business_unit.name if o.business_unit else 'بدون کسب‌وکار'}] {o.title}" for o in objs
-        )
+        obj_lines = []
+        for o in objs:
+            obj_lines.append(f"{o.code} — [{o.business_unit.name if o.business_unit else 'بدون کسب‌وکار'}] {o.title}")
+            macro = [f"{k.code} — {k.name}" for k in o.linked_kpis.all()]
+            if macro:
+                obj_lines.append("   شاخص کلان: " + "؛ ".join(macro))
+        obj_tooltip = "\n".join(obj_lines)
         obj_color = _FS_PERSP_COLOR.get(objs[0].perspective, "#94A3B8") if objs else "#94A3B8"
         if objs:
             t = objs[0].title
@@ -5303,7 +5329,7 @@ def functional_strategies(request):
         project_inits = [i for i in inits if i.item_type == "project"]
         init_avg_pct = round(sum(i.progress for i in project_inits) / len(project_inits)) if project_inits else None
         return {
-            "id": fs.pk, "title": fs.title, "detail": fs.detail, "cls": fs.match_class,
+            "id": fs.pk, "title": fs.title, "cls": fs.match_class,
             "hasObj": bool(objs), "objShort": obj_short, "objTooltip": obj_tooltip, "objColor": obj_color,
             "kpiCount": len(kpis), "kpiTooltip": kpi_tooltip, "kpiAvgPct": kpi_avg_pct,
             "initCount": len(inits), "initTooltip": init_tooltip, "initAvgPct": init_avg_pct,
@@ -5311,6 +5337,7 @@ def functional_strategies(request):
             "orgUnitId": fs.org_unit_id, "management": fs.management, "order": fs.order,
             "basis": fs.basis,
             "linkedObjIds": [o.pk for o in objs],
+            "linkedKpiIds": [k.pk for k in fs.linked_operational_kpis.all()],
         }
 
     # مدیریت‌ها به تفکیک واحد سازمانی، با ردیف‌های کامل هر مدیریت
@@ -5426,7 +5453,7 @@ def _fs_objective_label(o):
 
 _FS_EXCEL_HEADERS = [
     "شناسه", "معاونت / واحد سازمانی", "مدیریت", "ترتیب در مدیریت",
-    "عنوان استراتژی وظیفه‌ای", "شرح (اقدام / فرآیند / نتیجه)", "مبنا / استناد",
+    "عنوان استراتژی وظیفه‌ای", "مبنا / استناد",
     "اهداف نقشه استراتژیک مرتبط",
 ]
 
@@ -5467,12 +5494,12 @@ def functional_strategy_export(request):
         obj_label = "؛ ".join(_fs_objective_label(o) for o in fs.linked_objectives.all())
         values = [
             fs.pk, fs.org_unit.name, fs.management, fs.order,
-            fs.title, _clean_line_endings(fs.detail), _clean_line_endings(fs.basis), obj_label,
+            fs.title, _clean_line_endings(fs.basis), obj_label,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [10, 26, 22, 12, 40, 40, 28, 60]
+    widths = [10, 26, 22, 12, 50, 28, 60]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
     ws.freeze_panes = "A2"
@@ -5542,26 +5569,38 @@ def _fs_parse_import_sheet(ws):
                 out.append(obj)
         return out
 
+    # ستون‌ها از روی عنوان سرستون پیدا می‌شوند (ستون «شرح» دیگر استفاده نمی‌شود و اگر
+    # در فایل‌های قدیمی باشد نادیده گرفته می‌شود)؛ اگر سرستون شناسایی نشد، چیدمان جدید فرض می‌شود.
+    header = [_fs_s(c) for c in next(ws.iter_rows(min_row=1, max_row=1, values_only=True), [])]
+    def _col(prefix, default):
+        for i, h in enumerate(header):
+            if h.startswith(prefix):
+                return i
+        return default
+    c_id, c_org, c_mgmt, c_order = _col("شناسه", 0), _col("معاونت", 1), _col("مدیریت", 2), _col("ترتیب", 3)
+    c_title, c_basis, c_obj = _col("عنوان", 4), _col("مبنا", 5), _col("اهداف", 6)
+
+    def _cell(row, i):
+        return row[i] if 0 <= i < len(row) else None
+
     parsed_rows, skipped = [], 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not (row[4] if len(row) > 4 else None):
+        if not row or not _cell(row, c_title):
             skipped += 1
             continue
-        record_id = _fs_i(row[0], None) if len(row) > 0 else None
-        org_unit = org_units_by_name.get(_fs_s(row[1])) if len(row) > 1 else None
+        record_id = _fs_i(_cell(row, c_id), None)
+        org_unit = org_units_by_name.get(_fs_s(_cell(row, c_org)))
         if not org_unit:
             skipped += 1
             continue
-        objectives = _resolve_objectives(row[7]) if len(row) > 7 else []
         parsed_rows.append({
             "record_id": record_id,
             "org_unit": org_unit,
-            "management": _fs_s(row[2]) if len(row) > 2 else "",
-            "order": _fs_i(row[3], 0) if len(row) > 3 else 0,
-            "title": _fs_s(row[4]),
-            "detail": _fs_s(row[5]) if len(row) > 5 else "",
-            "basis": _fs_s(row[6]) if len(row) > 6 else "",
-            "objectives": objectives,
+            "management": _fs_s(_cell(row, c_mgmt)),
+            "order": _fs_i(_cell(row, c_order), 0),
+            "title": _fs_s(_cell(row, c_title)),
+            "basis": _fs_s(_cell(row, c_basis)),
+            "objectives": _resolve_objectives(_cell(row, c_obj)),
         })
     return parsed_rows, skipped
 
@@ -5571,7 +5610,6 @@ _FS_DIFF_FIELDS = [
     ("management", "مدیریت"),
     ("order", "ترتیب در مدیریت"),
     ("title", "عنوان استراتژی وظیفه‌ای"),
-    ("detail", "شرح"),
     ("basis", "مبنا / استناد"),
     ("objectives_label", "اهداف نقشه استراتژیک مرتبط"),
 ]
@@ -5584,7 +5622,6 @@ def _fs_row_snapshot(r):
         "management": r["management"],
         "order": r["order"],
         "title": r["title"],
-        "detail": r["detail"],
         "basis": r["basis"],
         "objectives_label": "؛ ".join(_fs_objective_label(o) for o in r["objectives"]),
     }
@@ -5599,7 +5636,6 @@ def _fs_existing_snapshot(fs):
         "management": fs.management,
         "order": fs.order,
         "title": _fs_s(fs.title),
-        "detail": _fs_s(fs.detail),
         "basis": _fs_s(fs.basis),
         "objectives_label": "؛ ".join(_fs_objective_label(o) for o in fs.linked_objectives.all()),
     }
@@ -5714,7 +5750,7 @@ def functional_strategy_import_apply(request):
     for r in parsed_rows:
         defaults = dict(
             org_unit=r["org_unit"], management=r["management"], order=r["order"],
-            title=r["title"], detail=r["detail"], basis=r["basis"],
+            title=r["title"], basis=r["basis"],
         )
         existing = FunctionalStrategy.objects.filter(pk=r["record_id"]).first() if r["record_id"] else None
         if existing:
@@ -5753,3 +5789,259 @@ def functional_strategy_import_cancel(request):
         request.session.pop("fs_import_pending_token", None)
     messages.info(request, "وارد کردن لغو شد؛ هیچ تغییری اعمال نشد.")
     return redirect("strategic:functional_strategies")
+
+
+# ---------------- اهداف و نتایج کلیدی (OKR) ----------------
+
+@guest_gate('okr')
+def okr_page(request):
+    """صفحه OKR — شرکت ← معاونت ← مدیریت. هدف/عملکرد هر نتیجه کلیدی همان لحظه از شاخص سیستم
+    (هدف و عملکرد ۱۴۰۵) خوانده می‌شود؛ هر نتیجه کلیدی وزن دارد."""
+    from strategic.models import OKRObjective, OKRKeyResult
+
+    objs = list(
+        OKRObjective.objects.select_related("org_unit", "parent")
+        .prefetch_related("key_results__operational_kpi", "key_results__company_kpi")
+        .order_by("order", "code")
+    )
+
+    def kr_json(kr):
+        k = kr.kpi
+        return {
+            "id": kr.pk, "c": kr.code, "t": kr.title,
+            "k": kr.kpi_code or None, "kt": kr.kpi_title,
+            "kd": ("macro" if kr.company_kpi_id and not kr.operational_kpi_id else "op") if k else None,
+            "kid": (f"m{kr.company_kpi_id}" if kr.company_kpi_id and not kr.operational_kpi_id else (f"o{kr.operational_kpi_id}" if kr.operational_kpi_id else "")),
+            "u": k.unit if k else "", "lo": kr.lower_is_better,
+            "tg": kr.target, "ac": kr.actual, "p": kr.pct, "w": kr.weight,
+        }
+
+    def obj_json(o):
+        par = o.parent
+        return {
+            "id": o.pk, "c": o.code, "t": o.title,
+            "p": (par.code if par else (o.parent_text or None)),
+            "pt": (par.title if par else ""),
+            "krs": [kr_json(kr) for kr in o.key_results.all()],
+        }
+
+    company = [obj_json(o) for o in objs if o.level == "company"]
+    unit_objs, mgmt_objs = {}, {}
+    for o in objs:
+        if o.level == "deputy" and o.org_unit_id:
+            unit_objs.setdefault(o.org_unit_id, []).append(obj_json(o))
+        elif o.level == "management" and o.org_unit_id:
+            mgmt_objs.setdefault((o.org_unit_id, o.management), []).append(obj_json(o))
+
+    units = []
+    for u in OrgUnit.objects.all().order_by("kind", "order", "name"):
+        names = {m for (uid, m) in mgmt_objs if uid == u.pk}
+        names |= set(FunctionalStrategy.objects.filter(org_unit=u).values_list("management", flat=True))
+        units.append({
+            "id": u.pk, "name": u.name, "ind": u.kind == "ceo_direct",
+            "objectives": unit_objs.get(u.pk, []),
+            "managements": [
+                {"name": n, "objectives": mgmt_objs.get((u.pk, n), [])} for n in sorted(names)
+            ],
+        })
+
+    can_edit = _has_perm(request, "strategic.change_okrobjective")
+    kpi_options = []
+    if can_edit:
+        for k in OperationalKPI.objects.all().order_by("code"):
+            kpi_options.append({"id": f"o{k.pk}", "t": f"{k.code} — {k.title}"})
+        for k in CompanyKPI.objects.all().order_by("order"):
+            kpi_options.append({"id": f"m{k.pk}", "t": f"{k.code} (کلان) — {k.name}"})
+
+    return render(request, "strategic/okr.html", {
+        "active_page": "okr",
+        "okr_json": json.dumps({"company": company, "units": units}, ensure_ascii=False),
+        "kpi_options_json": json.dumps(kpi_options, ensure_ascii=False),
+        "can_edit": can_edit,
+    })
+
+
+@login_required
+def okr_save(request):
+    """ذخیره تغییرات صفحه OKR (JSON). نیازمند دسترسی ویرایش بخش OKR."""
+    from strategic.models import OKRObjective, OKRKeyResult
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "method"}, status=405)
+    if not _has_perm(request, "strategic.change_okrobjective"):
+        return JsonResponse({"ok": False, "error": "دسترسی ندارید."}, status=403)
+    try:
+        d = json.loads(request.body.decode("utf-8"))
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "داده نامعتبر."}, status=400)
+
+    act = d.get("action")
+
+    def set_kpi(kr, kid):
+        kr.operational_kpi = kr.company_kpi = None
+        if kid and kid[0] == "o":
+            kr.operational_kpi = OperationalKPI.objects.filter(pk=kid[1:]).first()
+        elif kid and kid[0] == "m":
+            kr.company_kpi = CompanyKPI.objects.filter(pk=kid[1:]).first()
+
+    def clean_w(v):
+        try:
+            return max(0, min(int(float(v)), 100))
+        except (TypeError, ValueError):
+            return 100
+
+    if act == "kr_update":
+        kr = get_object_or_404(OKRKeyResult, pk=d.get("id"))
+        if "weight" in d:
+            kr.weight = clean_w(d["weight"])
+        if "title" in d and str(d["title"]).strip():
+            kr.title = str(d["title"]).strip()[:500]
+        if "kpi" in d:
+            set_kpi(kr, d["kpi"])
+        if "lo" in d:
+            kr.lower_is_better = bool(d["lo"])
+        kr.save()
+    elif act == "kr_add":
+        o = get_object_or_404(OKRObjective, pk=d.get("objective"))
+        title = str(d.get("title", "")).strip()
+        if not title:
+            return JsonResponse({"ok": False, "error": "عنوان لازم است."}, status=400)
+        n = o.key_results.count() + 1
+        kr = OKRKeyResult(objective=o, code=f"{o.code}-K{n}", title=title[:500], weight=clean_w(d.get("weight", 100)),
+                          lower_is_better=bool(d.get("lo")), order=n)
+        set_kpi(kr, d.get("kpi"))
+        kr.save()
+    elif act == "kr_delete":
+        get_object_or_404(OKRKeyResult, pk=d.get("id")).delete()
+    elif act == "obj_update":
+        o = get_object_or_404(OKRObjective, pk=d.get("id"))
+        title = str(d.get("title", "")).strip()
+        if title:
+            o.title = title[:500]
+            o.save(update_fields=["title"])
+    elif act == "obj_add":
+        title = str(d.get("title", "")).strip()
+        level = d.get("level")
+        if not title or level not in ("company", "deputy", "management"):
+            return JsonResponse({"ok": False, "error": "داده ناقص."}, status=400)
+        unit = OrgUnit.objects.filter(pk=d.get("unit")).first() if level != "company" else None
+        mg = str(d.get("management", "")).strip() if level == "management" else ""
+        prefix = {"company": "C", "deputy": "D", "management": "M"}[level]
+        n = OKRObjective.objects.filter(level=level).count() + 1
+        code = f"{prefix}{n}"
+        while OKRObjective.objects.filter(code=code).exists():
+            n += 1
+            code = f"{prefix}{n}"
+        OKRObjective.objects.create(level=level, code=code, title=title[:500], org_unit=unit, management=mg, order=n)
+    elif act == "obj_delete":
+        get_object_or_404(OKRObjective, pk=d.get("id")).delete()
+    else:
+        return JsonResponse({"ok": False, "error": "عملیات نامعتبر."}, status=400)
+    _log_action(request, f"OKR {act}", json.dumps(d, ensure_ascii=False)[:200])
+    return JsonResponse({"ok": True})
+
+
+def _okr_fmt(v):
+    if v is None:
+        return "—"
+    return f"{v:,.0f}" if abs(v) >= 100 else (f"{v:.1f}".rstrip("0").rstrip("."))
+
+
+def _okr_wavg(krs):
+    s = w = 0
+    for kr in krs:
+        p = kr.pct
+        if p is not None and kr.weight > 0:
+            s += min(p, 100) * kr.weight
+            w += kr.weight
+    return round(s / w) if w else None
+
+
+@login_required
+def okr_export(request):
+    if not request.user.is_superuser:
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:okr")
+    from strategic.okr_io import export_workbook
+    buf = io.BytesIO()
+    export_workbook().save(buf)
+    resp = HttpResponse(buf.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    resp["Content-Disposition"] = 'attachment; filename="OKR-fanoos.xlsx"'
+    return resp
+
+
+@login_required
+def okr_import(request):
+    """ورود OKR از اکسل — همه‌ی OKRهای فعلی را با محتوای فایل جایگزین می‌کند."""
+    if not request.user.is_superuser or request.method != "POST":
+        messages.error(request, "این عملیات فقط برای مدیر سیستم مجاز است.")
+        return redirect("strategic:okr")
+    import openpyxl
+    from strategic.okr_io import import_workbook, OKRImportError
+    f = request.FILES.get("file")
+    if not f:
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:okr")
+    try:
+        wb = openpyxl.load_workbook(f, data_only=True)
+        s = import_workbook(wb)
+    except OKRImportError as e:
+        messages.error(request, str(e))
+        return redirect("strategic:okr")
+    except Exception as e:
+        messages.error(request, f"فایل خوانده نشد: {e}")
+        return redirect("strategic:okr")
+    _log_action(request, "IMPORT OKR", f"{s}")
+    messages.success(request, f"OKR جایگزین شد: {s['obj']} هدف، {s['kr']} نتیجه کلیدی ({s['nokpi']} مورد بدون شاخص).")
+    return redirect("strategic:okr")
+
+
+@guest_gate('okr')
+def okr_print(request):
+    """نسخه چاپی OKR. پارامترها: s=company|unit|mg|all ، u=شناسه واحد ، m=نام مدیریت."""
+    from strategic.models import OKRObjective
+    scope = request.GET.get("s", "all")
+    uid = request.GET.get("u")
+    mg = request.GET.get("m", "")
+    objs = list(
+        OKRObjective.objects.select_related("org_unit", "parent")
+        .prefetch_related("key_results__operational_kpi", "key_results__company_kpi")
+        .order_by("org_unit__kind", "org_unit__order", "management", "order", "code")
+    )
+
+    def block(o):
+        krs = list(o.key_results.all())
+        par = o.parent
+        return {
+            "o": o, "pct": _okr_wavg(krs), "par": (f"{par.code} — {par.title}" if par else o.parent_text),
+            "krs": [{"kr": k, "pct": k.pct, "tg": _okr_fmt(k.target), "ac": _okr_fmt(k.actual)} for k in krs],
+        }
+
+    sections = []
+
+    def sec(title, sub, items):
+        if not items:
+            return
+        ps = [b["pct"] for b in items if b["pct"] is not None]
+        sections.append({"title": title, "sub": sub, "avg": round(sum(ps) / len(ps)) if ps else None, "items": items})
+
+    def want_unit(o):
+        return uid is None or str(o.org_unit_id) == str(uid)
+
+    if scope in ("all", "company"):
+        sec("اهداف و نتایج کلیدی شرکت", "سطح شرکت", [block(o) for o in objs if o.level == "company"])
+    if scope in ("all", "unit", "mg"):
+        units, seen = [], set()
+        for o in objs:
+            if o.org_unit_id and o.org_unit_id not in seen and want_unit(o):
+                seen.add(o.org_unit_id)
+                units.append(o.org_unit)
+        for u in units:
+            if scope in ("all", "unit"):
+                sec(u.name, "سطح معاونت", [block(o) for o in objs if o.level == "deputy" and o.org_unit_id == u.pk])
+            names = sorted({o.management for o in objs if o.level == "management" and o.org_unit_id == u.pk})
+            for n in names:
+                if scope == "mg" and mg and n != mg:
+                    continue
+                sec(n, f"سطح مدیریت — {u.name}",
+                    [block(o) for o in objs if o.level == "management" and o.org_unit_id == u.pk and o.management == n])
+    return render(request, "strategic/okr_print.html", {"sections": sections})

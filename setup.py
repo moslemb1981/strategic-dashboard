@@ -8,6 +8,7 @@ setup(
         "strategic/forms.py",
         "strategic/admin.py",
         "strategic/permission_sections.py",
+        "strategic/okr_io.py",
         "strategic/market_intel_sheets.py",
         "strategic/middleware.py",
         "strategic/context_processors.py",

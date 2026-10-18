@@ -15,3 +15,15 @@ def locked_sections(request):
         # جدول ممکن است هنوز مهاجرت نشده باشد (مثلاً هنگام اجرای اولین migrate)
         keys = set()
     return {"locked_section_keys": keys}
+
+
+def org_branding(request):
+    """نام محصول و نام سازمان/اداره/مدیریت برای همه‌ی قالب‌ها (از settings / .env)."""
+    from django.conf import settings
+    return {
+        "product_name": settings.PRODUCT_NAME,
+        "product_tagline": settings.PRODUCT_TAGLINE,
+        "org_name": settings.ORG_NAME,
+        "org_office": settings.ORG_OFFICE_NAME,
+        "org_management": settings.ORG_MANAGEMENT_NAME,
+    }

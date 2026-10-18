@@ -61,6 +61,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'strategic.context_processors.locked_sections',
+                'strategic.context_processors.org_branding',
             ],
         },
     },
@@ -121,6 +122,15 @@ STORAGES = {
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# ──────────────────────────────────────────────────────────────────────────
+# برندینگ — با .env قابل تغییر است؛ پیش‌فرض‌ها همان متن فعلی هستند
+# ──────────────────────────────────────────────────────────────────────────
+PRODUCT_NAME = os.environ.get("PRODUCT_NAME", "فانوس")
+PRODUCT_TAGLINE = os.environ.get("PRODUCT_TAGLINE", "سامانه مدیریت استراتژیک")
+ORG_NAME = os.environ.get("ORG_NAME", "سایپا یدک")
+ORG_OFFICE_NAME = os.environ.get("ORG_OFFICE_NAME", "اداره مطالعات و برنامه‌ریزی استراتژیک")
+ORG_MANAGEMENT_NAME = os.environ.get("ORG_MANAGEMENT_NAME", "مدیریت برنامه‌ریزی و نظارت راهبردی")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -239,7 +239,6 @@
         <div class="field-group"><label>مدیریت</label>{{ form.management }}</div>
       </div>
       <div class="field-group"><label>عنوان استراتژی وظیفه‌ای</label>{{ form.title }}</div>
-      <div class="field-group"><label>شرح (اقدام / فرآیند / نتیجه)</label>{{ form.detail }}</div>
       <div class="field-group"><label>ترتیب در مدیریت</label>{{ form.order }}</div>
       <div class="field-group"><label>مبنا / استناد</label>{{ form.basis }}</div>
       <div class="field-group">
@@ -248,6 +247,13 @@
         <input type="text" id="fsObjectiveSearch" placeholder="جستجو در عنوان اهداف..."
           style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
         <div class="picker-box" id="fsObjectivesBox">{{ form.linked_objectives }}</div>
+      </div>
+      <div class="field-group">
+        <label>شاخص‌های عملیاتی این استراتژی (پروژه‌ها از روی همین شاخص‌ها نمایش داده می‌شوند)</label>
+        <div class="picker-chips" id="fsChipsKpis"></div>
+        <input type="text" id="fsKpiSearch" placeholder="جستجو با کد یا عنوان شاخص یا نام مدیریت..."
+          style="width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;">
+        <div class="picker-box" id="fsKpisBox">{{ form.linked_operational_kpis }}</div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="fsCloseModal()">انصراف</button>
@@ -317,6 +323,8 @@
     chipsBox.classList.toggle('has-items', checked.length > 0);
   }
   function fsSyncObjectivePicked(){ fsSyncPicker('fsObjectivesBox', 'fsChipsObjectives'); }
+  function fsSyncKpiPicked(){ fsSyncPicker('fsKpisBox', 'fsChipsKpis'); }
+  window.fsRefreshKpiChips = fsSyncKpiPicked;
 
   function fsWirePicker(boxId, syncFn){
     document.querySelectorAll('#' + boxId + ' label').forEach(function(lbl){
@@ -341,8 +349,20 @@
         });
       });
     }
+    var kpiSearch = document.getElementById('fsKpiSearch');
+    if (kpiSearch) {
+      kpiSearch.addEventListener('input', function(){
+        var q = this.value.trim().toLowerCase().replace(/ي/g, 'ی').replace(/ك/g, 'ک');
+        document.querySelectorAll('#fsKpisBox label').forEach(function(lbl){
+          var hay = lbl.textContent.toLowerCase().replace(/ي/g, 'ی').replace(/ك/g, 'ک');
+          lbl.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
+        });
+      });
+    }
     fsWirePicker('fsObjectivesBox', fsSyncObjectivePicked);
     fsSyncObjectivePicked();
+    fsWirePicker('fsKpisBox', fsSyncKpiPicked);
+    fsSyncKpiPicked();
   });
 
   function fsResetForm(){
@@ -350,6 +370,10 @@
     document.getElementById('fs_obj_id').value = '';
     document.querySelectorAll('#fsObjectivesBox input[type="checkbox"]').forEach(function(cb){ cb.checked = false; });
     fsSyncObjectivePicked();
+    document.querySelectorAll('#fsKpisBox input[type="checkbox"]').forEach(function(cb){ cb.checked = false; });
+    var ks = document.getElementById('fsKpiSearch');
+    if (ks) { ks.value = ''; document.querySelectorAll('#fsKpisBox label').forEach(function(l){ l.style.display = ''; }); }
+    fsSyncKpiPicked();
   }
 
   window.fsNew = function(){
@@ -373,8 +397,12 @@
     document.getElementById('id_management').value = row.management;
     document.getElementById('id_order').value = row.order;
     document.getElementById('id_title').value = row.title;
-    document.getElementById('id_detail').value = row.detail;
     document.getElementById('id_basis').value = row.basis;
+    var kpiIds = (row.linkedKpiIds || []).map(String);
+    document.querySelectorAll('#fsKpisBox input[name="linked_operational_kpis"]').forEach(function(cb){
+      cb.checked = kpiIds.indexOf(cb.value) !== -1;
+    });
+    if (window.fsRefreshKpiChips) window.fsRefreshKpiChips();
     var objIds = (row.linkedObjIds || []).map(String);
     document.querySelectorAll('#fsObjectivesBox input[name="linked_objectives"]').forEach(function(cb){
       cb.checked = objIds.indexOf(cb.value) !== -1;
@@ -427,24 +455,18 @@
   var TABLE_ROWS = [];
   var fsTipEl = document.getElementById('fsTip');
   var FS_TIP_LABEL = {
-    detail: 'شرح (اقدام / فرآیند / نتیجه)',
     obj: 'هدف بالادستی',
     kpi: 'شاخص‌های مرتبط',
     init: 'پروژه‌ها / اقدامات مرتبط',
   };
-  var FS_TIP_SOURCE = {detail: 'detail', obj: 'objTooltip', kpi: 'kpiTooltip', init: 'initTooltip'};
+  var FS_TIP_SOURCE = {obj: 'objTooltip', kpi: 'kpiTooltip', init: 'initTooltip'};
   function fsTipContent(row, field){
     var text = row[FS_TIP_SOURCE[field]];
     if (!text) return '';
     var body;
-    if (field === 'detail') {
-      // شرح یک متنِ پیوسته است، نه فهرست — بدون بولت
-      body = esc(text);
-    } else {
-      // فهرست موارد (اهداف/شاخص‌ها/پروژه‌ها) — هر مورد با یک بولت جدا، در خط خودش
-      body = text.split('\n').filter(function(l){ return l.trim(); })
-        .map(function(l){ return '<div class="fs-tip-item">• ' + esc(l) + '</div>'; }).join('');
-    }
+    // فهرست موارد (اهداف/شاخص‌ها/پروژه‌ها) — هر مورد با یک بولت جدا، در خط خودش
+    body = text.split('\n').filter(function(l){ return l.trim(); })
+      .map(function(l){ return '<div class="fs-tip-item">• ' + esc(l) + '</div>'; }).join('');
     return '<b>' + FS_TIP_LABEL[field] + '</b>' + body;
   }
   // تولتیپ کنار المان ثابت می‌مونه (نه دنبال ماوس) تا بشه ماوس رو داخلش برد و اسکرول کرد؛
@@ -597,7 +619,7 @@
         ? '<span style="font-weight:700;font-size:11px;color:' + fsPctColor(r.initAvgPct) + ';">' + r.initAvgPct + '٪</span>'
         : '<span class="fs-muted-dash">—</span>';
       tr.innerHTML =
-        '<td class="center"><span class="fs-dot" data-tip-row="' + idx + '" data-tip-field="detail" style="background:' + dotColor + ';"></span></td>' +
+        '<td class="center"><span class="fs-dot" style="background:' + dotColor + ';"></span></td>' +
         '<td style="max-width:340px;line-height:1.5;">' + esc(r.title) + '</td>' +
         '<td>' + objCell + '</td>' +
         '<td class="center">' + kpiCell + '</td>' +

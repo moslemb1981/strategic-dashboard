@@ -30,6 +30,7 @@ SECTIONS = {
     "roadmap": ("پروژه‌های تحول", ["Initiative"], True),
     "market_intel": ("هوش بازار", ["Competitor", "CustomerSatisfactionBenchmark", "DomesticRawMaterial", "MarketIntelReport"], False),
     "functional_strategies": ("استراتژی وظیفه‌ای", ["FunctionalStrategy"], False),
+    "okr": ("اهداف و نتایج کلیدی (OKR)", ["OKRObjective", "OKRKeyResult"], False),
 }
 
 BU_SCOPED_SECTION_KEYS = [key for key, (_, _, bu_scoped) in SECTIONS.items() if bu_scoped]
@@ -57,6 +58,7 @@ VISIBILITY_SECTIONS = {
     "swot": "تحلیل SWOT",
     "stratmap": "نقشه استراتژیک",
     "functional_strategies": "استراتژی وظیفه‌ای",
+    "okr": "اهداف و نتایج کلیدی (OKR)",
     "risk": "نقشه ریسک",
     "company_goals": "اهداف کلان و KPI شرکت",
     "operational_kpis": "بانک شاخص‌های عملیاتی",

@@ -2004,9 +2004,9 @@ class OrgUnit(models.Model):
 class FunctionalStrategy(models.Model):
     """استراتژی‌های وظیفه‌ای مدیریت‌ها — بر اساس چارت سازمانی (مدیرعامل ← معاونت‌ها/مدیریت‌های مستقل ← مدیریت‌ها).
 
-    هر ردیف به هدف(های) نقشه استراتژیک مرتبط می‌شود (linked_objectives)؛ شاخص‌ها و پروژه‌های
-    مرتبط به‌صورت مستقیم ذخیره نمی‌شوند بلکه همیشه زنده از طریق اهداف مرتبط خوانده می‌شوند
-    (StrategicObjective.linked_kpis / linked_operational_kpis / initiatives)."""
+    هر ردیف به هدف(های) نقشه استراتژیک (linked_objectives) و مستقیم به شاخص‌های عملیاتی
+    مالک خودش (linked_operational_kpis) وصل می‌شود؛ پروژه‌های مرتبط زنده از طریق همین شاخص‌ها
+    (Initiative.source_operational_kpi) خوانده می‌شوند."""
 
     org_unit = models.ForeignKey(
         OrgUnit, on_delete=models.PROTECT, related_name="functional_strategies",
@@ -2027,6 +2027,10 @@ class FunctionalStrategy(models.Model):
         StrategicObjective, blank=True, related_name="functional_strategies",
         verbose_name="اهداف نقشه استراتژیک مرتبط",
     )
+    linked_operational_kpis = models.ManyToManyField(
+        "OperationalKPI", blank=True, related_name="functional_strategies",
+        verbose_name="شاخص‌های عملیاتی مرتبط",
+    )
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -2039,36 +2043,24 @@ class FunctionalStrategy(models.Model):
 
     @property
     def resolved_kpis(self):
-        """شاخص‌های شرکتی/عملیاتی مرتبط، از طریق اهداف مرتبط (بدون تکرار)، به‌همراه
+        """شاخص‌های عملیاتی که مستقیم به همین استراتژی وظیفه‌ای وصل شده‌اند، به‌همراه
         هدف/عملکرد/درصد تحقق ۱۴۰۵ هر شاخص برای نمایش کمی در هاور."""
-        seen, out = set(), []
-        for obj in self.linked_objectives.all():
-            for k in obj.linked_operational_kpis.all():
-                key = ("op", k.pk)
-                if key not in seen:
-                    seen.add(key)
-                    out.append({
-                        "code": k.department or "", "label": str(k),
-                        "target": k.target_1405, "actual": k.actual_1405,
-                        "pct": k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405,
-                    })
-            for k in obj.linked_kpis.all():
-                key = ("co", k.pk)
-                if key not in seen:
-                    seen.add(key)
-                    out.append({
-                        "code": getattr(k, "code", "") or "", "label": str(k),
-                        "target": k.target_1405, "actual": k.actual_1405,
-                        "pct": k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405,
-                    })
+        out = []
+        for k in self.linked_operational_kpis.all():
+            out.append({
+                "code": k.department or "", "label": str(k),
+                "target": k.target_1405, "actual": k.actual_1405,
+                "pct": k.manual_progress_value if k.manual_progress_value is not None else k.progress_pct_1405,
+            })
         return out
 
     @property
     def resolved_initiatives(self):
-        """پروژه‌ها/اقدامات مرتبط، از طریق اهداف مرتبط (بدون تکرار)."""
+        """پروژه‌ها/اقدامات مرتبط، از طریق شاخص‌های عملیاتی همین استراتژی (بدون تکرار):
+        هر پروژه‌ای که یکی از این شاخص‌ها را به‌عنوان «شاخص عملیاتی مبنا» دارد."""
         seen, out = set(), []
-        for obj in self.linked_objectives.all():
-            for init in obj.initiatives.all():
+        for k in self.linked_operational_kpis.all():
+            for init in k.initiatives.all():
                 if init.pk not in seen:
                     seen.add(init.pk)
                     out.append(init)
@@ -2076,11 +2068,114 @@ class FunctionalStrategy(models.Model):
 
     @property
     def match_class(self):
-        """قوی: حداقل یک هدف مرتبط دارد و آن هدف حداقل یک شاخص دارد. در غیر این صورت: بدون هدف مصوب."""
-        for obj in self.linked_objectives.all():
-            if obj.linked_kpis.exists() or obj.linked_operational_kpis.exists():
-                return "strong"
-        return "none"
+        """قوی: حداقل یک هدف نقشه و حداقل یک شاخص عملیاتی مستقیم دارد. در غیر این صورت: ناقص."""
+        return "strong" if (self.linked_objectives.all() and self.linked_operational_kpis.all()) else "none"
+
+
+def _okr_num(v):
+    """عدد را از متن آزاد هدف/عملکرد شاخص (ارقام فارسی/انگلیسی، جداکننده هزارگان، درصد) استخراج می‌کند."""
+    import re
+    if v is None:
+        return None
+    t = str(v).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٫٬", "0123456789..")).replace(",", "").replace("%", "").strip()
+    m = re.search(r"-?\d+(\.\d+)?", t)
+    return float(m.group()) if m else None
+
+
+class OKRObjective(models.Model):
+    """هدف (Objective) در سه سطح: شرکت ← معاونت ← مدیریت. هر هدف چند نتیجه کلیدی دارد."""
+
+    LEVEL_CHOICES = [("company", "شرکت"), ("deputy", "معاونت"), ("management", "مدیریت")]
+
+    level = models.CharField(max_length=12, choices=LEVEL_CHOICES, verbose_name="سطح")
+    code = models.CharField(max_length=30, unique=True, verbose_name="کد هدف")
+    title = models.CharField(max_length=500, verbose_name="عنوان هدف")
+    org_unit = models.ForeignKey(
+        OrgUnit, null=True, blank=True, on_delete=models.PROTECT, related_name="okr_objectives",
+        verbose_name="معاونت / واحد سازمانی",
+    )
+    management = models.CharField(max_length=200, blank=True, verbose_name="مدیریت (فقط سطح مدیریت)")
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children",
+        verbose_name="هدف بالادستی",
+    )
+    parent_text = models.CharField(max_length=500, blank=True, verbose_name="هدف بالادستی (متن، وقتی هدفی با آن کد نیست)")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["level", "org_unit__order", "management", "order", "code"]
+        verbose_name = "هدف OKR"
+        verbose_name_plural = "اهداف OKR"
+
+    def __str__(self):
+        return f"{self.code} — {self.title[:60]}"
+
+
+class OKRKeyResult(models.Model):
+    """نتیجه کلیدی (KR). هدف و عملکرد از شاخص سیستم (عملیاتی یا کلان) همان لحظه خوانده می‌شود."""
+
+    objective = models.ForeignKey(OKRObjective, on_delete=models.CASCADE, related_name="key_results", verbose_name="هدف")
+    code = models.CharField(max_length=40, blank=True, verbose_name="کد")
+    title = models.CharField(max_length=500, verbose_name="عنوان نتیجه کلیدی")
+    operational_kpi = models.ForeignKey(
+        "OperationalKPI", null=True, blank=True, on_delete=models.SET_NULL, related_name="okr_key_results",
+        verbose_name="شاخص عملیاتی",
+    )
+    company_kpi = models.ForeignKey(
+        "CompanyKPI", null=True, blank=True, on_delete=models.SET_NULL, related_name="okr_key_results",
+        verbose_name="شاخص کلان",
+    )
+    lower_is_better = models.BooleanField(default=False, verbose_name="کمتر بهتر است (↓)")
+    weight = models.PositiveSmallIntegerField(default=100, verbose_name="وزن")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["objective", "order", "id"]
+        verbose_name = "نتیجه کلیدی OKR"
+        verbose_name_plural = "نتایج کلیدی OKR"
+
+    def __str__(self):
+        return f"{self.code} — {self.title[:60]}"
+
+    @property
+    def kpi(self):
+        return self.operational_kpi or self.company_kpi
+
+    @property
+    def kpi_code(self):
+        k = self.kpi
+        return k.code if k else ""
+
+    @property
+    def kpi_title(self):
+        k = self.operational_kpi.title if self.operational_kpi_id else (self.company_kpi.name if self.company_kpi_id else "")
+        return k
+
+    @property
+    def target(self):
+        k = self.kpi
+        return _okr_num(k.target_1405) if k else None
+
+    @property
+    def actual(self):
+        k = self.kpi
+        return _okr_num(k.actual_1405) if k else None
+
+    @property
+    def pct(self):
+        """درصد تحقق: هدف/عملکرد لحظه‌ای شاخص سیستم؛ بدون شاخص یا بدون عدد → None."""
+        t, a = self.target, self.actual
+        if not self.kpi or t is None or a is None:
+            return None
+        if self.lower_is_better:
+            if a <= 0:
+                return 150 if t >= 0 else None
+            if t <= 0:
+                return 0
+            return max(0, min(round(t / a * 100), 150))
+        if t == 0:
+            return None
+        return max(0, min(round(a / t * 100), 150))
 
 
 class SectionVisibility(models.Model):

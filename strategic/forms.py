@@ -222,13 +222,12 @@ class TOWSStrategyForm(forms.ModelForm):
 class StrategicObjectiveForm(forms.ModelForm):
     class Meta:
         model = StrategicObjective
-        fields = ["code", "perspective", "theme", "title", "order", "feeds_into", "source_tows", "linked_kpis", "linked_operational_kpis"]
+        fields = ["code", "perspective", "theme", "title", "order", "feeds_into", "source_tows", "linked_kpis"]
         widgets = {
             "code": forms.TextInput(attrs={"placeholder": "مثلاً: F1"}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان هدف استراتژیک"}),
             "feeds_into": forms.CheckboxSelectMultiple(),
             "linked_kpis": forms.CheckboxSelectMultiple(),
-            "linked_operational_kpis": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, business_unit=None, **kwargs):
@@ -255,10 +254,6 @@ class StrategicObjectiveForm(forms.ModelForm):
         self.fields["linked_kpis"].queryset = CompanyKPI.objects.all()
         self.fields["linked_kpis"].required = False
         self.fields["linked_kpis"].label_from_instance = lambda obj: f"{obj.code} — {obj.name}"
-
-        self.fields["linked_operational_kpis"].queryset = OperationalKPI.objects.all()
-        self.fields["linked_operational_kpis"].required = False
-        self.fields["linked_operational_kpis"].label_from_instance = lambda obj: f"{obj.code} — {obj.title}"
 
 
 class StrategyThemeForm(forms.ModelForm):
@@ -751,16 +746,16 @@ class FunctionalStrategyForm(forms.ModelForm):
     class Meta:
         model = FunctionalStrategy
         fields = [
-            "org_unit", "management", "order", "title", "detail",
-            "basis", "linked_objectives",
+            "org_unit", "management", "order", "title",
+            "basis", "linked_objectives", "linked_operational_kpis",
         ]
         widgets = {
             "management": forms.TextInput(attrs={"placeholder": "مثلاً: مدیریت ارتباطات"}),
             "order": forms.NumberInput(attrs={"min": 0}),
             "title": forms.TextInput(attrs={"placeholder": "عنوان استراتژی وظیفه‌ای"}),
-            "detail": forms.Textarea(attrs={"rows": 4, "placeholder": "اقدام / فرآیند / نتیجه"}),
             "basis": forms.Textarea(attrs={"rows": 2, "placeholder": "مبنا / استناد"}),
             "linked_objectives": forms.CheckboxSelectMultiple(),
+            "linked_operational_kpis": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -774,5 +769,9 @@ class FunctionalStrategyForm(forms.ModelForm):
         self.fields["linked_objectives"].label_from_instance = (
             lambda o: f"{o.code} — [{o.business_unit.name.replace('کسب و کار ', '') if o.business_unit else '—'}] {o.title}"
         )
+        self.fields["linked_operational_kpis"].required = False
+        self.fields["linked_operational_kpis"].queryset = OperationalKPI.objects.all().order_by("department", "order", "code")
+        self.fields["linked_operational_kpis"].label_from_instance = (
+            lambda k: f"{k.code} — {k.title}" + (f" [{k.department}]" if k.department else "")
+        )
         self.fields["basis"].required = False
-        self.fields["detail"].required = False

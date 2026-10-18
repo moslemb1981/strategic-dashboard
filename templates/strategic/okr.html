@@ -1,0 +1,244 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% block title %}اهداف و نتایج کلیدی (OKR){% endblock %}
+{% block crumb %}اهداف و نتایج کلیدی (OKR){% endblock %}
+
+{% block content %}
+<style>
+  #okr-page{
+    --o-navy:#141F33; --o-brand:#1F4E78; --o-brand-soft:#DCE6F1;
+    --o-green:#3E7A52; --o-warn:#C97A2B; --o-bad:#B0413E; --o-bad-soft:#F7E3E2; --o-none:#94A3B8;
+    --o-bg:#F3F5F8; --o-ink:#1B2430; --o-muted:#64748B; --o-border:#DEE4EC; --o-line:#C7D0DC;
+  }
+  #okr-page *{box-sizing:border-box;}
+  #okr-page button{font-family:inherit;cursor:pointer;}
+  #okr-page .o-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px;}
+  #okr-page h1{margin:0;font-size:22px;font-weight:800;color:var(--o-ink);}
+  #okr-page .o-sub{margin-top:6px;font-size:12.5px;color:var(--o-muted);}
+  #okr-page .o-org{background:#fff;border:1px solid var(--o-border);border-radius:16px;padding:26px 20px 20px;}
+  #okr-page .o-center{display:flex;justify-content:center;}
+  #okr-page .o-ceo{background:var(--o-navy);color:#fff;border:0;font-size:13px;font-weight:800;padding:10px 28px;border-radius:10px;text-align:center;line-height:1.7;}
+  #okr-page .o-ceo small{display:block;font-weight:500;font-size:11px;opacity:.9;}
+  #okr-page .o-ceo.active{background:var(--o-brand);box-shadow:0 4px 14px rgba(31,78,120,.35);}
+  #okr-page .o-vline{width:2px;background:var(--o-line);margin:0 auto;height:14px;}
+  #okr-page .o-hbus{height:2px;background:var(--o-line);margin:0 30px;}
+  #okr-page .o-deps{display:flex;gap:10px;padding-top:0;flex-wrap:wrap;justify-content:center;}
+  #okr-page .o-dep{display:flex;flex-direction:column;align-items:center;flex:1;min-width:130px;max-width:170px;}
+  #okr-page .o-depbtn{width:100%;border:1.6px solid var(--o-border);border-radius:10px;padding:9px 10px;text-align:center;background:#fff;}
+  #okr-page .o-depbtn.ind{border-style:dashed;}
+  #okr-page .o-depbtn.active{background:var(--o-brand);border-color:var(--o-brand);box-shadow:0 4px 14px rgba(31,78,120,.3);}
+  #okr-page .o-dt{font-size:11px;font-weight:700;line-height:1.5;min-height:32px;display:flex;align-items:center;justify-content:center;color:var(--o-ink);}
+  #okr-page .o-depbtn.active .o-dt{color:#fff;}
+  #okr-page .o-bar{height:5px;border-radius:4px;overflow:hidden;background:var(--o-border);margin-top:7px;}
+  #okr-page .o-bar i{display:block;height:100%;}
+  #okr-page .o-dm{display:flex;justify-content:space-between;margin-top:5px;font-size:9.5px;color:var(--o-muted);}
+  #okr-page .o-dm b{font-size:10px;font-weight:800;}
+  #okr-page .o-depbtn.active .o-dm{color:#CBD8E8;}
+  #okr-page .o-drill{background:var(--o-brand-soft);border:1.6px solid var(--o-brand);border-radius:12px;padding:14px 16px;margin-top:0;}
+  #okr-page .o-drill>b{display:block;font-size:10.5px;color:var(--o-brand);margin-bottom:10px;}
+  #okr-page .o-chips{display:flex;gap:8px;flex-wrap:wrap;}
+  #okr-page .o-chip{background:#fff;border:1.4px solid #B9CBE0;border-radius:9px;padding:7px 12px;font-size:11.5px;font-weight:600;color:var(--o-ink);display:flex;gap:8px;align-items:center;}
+  #okr-page .o-chip small{font-weight:800;font-size:10px;}
+  #okr-page .o-chip.active{background:var(--o-brand);border-color:var(--o-brand);color:#fff;}
+  #okr-page .o-card{margin-top:18px;background:#fff;border:1px solid var(--o-border);border-radius:14px;overflow:hidden;}
+  #okr-page .o-ch{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--o-border);flex-wrap:wrap;}
+  #okr-page .o-ch .nm{font-size:14px;font-weight:800;color:var(--o-ink);}
+  #okr-page .o-ch .lv{font-size:11px;color:var(--o-muted);margin-top:3px;}
+  #okr-page .o-ch .avg{font-size:13px;font-weight:800;}
+  #okr-page .o-obj{padding:16px 18px;border-top:1px solid var(--o-border);}
+  #okr-page .o-obj:first-of-type{border-top:0;}
+  #okr-page .o-oh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;}
+  #okr-page .o-otitle{font-size:13px;font-weight:800;color:var(--o-ink);line-height:1.8;}
+  #okr-page .o-par{display:inline-block;margin-top:4px;font-size:10.5px;color:var(--o-brand);background:var(--o-brand-soft);border-radius:6px;padding:2px 8px;}
+  #okr-page .o-opct{text-align:center;font-size:18px;font-weight:800;flex:none;}
+  #okr-page .o-opct small{display:block;font-size:9.5px;font-weight:500;color:var(--o-muted);}
+  #okr-page .o-krs{display:flex;flex-direction:column;gap:6px;overflow-x:auto;}
+  #okr-page .o-kr{display:grid;grid-template-columns:minmax(220px,1fr) 80px 90px 90px 62px 150px;gap:10px;align-items:center;padding:7px 10px;border:1px solid var(--o-border);border-radius:9px;font-size:11.5px;min-width:700px;}
+  #okr-page .o-kr.nk{background:var(--o-bad-soft);border-style:dashed;grid-template-columns:minmax(220px,1fr) 1fr;}
+  #okr-page .o-kc{font-size:9.5px;font-weight:800;color:var(--o-brand);background:var(--o-brand-soft);border-radius:5px;padding:1px 6px;margin-inline-end:6px;white-space:nowrap;}
+  #okr-page .o-num{text-align:center;font-weight:700;}
+  #okr-page .o-num .lab{display:block;font-size:9px;font-weight:500;color:var(--o-muted);}
+  #okr-page .o-wi{width:52px;font:700 11.5px inherit;text-align:center;border:1px solid var(--o-border);border-radius:6px;padding:2px;}
+  #okr-page .o-pb{display:flex;align-items:center;gap:8px;}
+  #okr-page .o-pb .o-bar{flex:1;margin:0;}
+  #okr-page .o-pb b{font-size:11px;min-width:42px;text-align:left;}
+  #okr-page .o-tag{font-size:10px;color:var(--o-bad);font-weight:700;}
+  #okr-page .o-ib{border:none;background:none;color:var(--o-muted);font-size:12px;padding:3px 5px;border-radius:6px;}
+  #okr-page .o-ib:hover{background:var(--o-bg);color:var(--o-ink);}
+  #okr-page .o-act{display:inline-flex;gap:4px;margin-inline-start:8px;vertical-align:middle;white-space:nowrap;}
+  #okr-page .o-tb{border:1px solid var(--o-border);background:#fff;color:var(--o-brand);border-radius:6px;padding:1px 8px;font-size:10px;font-weight:700;}
+  #okr-page .o-tb:hover{background:var(--o-brand-soft);}
+  #okr-page .o-tb.d{color:var(--o-bad);}
+  #okr-page .o-top-btn{border:1px solid var(--o-border);background:#fff;color:var(--o-ink);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;}
+  #okr-page .o-top-btn:hover{background:var(--o-bg);}
+  #okr-page .o-add{margin-top:8px;font-size:11px;border:1px dashed var(--o-line);background:#fff;color:var(--o-muted);border-radius:8px;padding:5px 12px;}
+  #okr-page .o-legend{margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;padding:12px 18px;background:#fff;border:1px solid var(--o-border);border-radius:12px;font-size:10.5px;color:var(--o-muted);}
+  #okr-page .o-legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-inline-end:6px;}
+  #okr-page .o-ov{position:fixed;inset:0;background:rgba(10,20,35,.5);display:none;align-items:center;justify-content:center;z-index:900;padding:16px;}
+  #okr-page .o-ov.open{display:flex;}
+  #okr-page .o-md{background:#fff;border-radius:14px;padding:20px;width:min(560px,100%);max-height:90vh;overflow:auto;}
+  #okr-page .o-md h3{margin:0 0 14px;font-size:15px;}
+  #okr-page .o-md label{display:block;font-size:11.5px;font-weight:700;margin:10px 0 4px;color:var(--o-ink);}
+  #okr-page .o-md input[type=text],#okr-page .o-md input[type=number],#okr-page .o-md select,#okr-page .o-md textarea{width:100%;border:1px solid var(--o-border);border-radius:8px;padding:8px;font:inherit;font-size:12px;}
+  #okr-page .o-md .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+  #okr-page .o-md .row button{border:0;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;}
+  #okr-page .o-md .go{background:var(--o-navy);color:#fff;}
+  #okr-page .o-md .cancel{background:var(--o-bg);color:var(--o-ink);}
+</style>
+
+<div id="okr-page">
+  <div class="o-top">
+    <div>
+      <h1>داشبورد اهداف و نتایج کلیدی سازمان (OKR)</h1>
+      <div class="o-sub">سه سطح: شرکت ← معاونت ← مدیریت. هدف و عملکرد هر نتیجه کلیدی همان لحظه از شاخص سیستم خوانده می‌شود؛ هر نتیجه کلیدی وزن دارد.</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="o-top-btn" id="printBtn"><i class="fa-solid fa-print"></i> نسخه چاپی</button>
+      <button type="button" class="o-top-btn" id="printAllBtn">چاپ همه</button>
+      {% if request.user.is_superuser %}
+      <a href="{% url 'strategic:okr_export' %}" class="o-top-btn" style="text-decoration:none"><i class="fa-solid fa-file-export"></i> خروجی اکسل</a>
+      <button type="button" class="o-top-btn" onclick="document.getElementById('okrFile').click()"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
+      <form id="okrImportForm" method="post" enctype="multipart/form-data" action="{% url 'strategic:okr_import' %}" style="display:none">{% csrf_token %}<input type="file" name="file" id="okrFile" accept=".xlsx"></form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="o-org">
+    <div class="o-center"><button class="o-ceo" id="ceo"></button></div>
+    <div class="o-center"><div class="o-vline"></div></div>
+    <div class="o-hbus"></div>
+    <div class="o-deps" id="deps" style="padding-top:0"></div>
+    <div class="o-center"><div class="o-vline" style="background:var(--o-brand);height:16px"></div></div>
+    <div class="o-drill" id="drill" hidden><b id="drillTitle"></b><div class="o-chips" id="chips"></div></div>
+  </div>
+
+  <div class="o-card" id="card"></div>
+
+  <div class="o-legend"><span style="--c:var(--o-green)">۹۰٪ و بالاتر</span><span style="--c:var(--o-warn)">۸۰ تا ۹۰٪</span><span style="--c:var(--o-bad)">کمتر از ۸۰٪</span><span style="--c:var(--o-none)">بدون داده</span></div>
+
+  <div class="o-ov" id="ov"><div class="o-md" id="md"></div></div>
+</div>
+
+<script>
+(function(){
+const D={{ okr_json|safe }};
+const KPIS={{ kpi_options_json|safe }};
+const CAN={% if can_edit %}true{% else %}false{% endif %};
+const CSRF="{{ csrf_token }}";
+const SAVE_URL="{% url 'strategic:okr_save' %}";
+const fa=v=>v==null?'—':Number(v).toLocaleString('fa-IR',{maximumFractionDigits:Math.abs(v)>=100?0:1});
+const col=p=>p==null?'var(--o-none)':p>=90?'var(--o-green)':p>=80?'var(--o-warn)':'var(--o-bad)';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+const pctTxt=p=>p==null?'—':fa(p)+'٪';
+function wavg(items){let s=0,w=0;items.forEach(([p,wt])=>{if(p!=null&&wt>0){s+=Math.min(p,100)*wt;w+=wt}});return w?Math.round(s/w):null}
+const objPct=o=>wavg(o.krs.map(k=>[k.p,k.w]));
+const avg=a=>{a=a.filter(x=>x!=null);return a.length?Math.round(a.reduce((s,x)=>s+x,0)/a.length):null};
+const unitPct=u=>avg(u.objectives.map(objPct));
+const mgPct=m=>avg(m.objectives.map(objPct));
+const allObjs=()=>[...D.company,...D.units.flatMap(u=>[...u.objectives,...u.managements.flatMap(m=>m.objectives)])];
+let sel={lvl:'company',u:null,m:null};
+try{const s=JSON.parse(sessionStorage.getItem('okr_sel')||'null');if(s)sel=s;}catch(e){}
+function remember(){try{sessionStorage.setItem('okr_sel',JSON.stringify(sel))}catch(e){}}
+
+async function post(data){
+  const r=await fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(data)});
+  const j=await r.json().catch(()=>({ok:false,error:'خطا'}));
+  if(!j.ok){alert(j.error||'خطا در ذخیره');return false}
+  return true;
+}
+function reload(){remember();location.reload()}
+
+function krHtml(k){
+ const ed=CAN?`<span class="o-act"><button class="o-tb" data-ekr="${k.id}">ویرایش</button><button class="o-tb d" data-dkr="${k.id}">حذف</button></span>`:'';
+ if(!k.k) return `<div class="o-kr nk"><div><span class="o-kc" style="background:var(--o-bad-soft);color:var(--o-bad)">${esc(k.c)}</span>${esc(k.t)}${ed}</div><div class="o-tag">شاخصی از فهرست سیستم انتخاب نشده است</div></div>`;
+ const nd=k.p==null,w=nd?0:Math.min(k.p,100);
+ const wcell=CAN?`<input class="o-wi" type="number" min="0" max="100" value="${k.w}" data-w="${k.id}" aria-label="وزن">`:fa(k.w);
+ return `<div class="o-kr"><div title="${esc(k.kt)}"><span class="o-kc">${esc(k.k)}</span>${esc(k.t)}${ed}</div>
+ <div class="o-num"><span class="lab">${k.kd==='macro'?'کلان':'عملیاتی'}</span>${esc(k.u||'')}</div>
+ <div class="o-num"><span class="lab">هدف</span>${fa(k.tg)}</div>
+ <div class="o-num"><span class="lab">عملکرد</span>${fa(k.ac)}</div>
+ <div class="o-num"><span class="lab">وزن</span>${wcell}</div>
+ <div class="o-pb"><div class="o-bar"><i style="width:${w}%;background:${col(k.p)}"></i></div><b style="color:${col(k.p)}">${nd?'بدون داده':pctTxt(k.p)}</b></div></div>`;
+}
+function objHtml(o){
+ const p=objPct(o);
+ const par=o.p?`<span class="o-par">هدف بالادست ${esc(o.p)}${o.pt?': '+esc(o.pt.slice(0,55)):''}</span>`:'';
+ const ed=CAN?`<span class="o-act"><button class="o-tb" data-eobj="${o.id}">ویرایش هدف</button><button class="o-tb d" data-dobj="${o.id}">حذف هدف</button></span>`:'';
+ return `<div class="o-obj"><div class="o-oh"><div><div class="o-otitle">${esc(o.t)} ${ed}</div>${par}</div>
+ <div class="o-opct" style="color:${col(p)}">${pctTxt(p)}<small>پیشرفت هدف</small></div></div>
+ <div class="o-krs">${o.krs.map(krHtml).join('')}</div>${CAN?`<button class="o-add" data-akr="${o.id}">+ افزودن نتیجه کلیدی</button>`:''}</div>`;
+}
+function render(){
+ const all=allObjs();
+ const tp=avg(D.company.map(objPct));
+ const nd=D.units.filter(u=>!u.ind).length,nm=D.units.reduce((s,u)=>s+u.managements.length,0);
+ $('ceo').className='o-ceo'+(sel.lvl==='company'?' active':'');
+ $('ceo').innerHTML='سطح شرکت<small>'+fa(nd)+' معاونت · '+fa(nm)+' مدیریت · پیشرفت کل '+pctTxt(tp)+'</small>';
+ $('deps').innerHTML=D.units.map((u,i)=>{const p=unitPct(u),act=sel.u===i&&sel.lvl!=='company';
+  return `<div class="o-dep"><div class="o-vline"></div><button class="o-depbtn ${u.ind?'ind':''} ${act?'active':''}" data-u="${i}"><div class="o-dt">${esc(u.name)}</div><div class="o-bar"><i style="width:${p||0}%;background:${col(p)}"></i></div><div class="o-dm"><span>${fa(u.managements.length)} مدیریت</span><b style="color:${act?'#fff':col(p)}">${pctTxt(p)}</b></div></button></div>`}).join('');
+ const u=sel.lvl==='company'?null:D.units[sel.u];
+ $('drill').hidden=!u;
+ if(u){$('drillTitle').textContent='مدیریت‌های '+u.name;
+  $('chips').innerHTML=u.managements.map((m,j)=>`<button class="o-chip ${sel.lvl==='mg'&&sel.m===j?'active':''}" data-m="${j}">${esc(m.name)}<small>${pctTxt(mgPct(m))}</small></button>`).join('')||'<span style="font-size:11px;color:var(--o-muted)">مدیریتی ثبت نشده است.</span>';}
+ let h='';
+ const add=(lvl)=>CAN?`<div style="padding:14px 18px;border-top:1px solid var(--o-border)"><button class="o-add" data-aobj="${lvl}">+ افزودن هدف</button></div>`:'';
+ if(sel.lvl==='company'){
+  h=`<div class="o-ch"><div><div class="nm">اهداف و نتایج کلیدی شرکت</div><div class="lv">سطح ۱ از ۳ · ${fa(D.company.length)} هدف</div></div><div class="avg" style="color:${col(tp)}">میانگین ${pctTxt(tp)}</div></div>`+D.company.map(objHtml).join('')+add('company');
+ }else if(sel.lvl==='unit'&&u){
+  const p=unitPct(u);
+  h=`<div class="o-ch"><div><div class="nm">${esc(u.name)}</div><div class="lv">سطح ۲ از ۳ · ${fa(u.objectives.length)} هدف</div></div><div class="avg" style="color:${col(p)}">میانگین ${pctTxt(p)}</div></div>`+u.objectives.map(objHtml).join('')+add('deputy');
+ }else if(sel.lvl==='mg'&&u&&u.managements[sel.m]){
+  const m=u.managements[sel.m],p=mgPct(m);
+  h=`<div class="o-ch"><div><div class="nm">${esc(m.name)}</div><div class="lv">سطح ۳ از ۳ · ${esc(u.name)} · ${fa(m.objectives.length)} هدف</div></div><div class="avg" style="color:${col(p)}">میانگین ${pctTxt(p)}</div></div>`+m.objectives.map(objHtml).join('')+add('management');
+ }
+ $('card').innerHTML=h;
+}
+function findKr(id){for(const o of allObjs())for(const k of o.krs)if(k.id==id)return k}
+function findObj(id){return allObjs().find(o=>o.id==id)}
+function modal(html){$('md').innerHTML=html;$('ov').classList.add('open')}
+function closeM(){$('ov').classList.remove('open')}
+function kpiSelect(cur){return '<select id="f_kpi"><option value="">— بدون شاخص —</option>'+KPIS.map(k=>`<option value="${k.id}" ${k.id===cur?'selected':''}>${esc(k.t)}</option>`).join('')+'</select>'}
+function krForm(title,k,onOk){
+ modal(`<h3>${title}</h3><label>عنوان نتیجه کلیدی</label><input type="text" id="f_t" value="${esc(k.t||'')}">
+ <label>شاخص سیستم</label>${kpiSelect(k.kid||'')}
+ <label>وزن (۰ تا ۱۰۰)</label><input type="number" id="f_w" min="0" max="100" value="${k.w==null?100:k.w}">
+ <label style="font-weight:500"><input type="checkbox" id="f_lo" ${k.lo?'checked':''}> کمتر بهتر است (↓)</label>
+ <div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
+ $('f_c').onclick=closeM;
+ $('f_ok').onclick=async()=>{if(await onOk({title:$('f_t').value,kpi:$('f_kpi').value,weight:$('f_w').value,lo:$('f_lo').checked}))reload()};
+}
+function objForm(title,o,onOk){
+ modal(`<h3>${title}</h3><label>عنوان هدف</label><textarea id="f_t" rows="3">${esc(o.t||'')}</textarea><div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
+ $('f_c').onclick=closeM;$('f_ok').onclick=async()=>{if(await onOk($('f_t').value))reload()};
+}
+const PRINT_URL="{% url 'strategic:okr_print' %}";
+$('printAllBtn').onclick=()=>window.open(PRINT_URL+'?s=all','_blank');
+$('printBtn').onclick=()=>{let q='?s=company';const u=sel.lvl==='company'?null:D.units[sel.u];
+ if(sel.lvl==='unit'&&u)q='?s=unit&u='+u.id;
+ else if(sel.lvl==='mg'&&u&&u.managements[sel.m])q='?s=mg&u='+u.id+'&m='+encodeURIComponent(u.managements[sel.m].name);
+ window.open(PRINT_URL+q,'_blank')};
+const fi=document.getElementById('okrFile');
+if(fi)fi.onchange=()=>{if(fi.files.length&&confirm('همه‌ی OKRهای فعلی (با وزن‌ها) پاک و با محتوای این فایل جایگزین شود؟'))document.getElementById('okrImportForm').submit();else fi.value=''};
+$('ceo').onclick=()=>{sel={lvl:'company',u:null,m:null};remember();render()};
+$('deps').onclick=e=>{const b=e.target.closest('[data-u]');if(!b)return;sel={lvl:'unit',u:+b.dataset.u,m:null};remember();render()};
+$('chips').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;sel.lvl='mg';sel.m=+b.dataset.m;remember();render()};
+$('ov').onclick=e=>{if(e.target===$('ov'))closeM()};
+$('card').addEventListener('change',async e=>{const i=e.target.closest('[data-w]');if(!i)return;
+ let v=parseFloat(i.value);if(isNaN(v)||v<0)v=0;if(v>100)v=100;
+ if(await post({action:'kr_update',id:+i.dataset.w,weight:v})){findKr(i.dataset.w).w=v;render()}});
+$('card').addEventListener('click',async e=>{
+ const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.ekr){const k=findKr(t.dataset.ekr);krForm('ویرایش نتیجه کلیدی',k,d=>post({action:'kr_update',id:k.id,title:d.title,kpi:d.kpi,weight:d.weight,lo:d.lo}))}
+ else if(t.dataset.dkr){if(confirm('این نتیجه کلیدی حذف شود؟')&&await post({action:'kr_delete',id:+t.dataset.dkr}))reload()}
+ else if(t.dataset.akr){const o=findObj(t.dataset.akr);krForm('نتیجه کلیدی جدید',{},d=>post({action:'kr_add',objective:o.id,title:d.title,kpi:d.kpi,weight:d.weight,lo:d.lo}))}
+ else if(t.dataset.eobj){const o=findObj(t.dataset.eobj);objForm('ویرایش هدف',o,v=>post({action:'obj_update',id:o.id,title:v}))}
+ else if(t.dataset.dobj){if(confirm('این هدف با همه نتیجه‌های کلیدی‌اش حذف شود؟')&&await post({action:'obj_delete',id:+t.dataset.dobj}))reload()}
+ else if(t.dataset.aobj){const lvl=t.dataset.aobj,u=D.units[sel.u];
+  objForm('هدف جدید',{},v=>post({action:'obj_add',level:lvl,title:v,unit:u?u.id:null,management:(lvl==='management'&&u&&u.managements[sel.m])?u.managements[sel.m].name:''}))}
+});
+if(sel.lvl!=='company'&&(sel.u==null||!D.units[sel.u]))sel={lvl:'company',u:null,m:null};
+render();
+})();
+</script>
+{% endblock %}

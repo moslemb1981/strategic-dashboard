@@ -3,7 +3,7 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>نقشه استراتژیک — {{ current_bu.name|default:"سایپا یدک" }}</title>
+<title>نقشه استراتژیک — {{ current_bu.name|default:product_name }}</title>
 <link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
 <style>
   @page{ size: A4 landscape; margin: 8mm 10mm; }
@@ -66,7 +66,7 @@
   <header>
     <img src="{% static 'images/logo.png' %}" alt="">
     <div>
-      <div class="co">سایپا یدک</div>
+      <div class="co">{{ product_name }}</div>
       <div class="bu-name">{{ current_bu.name|default:"—" }}</div>
       <div class="bu-sub">نقشه استراتژیک — مدل کارت امتیازی متوازن (BSC)</div>
     </div>
@@ -101,7 +101,7 @@
     {% endfor %}
   </div>
 
-  <footer>سیستم مدیریت استراتژیک سایپا یدک — اداره مطالعات و برنامه‌ریزی استراتژیک · خطوط، رابطه علّی بین اهداف را نشان می‌دهند</footer>
+  <footer>{{ product_name }} — {{ product_tagline }} — {{ org_office }} · خطوط، رابطه علّی بین اهداف را نشان می‌دهند</footer>
 
   {{ links|json_script:"links-data" }}
   <script>
