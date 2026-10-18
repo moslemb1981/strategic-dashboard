@@ -2001,6 +2001,50 @@ class OrgUnit(models.Model):
         return self.name
 
 
+def _norm_name(s):
+    return re.sub(r"\s+", " ", str(s or "").replace("\u200c", " ").replace("ي", "ی").replace("ك", "ک")).strip()
+
+
+class Management(models.Model):
+    """فهرست واحد «مدیریت‌ها» زیر هر معاونت/واحد چارت — منبع واحد نام مدیریت برای استراتژی‌های وظیفه‌ای و OKR.
+    نام را از ادمین (یا دکمه تغییر نام صفحه OKR) عوض کنید؛ در هر دو بخش خودکار اعمال می‌شود."""
+
+    org_unit = models.ForeignKey(OrgUnit, on_delete=models.PROTECT, related_name="managements", verbose_name="معاونت / واحد سازمانی")
+    name = models.CharField(max_length=200, verbose_name="نام مدیریت")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+
+    class Meta:
+        ordering = ["org_unit__kind", "org_unit__order", "order", "name"]
+        unique_together = [("org_unit", "name")]
+        verbose_name = "مدیریت"
+        verbose_name_plural = "مدیریت‌ها (زیر هر معاونت)"
+
+    def __str__(self):
+        return f"{self.name} ({self.org_unit})"
+
+    def save(self, *args, **kwargs):
+        old = None
+        if self.pk:
+            old = Management.objects.filter(pk=self.pk).values_list("name", flat=True).first()
+        super().save(*args, **kwargs)
+        if old is not None and old != self.name:
+            # نام تغییر کرد: متن نام در استراتژی‌ها و اهداف OKR وصل به همین مدیریت همگام شود
+            self.functional_strategies.update(management=self.name)
+            self.okr_objectives.update(management=self.name)
+
+    @classmethod
+    def resolve(cls, org_unit_id, name):
+        """مدیریتی با این نام (بدون حساسیت به ی/ي، نیم‌فاصله و فاصله اضافه) زیر این واحد؛ اگر نبود ساخته می‌شود."""
+        name = str(name or "").strip()
+        if not org_unit_id or not name:
+            return None
+        key = _norm_name(name)
+        for m in cls.objects.filter(org_unit_id=org_unit_id):
+            if _norm_name(m.name) == key:
+                return m
+        return cls.objects.create(org_unit_id=org_unit_id, name=name)
+
+
 class FunctionalStrategy(models.Model):
     """استراتژی‌های وظیفه‌ای مدیریت‌ها — بر اساس چارت سازمانی (مدیرعامل ← معاونت‌ها/مدیریت‌های مستقل ← مدیریت‌ها).
 
@@ -2013,6 +2057,10 @@ class FunctionalStrategy(models.Model):
         verbose_name="معاونت / واحد سازمانی",
     )
     management = models.CharField(max_length=200, verbose_name="مدیریت")
+    management_ref = models.ForeignKey(
+        "Management", null=True, blank=True, on_delete=models.PROTECT, related_name="functional_strategies",
+        verbose_name="مدیریت (فهرست)",
+    )
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب در مدیریت")
     title = models.CharField(max_length=400, verbose_name="عنوان استراتژی وظیفه‌ای")
     detail = models.TextField(blank=True, verbose_name="شرح (اقدام / فرآیند / نتیجه)")
@@ -2040,6 +2088,13 @@ class FunctionalStrategy(models.Model):
 
     def __str__(self):
         return f"{self.management} — {self.title}"
+
+    def save(self, *args, **kwargs):
+        m = Management.resolve(self.org_unit_id, self.management)
+        if m:
+            self.management_ref = m
+            self.management = m.name
+        super().save(*args, **kwargs)
 
     @property
     def resolved_kpis(self):
@@ -2095,6 +2150,10 @@ class OKRObjective(models.Model):
         verbose_name="معاونت / واحد سازمانی",
     )
     management = models.CharField(max_length=200, blank=True, verbose_name="مدیریت (فقط سطح مدیریت)")
+    management_ref = models.ForeignKey(
+        "Management", null=True, blank=True, on_delete=models.PROTECT, related_name="okr_objectives",
+        verbose_name="مدیریت (فهرست)",
+    )
     parent = models.ForeignKey(
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children",
         verbose_name="هدف بالادستی",
@@ -2109,6 +2168,13 @@ class OKRObjective(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.title[:60]}"
+
+    def save(self, *args, **kwargs):
+        if self.level == "management" and self.org_unit_id and (self.management or "").strip():
+            m = Management.resolve(self.org_unit_id, self.management)
+            self.management_ref = m
+            self.management = m.name
+        super().save(*args, **kwargs)
 
 
 class OKRKeyResult(models.Model):

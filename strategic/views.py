@@ -5345,6 +5345,10 @@ def functional_strategies(request):
     for fs in qs:
         by_unit.setdefault(fs.org_unit_id, {}).setdefault(fs.management, []).append(fs)
 
+    from strategic.models import Management
+    for _m in Management.objects.all():
+        by_unit.setdefault(_m.org_unit_id, {}).setdefault(_m.name, [])
+
     def build_group(unit):
         mgmts_raw = by_unit.get(unit.pk, {})
         managements = []
@@ -5432,10 +5436,10 @@ def org_unit_delete(request, pk):
     if request.method == "POST" and _has_perm(request, "strategic.delete_orgunit"):
         obj = get_object_or_404(OrgUnit, pk=pk)
         label = str(obj)
-        if obj.functional_strategies.exists():
+        if obj.functional_strategies.exists() or obj.managements.exists() or obj.okr_objectives.exists():
             messages.error(
                 request,
-                f"«{label}» قابل حذف نیست چون استراتژی وظیفه‌ای به آن وصل است؛ "
+                f"«{label}» قابل حذف نیست چون استراتژی وظیفه‌ای، مدیریت یا هدف OKR به آن وصل است؛ "
                 "ابتدا آن‌ها را حذف یا به واحد دیگری منتقل کنید.",
             )
         else:
@@ -5831,17 +5835,20 @@ def okr_page(request):
         if o.level == "deputy" and o.org_unit_id:
             unit_objs.setdefault(o.org_unit_id, []).append(obj_json(o))
         elif o.level == "management" and o.org_unit_id:
-            mgmt_objs.setdefault((o.org_unit_id, o.management), []).append(obj_json(o))
+            mgmt_objs.setdefault(o.management_ref_id, []).append(obj_json(o))
 
+    from strategic.models import Management
+    mgmts_by_unit = {}
+    for m in Management.objects.all():
+        mgmts_by_unit.setdefault(m.org_unit_id, []).append(m)
     units = []
     for u in OrgUnit.objects.all().order_by("kind", "order", "name"):
-        names = {m for (uid, m) in mgmt_objs if uid == u.pk}
-        names |= set(FunctionalStrategy.objects.filter(org_unit=u).values_list("management", flat=True))
         units.append({
             "id": u.pk, "name": u.name, "ind": u.kind == "ceo_direct",
             "objectives": unit_objs.get(u.pk, []),
             "managements": [
-                {"name": n, "objectives": mgmt_objs.get((u.pk, n), [])} for n in sorted(names)
+                {"id": m.pk, "name": m.name, "objectives": mgmt_objs.get(m.pk, [])}
+                for m in mgmts_by_unit.get(u.pk, [])
             ],
         })
 
@@ -5924,7 +5931,13 @@ def okr_save(request):
         if not title or level not in ("company", "deputy", "management"):
             return JsonResponse({"ok": False, "error": "داده ناقص."}, status=400)
         unit = OrgUnit.objects.filter(pk=d.get("unit")).first() if level != "company" else None
-        mg = str(d.get("management", "")).strip() if level == "management" else ""
+        mg = ""
+        if level == "management":
+            from strategic.models import Management
+            mo = Management.objects.filter(pk=d.get("mgmt_id")).first()
+            if not mo:
+                return JsonResponse({"ok": False, "error": "مدیریت پیدا نشد."}, status=400)
+            unit, mg = mo.org_unit, mo.name
         prefix = {"company": "C", "deputy": "D", "management": "M"}[level]
         n = OKRObjective.objects.filter(level=level).count() + 1
         code = f"{prefix}{n}"
@@ -5932,12 +5945,39 @@ def okr_save(request):
             n += 1
             code = f"{prefix}{n}"
         OKRObjective.objects.create(level=level, code=code, title=title[:500], org_unit=unit, management=mg, order=n)
+    elif act == "mgmt_rename":
+        from strategic.models import Management
+        mo = get_object_or_404(Management, pk=d.get("id"))
+        new = str(d.get("name", "")).strip()[:200]
+        if not new:
+            return JsonResponse({"ok": False, "error": "نام لازم است."}, status=400)
+        clash = [x for x in Management.objects.filter(org_unit=mo.org_unit).exclude(pk=mo.pk)
+                 if _okr_norm(x.name) == _okr_norm(new)]
+        if clash:
+            return JsonResponse({"ok": False, "error": "مدیریتی با این نام زیر همین معاونت هست."}, status=400)
+        mo.name = new
+        mo.save()
+    elif act == "mgmt_add":
+        from strategic.models import Management
+        unit = get_object_or_404(OrgUnit, pk=d.get("unit"))
+        nm = str(d.get("name", "")).strip()[:200]
+        if not nm:
+            return JsonResponse({"ok": False, "error": "نام لازم است."}, status=400)
+        before = Management.objects.filter(org_unit=unit).count()
+        mo = Management.resolve(unit.pk, nm)
+        if Management.objects.filter(org_unit=unit).count() == before:
+            return JsonResponse({"ok": False, "error": "این مدیریت از قبل هست."}, status=400)
     elif act == "obj_delete":
         get_object_or_404(OKRObjective, pk=d.get("id")).delete()
     else:
         return JsonResponse({"ok": False, "error": "عملیات نامعتبر."}, status=400)
     _log_action(request, f"OKR {act}", json.dumps(d, ensure_ascii=False)[:200])
     return JsonResponse({"ok": True})
+
+
+def _okr_norm(s):
+    from strategic.models import _norm_name
+    return _norm_name(s)
 
 
 def _okr_fmt(v):

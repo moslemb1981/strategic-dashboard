@@ -4,7 +4,7 @@ from .models import (
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
     OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
     OperationalKPI, OperationalKPITrendPoint,
-    OrgUnit, FunctionalStrategy,
+    OrgUnit, FunctionalStrategy, Management,
 )
 
 
@@ -13,6 +13,15 @@ class OrgUnitAdmin(admin.ModelAdmin):
     list_display = ("name", "kind", "order")
     list_editable = ("kind", "order")
     ordering = ("kind", "order", "name")
+
+
+@admin.register(Management)
+class ManagementAdmin(admin.ModelAdmin):
+    list_display = ("name", "org_unit", "order")
+    list_editable = ("order",)
+    list_filter = ("org_unit",)
+    search_fields = ("name",)
+    ordering = ("org_unit__kind", "org_unit__order", "order", "name")
 
 
 @admin.register(FunctionalStrategy)

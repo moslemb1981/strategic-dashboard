@@ -138,8 +138,10 @@ const unitPct=u=>avg(u.objectives.map(objPct));
 const mgPct=m=>avg(m.objectives.map(objPct));
 const allObjs=()=>[...D.company,...D.units.flatMap(u=>[...u.objectives,...u.managements.flatMap(m=>m.objectives)])];
 let sel={lvl:'company',u:null,m:null};
-try{const s=JSON.parse(sessionStorage.getItem('okr_sel')||'null');if(s)sel=s;}catch(e){}
-function remember(){try{sessionStorage.setItem('okr_sel',JSON.stringify(sel))}catch(e){}}
+try{const s=JSON.parse(sessionStorage.getItem('okr_sel')||'null');if(s){sel=s;
+ if(sel.lvl==='mg'&&D.units[sel.u]){const i=D.units[sel.u].managements.findIndex(m=>m.id===s.mid);sel.m=i>=0?i:0;}}}catch(e){}
+function remember(){try{const u=sel.u!=null?D.units[sel.u]:null;const m=(u&&sel.m!=null)?u.managements[sel.m]:null;
+ sessionStorage.setItem('okr_sel',JSON.stringify(Object.assign({},sel,{mid:m?m.id:null})))}catch(e){}}
 
 async function post(data){
   const r=await fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(data)});
@@ -180,7 +182,8 @@ function render(){
  const u=sel.lvl==='company'?null:D.units[sel.u];
  $('drill').hidden=!u;
  if(u){$('drillTitle').textContent='مدیریت‌های '+u.name;
-  $('chips').innerHTML=u.managements.map((m,j)=>`<button class="o-chip ${sel.lvl==='mg'&&sel.m===j?'active':''}" data-m="${j}">${esc(m.name)}<small>${pctTxt(mgPct(m))}</small></button>`).join('')||'<span style="font-size:11px;color:var(--o-muted)">مدیریتی ثبت نشده است.</span>';}
+  $('chips').innerHTML=u.managements.map((m,j)=>`<button class="o-chip ${sel.lvl==='mg'&&sel.m===j?'active':''}" data-m="${j}">${esc(m.name)}<small>${pctTxt(mgPct(m))}</small></button>`).join('')||'<span style="font-size:11px;color:var(--o-muted)">مدیریتی ثبت نشده است.</span>';
+  if(CAN)$('chips').innerHTML+=`<button class="o-chip" data-addm="1" style="border-style:dashed">+ مدیریت جدید</button>`;}
  let h='';
  const add=(lvl)=>CAN?`<div style="padding:14px 18px;border-top:1px solid var(--o-border)"><button class="o-add" data-aobj="${lvl}">+ افزودن هدف</button></div>`:'';
  if(sel.lvl==='company'){
@@ -190,7 +193,7 @@ function render(){
   h=`<div class="o-ch"><div><div class="nm">${esc(u.name)}</div><div class="lv">سطح ۲ از ۳ · ${fa(u.objectives.length)} هدف</div></div><div class="avg" style="color:${col(p)}">میانگین ${pctTxt(p)}</div></div>`+u.objectives.map(objHtml).join('')+add('deputy');
  }else if(sel.lvl==='mg'&&u&&u.managements[sel.m]){
   const m=u.managements[sel.m],p=mgPct(m);
-  h=`<div class="o-ch"><div><div class="nm">${esc(m.name)}</div><div class="lv">سطح ۳ از ۳ · ${esc(u.name)} · ${fa(m.objectives.length)} هدف</div></div><div class="avg" style="color:${col(p)}">میانگین ${pctTxt(p)}</div></div>`+m.objectives.map(objHtml).join('')+add('management');
+  h=`<div class="o-ch"><div><div class="nm">${esc(m.name)} ${CAN?`<span class="o-act"><button class="o-tb" data-rnm="${m.id}">تغییر نام مدیریت</button></span>`:''}</div><div class="lv">سطح ۳ از ۳ · ${esc(u.name)} · ${fa(m.objectives.length)} هدف</div></div><div class="avg" style="color:${col(p)}">میانگین ${pctTxt(p)}</div></div>`+m.objectives.map(objHtml).join('')+add('management');
  }
  $('card').innerHTML=h;
 }
@@ -208,8 +211,8 @@ function krForm(title,k,onOk){
  $('f_c').onclick=closeM;
  $('f_ok').onclick=async()=>{if(await onOk({title:$('f_t').value,kpi:$('f_kpi').value,weight:$('f_w').value,lo:$('f_lo').checked}))reload()};
 }
-function objForm(title,o,onOk){
- modal(`<h3>${title}</h3><label>عنوان هدف</label><textarea id="f_t" rows="3">${esc(o.t||'')}</textarea><div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
+function objForm(title,o,onOk,lab){
+ modal(`<h3>${title}</h3><label>${lab||'عنوان هدف'}</label><textarea id="f_t" rows="3">${esc(o.t||'')}</textarea><div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
  $('f_c').onclick=closeM;$('f_ok').onclick=async()=>{if(await onOk($('f_t').value))reload()};
 }
 const PRINT_URL="{% url 'strategic:okr_print' %}";
@@ -222,7 +225,9 @@ const fi=document.getElementById('okrFile');
 if(fi)fi.onchange=()=>{if(fi.files.length&&confirm('همه‌ی OKRهای فعلی (با وزن‌ها) پاک و با محتوای این فایل جایگزین شود؟'))document.getElementById('okrImportForm').submit();else fi.value=''};
 $('ceo').onclick=()=>{sel={lvl:'company',u:null,m:null};remember();render()};
 $('deps').onclick=e=>{const b=e.target.closest('[data-u]');if(!b)return;sel={lvl:'unit',u:+b.dataset.u,m:null};remember();render()};
-$('chips').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;sel.lvl='mg';sel.m=+b.dataset.m;remember();render()};
+$('chips').onclick=e=>{const a=e.target.closest('[data-addm]');if(a){const u=D.units[sel.u];
+  objForm('مدیریت جدید زیر '+u.name,{t:''},async v=>post({action:'mgmt_add',unit:u.id,name:v}),'نام مدیریت');return}
+  const b=e.target.closest('[data-m]');if(!b)return;sel.lvl='mg';sel.m=+b.dataset.m;remember();render()};
 $('ov').onclick=e=>{if(e.target===$('ov'))closeM()};
 $('card').addEventListener('change',async e=>{const i=e.target.closest('[data-w]');if(!i)return;
  let v=parseFloat(i.value);if(isNaN(v)||v<0)v=0;if(v>100)v=100;
@@ -234,8 +239,10 @@ $('card').addEventListener('click',async e=>{
  else if(t.dataset.akr){const o=findObj(t.dataset.akr);krForm('نتیجه کلیدی جدید',{},d=>post({action:'kr_add',objective:o.id,title:d.title,kpi:d.kpi,weight:d.weight,lo:d.lo}))}
  else if(t.dataset.eobj){const o=findObj(t.dataset.eobj);objForm('ویرایش هدف',o,v=>post({action:'obj_update',id:o.id,title:v}))}
  else if(t.dataset.dobj){if(confirm('این هدف با همه نتیجه‌های کلیدی‌اش حذف شود؟')&&await post({action:'obj_delete',id:+t.dataset.dobj}))reload()}
+ else if(t.dataset.rnm){const u=D.units[sel.u],m=u.managements[sel.m];
+  objForm('تغییر نام مدیریت',{t:m.name},v=>post({action:'mgmt_rename',id:m.id,name:v}),'نام جدید مدیریت (در استراتژی‌های وظیفه‌ای هم اعمال می‌شود)')}
  else if(t.dataset.aobj){const lvl=t.dataset.aobj,u=D.units[sel.u];
-  objForm('هدف جدید',{},v=>post({action:'obj_add',level:lvl,title:v,unit:u?u.id:null,management:(lvl==='management'&&u&&u.managements[sel.m])?u.managements[sel.m].name:''}))}
+  objForm('هدف جدید',{},v=>post({action:'obj_add',level:lvl,title:v,unit:u?u.id:null,mgmt_id:(lvl==='management'&&u&&u.managements[sel.m])?u.managements[sel.m].id:null}))}
 });
 if(sel.lvl!=='company'&&(sel.u==null||!D.units[sel.u]))sel={lvl:'company',u:null,m:null};
 render();

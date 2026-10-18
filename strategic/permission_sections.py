@@ -30,7 +30,7 @@ SECTIONS = {
     "roadmap": ("پروژه‌های تحول", ["Initiative"], True),
     "market_intel": ("هوش بازار", ["Competitor", "CustomerSatisfactionBenchmark", "DomesticRawMaterial", "MarketIntelReport"], False),
     "functional_strategies": ("استراتژی وظیفه‌ای", ["FunctionalStrategy"], False),
-    "okr": ("اهداف و نتایج کلیدی (OKR)", ["OKRObjective", "OKRKeyResult"], False),
+    "okr": ("اهداف و نتایج کلیدی (OKR)", ["OKRObjective", "OKRKeyResult", "Management"], False),
 }
 
 BU_SCOPED_SECTION_KEYS = [key for key, (_, _, bu_scoped) in SECTIONS.items() if bu_scoped]
