@@ -4,7 +4,7 @@ from .models import (
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
     OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
     OperationalKPI, OperationalKPITrendPoint,
-    OrgUnit, FunctionalStrategy, Management,
+    OrgUnit, FunctionalStrategy, Management, OKRObjective, OKRKeyResult,
 )
 
 
@@ -22,6 +22,25 @@ class ManagementAdmin(admin.ModelAdmin):
     list_filter = ("org_unit",)
     search_fields = ("name",)
     ordering = ("org_unit__kind", "org_unit__order", "order", "name")
+
+
+class OKRKeyResultInline(admin.TabularInline):
+    model = OKRKeyResult
+    extra = 0
+    fields = ("code", "title", "operational_kpi", "company_kpi", "lower_is_better", "weight", "order")
+    autocomplete_fields = ()
+    show_change_link = False
+
+
+@admin.register(OKRObjective)
+class OKRObjectiveAdmin(admin.ModelAdmin):
+    """ویرایش اهداف OKR. برای جابه‌جایی یک مدیریت بین معاونت‌ها، معاونت را در «مدیریت‌ها» عوض کنید
+    (استراتژی‌ها و OKRهای آن مدیریت خودکار همراه می‌شوند)."""
+    list_display = ("code", "title", "level", "org_unit", "management", "order")
+    list_filter = ("level", "org_unit")
+    search_fields = ("code", "title", "management")
+    readonly_fields = ("management_ref",)
+    inlines = [OKRKeyResultInline]
 
 
 @admin.register(FunctionalStrategy)

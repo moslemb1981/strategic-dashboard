@@ -355,15 +355,20 @@
       shTipEl.style.left = left + 'px';
       shTipEl.style.top = top + 'px';
     }
+    // تأخیر کوتاه قبل از نمایش هاور: فقط اگر ماوس روی آیتم بماند نمایش داده می‌شود (میلی‌ثانیه)
+    var TIP_DELAY = 350, __tipDelay = null;
     document.addEventListener('mouseover', function(e){
       var el = e.target.closest('[data-tip-label]');
       if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
-      showTipNear(el);
+      clearTimeout(__tipDelay);
+      var __vis = shTipEl.style.display === 'block';
+      __tipDelay = setTimeout(function(){ showTipNear(el); }, __vis ? 60 : TIP_DELAY);
     });
     document.addEventListener('mouseout', function(e){
       var el = e.target.closest('[data-tip-label]');
       if (!el) return;
       if (e.relatedTarget && (el.contains(e.relatedTarget) || shTipEl.contains(e.relatedTarget))) return;
+      clearTimeout(__tipDelay);
       scheduleHide();
     });
     shTipEl.addEventListener('mouseover', cancelHide);

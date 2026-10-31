@@ -426,15 +426,20 @@
   }
   (function(){
     var wrap = document.getElementById('chainWrap');
+    // تأخیر کوتاه قبل از نمایش هاور: فقط اگر ماوس روی آیتم بماند نمایش داده می‌شود (میلی‌ثانیه)
+    var TIP_DELAY = 350, __tipDelay = null;
     wrap.addEventListener('mouseover', function(e){
       var el = e.target.closest('[data-tip-idx]');
       if (!el || (e.relatedTarget && el.contains(e.relatedTarget))) return;
-      oiShowTipNear(el, OI_TIPS[parseInt(el.getAttribute('data-tip-idx'), 10)]);
+      clearTimeout(__tipDelay);
+      var __vis = oiTipEl.style.display === 'block';
+      __tipDelay = setTimeout(function(){ oiShowTipNear(el, OI_TIPS[parseInt(el.getAttribute('data-tip-idx'), 10)]); }, __vis ? 60 : TIP_DELAY);
     });
     wrap.addEventListener('mouseout', function(e){
       var el = e.target.closest('[data-tip-idx]');
       if (!el) return;
       if (e.relatedTarget && (el.contains(e.relatedTarget) || oiTipEl.contains(e.relatedTarget))) return;
+      clearTimeout(__tipDelay);
       oiScheduleHideTip();
     });
     oiTipEl.addEventListener('mouseover', oiCancelHideTip);

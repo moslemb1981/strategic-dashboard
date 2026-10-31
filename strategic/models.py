@@ -2024,13 +2024,20 @@ class Management(models.Model):
 
     def save(self, *args, **kwargs):
         old = None
+        old_unit = None
         if self.pk:
-            old = Management.objects.filter(pk=self.pk).values_list("name", flat=True).first()
+            row = Management.objects.filter(pk=self.pk).values_list("name", "org_unit_id").first()
+            if row:
+                old, old_unit = row
         super().save(*args, **kwargs)
         if old is not None and old != self.name:
             # نام تغییر کرد: متن نام در استراتژی‌ها و اهداف OKR وصل به همین مدیریت همگام شود
             self.functional_strategies.update(management=self.name)
             self.okr_objectives.update(management=self.name)
+        if old_unit is not None and old_unit != self.org_unit_id:
+            # معاونت مدیریت عوض شد: استراتژی‌ها و اهداف OKR این مدیریت هم به معاونت جدید بروند
+            self.functional_strategies.update(org_unit_id=self.org_unit_id)
+            self.okr_objectives.update(org_unit_id=self.org_unit_id)
 
     @classmethod
     def resolve(cls, org_unit_id, name):
