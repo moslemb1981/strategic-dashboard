@@ -1,6 +1,6 @@
 {% load jalali_tags %}
   <div class="init-card" style="--card-accent:{{ i.status_hex }};"
-    data-search="{{ i.title|lower }} {{ i.code|lower }} {{ i.owner|lower }} {{ i.division|lower }} {{ i.work_group|lower }}">
+    data-id="{{ i.pk }}" data-search="{{ i.title|lower }} {{ i.code|lower }} {{ i.owner|lower }} {{ i.division|lower }} {{ i.work_group|lower }}">
     <div class="init-card-top">
       {% if i.code %}<span class="init-card-code">{{ i.code }}</span>{% else %}<span></span>{% endif %}
       <span class="type-pill {% if i.item_type == 'action' %}type-action{% endif %}">{{ i.get_item_type_display }}</span>

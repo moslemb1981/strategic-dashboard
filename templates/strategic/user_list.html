@@ -27,6 +27,7 @@
         {% elif u.granted_sections %}
           {% for sec in u.granted_sections %}<span class="usr-role role-editor">{{ sec }}</span>{% endfor %}
         {% else %}<span class="usr-role role-viewer">بدون دسترسی ویرایش</span>{% endif %}
+        {% if not u.is_superuser and u.view_only_sections %}<div style="margin-top:4px;font-size:10.5px;color:var(--ink-faint);">فقط مشاهده: {{ u.view_only_sections|join:"، " }}</div>{% endif %}
       </td>
       <td>{{ u.profile.business_unit.name|default:"—" }}</td>
       <td>{{ u.last_login|date:"Y/m/d H:i"|default:"هنوز وارد نشده" }}</td>

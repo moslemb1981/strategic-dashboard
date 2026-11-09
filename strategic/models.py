@@ -1436,6 +1436,71 @@ class OperationalKPITrendPoint(models.Model):
         return _parse_persian_number(self.actual)
 
 
+class KPIAnalysisReport(models.Model):
+    """گزارش تحلیل عملکرد ماهانه‌ی یک شاخص عملیاتی (فرم «شناسایی و اعلام گزارش تحلیل
+    عملکرد شاخص»). برای هر شاخص و هر ماه از یک سال شمسی حداکثر یک گزارش داریم.
+    هدف/عملکرد/درصد تحقق عمداً اینجا ذخیره نمی‌شوند — از «اطلاعات روند ماهانه»
+    و ردیف خود شاخص خوانده و فقط نمایش داده می‌شوند. هیچ شرط درصدی (مثل زیر ۹۰٪)
+    برای ثبت گزارش وجود ندارد."""
+    MONTH_CHOICES = OperationalKPITrendPoint.MONTH_CHOICES
+
+    kpi = models.ForeignKey(
+        OperationalKPI, on_delete=models.CASCADE, related_name="analysis_reports",
+        verbose_name="شاخص عملیاتی",
+    )
+    year = models.CharField(max_length=4, verbose_name="سال (شمسی)")
+    month = models.PositiveSmallIntegerField(choices=MONTH_CHOICES, verbose_name="ماه")
+    notes = models.TextField(blank=True, verbose_name="توضیحات")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["kpi", "year", "month"]
+        unique_together = ("kpi", "year", "month")
+        verbose_name = "گزارش تحلیل عملکرد شاخص"
+        verbose_name_plural = "گزارش‌های تحلیل عملکرد شاخص‌ها"
+
+    def __str__(self):
+        return f"{self.kpi.code} — {self.year}/{self.get_month_display()}"
+
+
+class KPIAnalysisRow(models.Model):
+    """یک ردیف از جدول فرم تحلیل: دلیل/عارضه، درصد تأثیرگذاری، برنامه بهبود،
+    زمان اثرگذاری و (اختیاری) پروژه‌ی مرتبطِ ثبت‌شده در بخش پروژه‌ها."""
+    EFFECT_TIME_CHOICES = [
+        ("1m", "یک ماه"),
+        ("3m", "سه ماه"),
+        ("6m", "شش ماه"),
+        ("1y", "یک سال"),
+        ("ongoing", "مستمر"),
+    ]
+
+    report = models.ForeignKey(
+        KPIAnalysisReport, on_delete=models.CASCADE, related_name="rows", verbose_name="گزارش",
+    )
+    cause = models.TextField(blank=True, verbose_name="شرح دلیل / عارضه شناسایی‌شده")
+    impact_percent = models.DecimalField(
+        max_digits=5, decimal_places=1, null=True, blank=True, verbose_name="درصد تأثیرگذاری",
+    )
+    improvement_plan = models.TextField(blank=True, verbose_name="برنامه بهبود")
+    effect_time = models.CharField(
+        max_length=10, choices=EFFECT_TIME_CHOICES, blank=True, verbose_name="زمان اثرگذاری",
+    )
+    initiative = models.ForeignKey(
+        Initiative, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="kpi_analysis_rows", verbose_name="پروژه/اقدام مرتبط",
+    )
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["report", "order", "id"]
+        verbose_name = "ردیف گزارش تحلیل شاخص"
+        verbose_name_plural = "ردیف‌های گزارش تحلیل شاخص"
+
+    def __str__(self):
+        return f"{self.report} — {self.cause[:30]}"
+
+
 def document_upload_path(instance, filename):
     from django.utils.text import slugify
     import os

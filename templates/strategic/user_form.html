@@ -56,13 +56,15 @@
   </div>
 
   <div class="usr-sections-box" id="sectionsBox">
-    <div class="usr-sections-title">دسترسی ویرایش به بخش‌های زیر (در صورتی که «ادمین کامل» نباشد)</div>
+    <div class="usr-sections-title">دسترسی به بخش‌ها (در صورتی که «ادمین کامل» نباشد) — «مشاهده» برای دیدن بخش‌های قفل‌شده برای عموم، «ویرایش» شامل مشاهده هم هست</div>
     <div class="usr-sections-grid">
       {% for s in sections_ui %}
-      <label class="usr-section-item">
-        <input type="checkbox" name="sections" value="{{ s.key }}" {% if s.checked %}checked{% endif %}>
-        <span>{{ s.label }}{% if s.bu_scoped %}<span class="usr-bu-tag">دارای محدودیت کسب‌وکار</span>{% endif %}</span>
-      </label>
+      <div class="usr-section-item usr-sec-row">
+        <span class="usr-sec-name">{{ s.label }}{% if s.bu_scoped %}<span class="usr-bu-tag">دارای محدودیت کسب‌وکار</span>{% endif %}</span>
+        {% if s.has_view %}<label class="usr-sec-chk" title="برای بخش‌هایی که در «دسترسی عمومی بخش‌ها» قفل شده‌اند؛ بدون این تیک (یا تیک ویرایش) کاربر واردشده هم آن صفحه را نمی‌بیند">
+          <input type="checkbox" name="view_sections" value="{{ s.key }}" class="usr-view-cb" {% if s.view_checked %}checked{% endif %}> مشاهده</label>{% endif %}
+        <label class="usr-sec-chk"><input type="checkbox" name="sections" value="{{ s.key }}" class="usr-edit-cb" {% if s.checked %}checked{% endif %}> ویرایش</label>
+      </div>
       {% endfor %}
     </div>
   </div>
@@ -90,6 +92,9 @@
   .usr-section-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);
     border-radius:8px;font-size:12px;cursor:pointer;}
   .usr-section-item:hover{background:var(--bg);}
+  .usr-sec-row{justify-content:space-between;}
+  .usr-sec-name{flex:1;font-size:12px;}
+  .usr-sec-chk{display:inline-flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;margin-inline-start:10px;white-space:nowrap;}
   .usr-section-item input{width:15px;height:15px;flex:none;}
   .usr-bu-tag{display:inline-block;margin-inline-start:6px;font-size:9px;font-weight:700;color:#9A6A1E;
     background:var(--accent-soft,#FDF3E7);border-radius:10px;padding:1px 6px;}
@@ -106,5 +111,15 @@
     adminCb.addEventListener('change', syncSectionsVisibility);
     syncSectionsVisibility();
   })();
+</script>
+
+<script>
+  // تیک «ویرایش» خودکار «مشاهده» را هم تیک می‌زند
+  document.querySelectorAll('.usr-sec-row').forEach(function(row){
+    const ed = row.querySelector('.usr-edit-cb'), vw = row.querySelector('.usr-view-cb');
+    if (!ed || !vw) { return; }
+    function sync(){ if (ed.checked) { vw.checked = true; vw.disabled = true; } else { vw.disabled = false; } }
+    ed.addEventListener('change', sync); sync();
+  });
 </script>
 {% endblock %}

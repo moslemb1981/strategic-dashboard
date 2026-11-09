@@ -27,6 +27,7 @@ SECTIONS = {
     "risk": ("نقشه ریسک", ["Risk"], False),
     "company_goals": ("اهداف کلان و KPI شرکت", ["CompanyObjective", "CompanyKPI"], False),
     "operational_kpis": ("بانک شاخص‌های عملیاتی", ["OperationalKPI"], False),
+    "kpi_analysis": ("تحلیل عملکرد ماهانه‌ی شاخص‌ها", ["KPIAnalysisReport", "KPIAnalysisRow"], False),
     "roadmap": ("پروژه‌های تحول", ["Initiative"], True),
     "market_intel": ("هوش بازار", ["Competitor", "CustomerSatisfactionBenchmark", "DomesticRawMaterial", "MarketIntelReport"], False),
     "functional_strategies": ("استراتژی وظیفه‌ای", ["FunctionalStrategy"], False),
@@ -78,3 +79,22 @@ def permissions_for_section(section_key):
         for prefix in ("add", "change", "delete"):
             codenames.append(f"{prefix}_{lower}")
     return codenames
+
+
+# کلید صفحه در VISIBILITY_SECTIONS که با کلید همان بخش در SECTIONS فرق دارد
+VISIBILITY_TO_PERMISSION_KEY = {
+    "org_identity": "org_values",
+    "raw_factors_archive": "raw_factors",
+    "market": "market_intel",
+}
+
+
+def permission_key_for_page(page_key):
+    """کلید بخش در SECTIONS برای یک صفحه‌ی قابل‌قفل؛ اگر صفحه مجوز مدل ندارد (مثل خانه) None."""
+    key = VISIBILITY_TO_PERMISSION_KEY.get(page_key, page_key)
+    return key if key in SECTIONS else None
+
+
+def view_codename(section_key):
+    """کدنام مجوز «مشاهده» (view_ از خود Django) برای اولین مدل بخش."""
+    return f"view_{SECTIONS[section_key][1][0].lower()}"

@@ -181,6 +181,11 @@
 
 {% block extra_css %}
 <style>
+  .init-global{border:1px solid var(--border);border-radius:10px;background:var(--surface,#fff);padding:8px 10px;margin-bottom:12px;font-size:11.5px;}
+  .init-global h5{font-size:11.5px;margin:0 0 6px;color:var(--ink-soft);}
+  .init-global a{display:block;padding:6px 8px;border-radius:7px;text-decoration:none;color:inherit;border-bottom:1px dashed var(--border);}
+  .init-global a:hover{background:var(--bg);}
+  .init-global .g-meta{color:var(--ink-faint);font-size:10.5px;}
   .init-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
   .init-search-input{flex:1;max-width:420px;border:1px solid var(--border);border-radius:9px;padding:8px 12px;
     font-size:12px;font-family:inherit;box-sizing:border-box;}
@@ -550,5 +555,40 @@
       });
     }
   });
+  // جست‌وجوی سراسری: موارد خارج از کارگروه/معاونت/کسب‌وکار فعلی را هم نشان می‌دهد
+  (function(){
+    const box = document.getElementById('initSearchBox');
+    if (!box) { return; }
+    const SEARCH_URL = "{% url 'strategic:roadmap_search' %}";
+    const GM = "{{ group_mode }}", VM = "{{ view_mode }}";
+    const toolbar = box.closest('.init-toolbar');
+    const panel = document.createElement('div');
+    panel.className = 'init-global'; panel.style.display = 'none';
+    toolbar.parentNode.insertBefore(panel, toolbar.nextSibling);
+    let timer = null, seq = 0;
+    function esc(t){ const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+    function run(){
+      const q = box.value.trim();
+      if (q.length < 2) { panel.style.display = 'none'; return; }
+      const my = ++seq;
+      fetch(SEARCH_URL + '?q=' + encodeURIComponent(q) + '&group_mode=' + GM + '&view=' + VM, {credentials: 'same-origin'})
+        .then(function(r){ return r.json(); }).then(function(d){
+          if (my !== seq) { return; }
+          const here = new Set(Array.from(document.querySelectorAll('[data-id]')).map(function(e){ return e.dataset.id; }));
+          const others = (d.results || []).filter(function(r){ return !here.has(String(r.id)); });
+          if (!others.length) { panel.style.display = 'none'; return; }
+          let h = '<h5>نتایج مشابه در سایر بخش‌ها (' + others.length + ') — برای رفتن به آن بخش کلیک کنید</h5>';
+          others.forEach(function(r){
+            h += '<a href="' + r.url.replace(/&/g, '&amp;') + '"><b>' + esc(r.code || '—') + '</b> — ' + esc(r.title) +
+                 '<div class="g-meta">' + esc(r.type) + ' · ' + esc(r.status) + ' · ' + esc(r.where) + (r.owner ? ' · ' + esc(r.owner) : '') + '</div></a>';
+          });
+          panel.innerHTML = h; panel.style.display = 'block';
+        }).catch(function(){});
+    }
+    box.addEventListener('input', function(){ clearTimeout(timer); timer = setTimeout(run, 250); });
+    // اگر با لینک نتیجه‌ی سراسری آمده باشیم، کادر جست‌وجو را پر و فیلتر کنیم
+    const sq = new URLSearchParams(window.location.search).get('sq');
+    if (sq) { document.addEventListener('DOMContentLoaded', function(){ box.value = sq; box.dispatchEvent(new Event('input')); }); }
+  })();
 </script>
 {% endblock %}

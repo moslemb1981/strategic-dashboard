@@ -15,6 +15,17 @@
 <link rel="stylesheet" href="{% static 'css/strategic.css' %}">
 <style>
   .nav-item .nav-lock-ico{margin-inline-start:6px;font-size:10px;opacity:.7;color:#B0413E;}
+
+  /* فرم‌های ویرایش/افزودن (پنجره‌های مودال) — فرم‌های بلند به‌جای یک ستون باریک، عریض و دوستونه نمایش داده می‌شوند */
+  .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group){max-width:min(880px,96vw) !important;}
+  .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group) form{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px;grid-auto-flow:row dense;align-content:start;}
+  .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group) form > *{grid-column:1 / -1;}
+  .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group) form > .field-group:not(:has(textarea)):not(:has(.picker-box)):not(:has(.picker-chips)):not(:has(.picker-search)):not(:has(input[type=checkbox])):not(:has(input[name$="title"])):not(:has(select[multiple])):not([style*="display:flex"]){grid-column:auto;}
+  .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group) .modal-actions{position:sticky;bottom:0;background:var(--surface,#fff);padding-top:10px;border-top:1px solid var(--border);}
+  @media (max-width:760px){
+    .modal-card:has(form .field-group ~ .field-group ~ .field-group ~ .field-group) form{grid-template-columns:1fr;}
+  }
 </style>
 {% block extra_css %}{% endblock %}
 </head>

@@ -29,7 +29,7 @@ from .models import (
     SupplierCondition, InterestInflationRate, LaborMarketStat, DomesticRawMaterial,
     VehicleLoanRate, VehiclePartsTradeStat, StrategicElectronicPart, MarketIntelReport,
     ObjectiveKPIWeight, ObjectiveOperationalKPIWeight, OperationalKPITrendPoint,
-    FunctionalStrategy, OrgUnit,
+    FunctionalStrategy, OrgUnit, KPIAnalysisReport, KPIAnalysisRow,
 )
 from .forms import (
     StudyForm, InitiativeForm, RiskForm, SWOTItemForm, TOWSStrategyForm, StrategicObjectiveForm,
@@ -67,6 +67,23 @@ def is_section_public(key):
     return True if row is None else row.is_public
 
 
+def user_can_view_section(user, section_key):
+    """آیا این کاربر اجازه‌ی دیدن صفحه‌ی این بخش را دارد؟
+    - بخش عمومی (قفل‌نشده): همه.  - مدیر کل: همیشه.
+    - بخش قفل‌شده برای عموم: کاربر واردشده فقط با مجوز «مشاهده» یا هر مجوز ثبت/ویرایش/حذف همان بخش.
+    - صفحه‌هایی که مجوز مدل ندارند (مثل خانه و نقشه حرارتی): مثل قبل برای هر کاربر واردشده باز است."""
+    from strategic.permission_sections import SECTIONS, permission_key_for_page
+    if not user.is_authenticated:
+        return is_section_public(section_key)
+    if user.is_superuser or is_section_public(section_key):
+        return True
+    perm_key = permission_key_for_page(section_key)
+    if perm_key is None:
+        return True
+    first = SECTIONS[perm_key][1][0].lower()
+    return any(user.has_perm(f"strategic.{p}_{first}") for p in ("view", "add", "change", "delete"))
+
+
 def guest_gate(section_key):
     """دکوریتور: اگر بخش قفل باشد و کاربر وارد نشده باشد، به صفحه ورود می‌فرستد
     (با پارامتر next تا بعد از ورود به همین صفحه برگردد). کاربر واردشده همیشه
@@ -77,6 +94,9 @@ def guest_gate(section_key):
             if not request.user.is_authenticated and not is_section_public(section_key):
                 from django.contrib.auth.views import redirect_to_login
                 return redirect_to_login(request.get_full_path(), login_url=reverse("strategic:login"))
+            if request.user.is_authenticated and not user_can_view_section(request.user, section_key):
+                messages.error(request, "شما به این بخش (که برای عموم قفل شده) دسترسی مشاهده ندارید. از مدیر سامانه بخواهید دسترسی «مشاهده» را به شما بدهد.")
+                return redirect("strategic:home")
             return view_func(request, *args, **kwargs)
         return _wrapped
     return decorator
@@ -619,6 +639,47 @@ def roadmap(request):
         "group_mode": group_mode, "group_tabs": group_tabs, "current_group_key": current_group_key, "bu_counts": bu_counts,
         "type_filter": type_filter, "view_mode": view_mode,
     })
+
+
+@guest_gate('roadmap')
+def roadmap_search(request):
+    """جست‌وجوی سراسری پروژه/اقدام‌ها در همه‌ی کارگروه‌ها، معاونت‌ها و کسب‌وکارهای مجاز کاربر
+    (جست‌وجوی داخل صفحه فقط روی موارد همان کارگروه/معاونت/کسب‌وکارِ باز است)."""
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"results": []})
+    group_mode = request.GET.get("group_mode") or "bu"
+    if group_mode not in ("bu", "division", "work_group"):
+        group_mode = "bu"
+    view_mode = request.GET.get("view") if request.GET.get("view") in ("card", "list") else "card"
+    business_units = _scoped_business_units(request)
+    allowed = [b.pk for b in business_units]
+
+    def variants(t):
+        t = t.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
+        return {t, t.replace("ی", "ي").replace("ک", "ك"), t.replace("ي", "ی").replace("ك", "ک")}
+
+    cond = Q()
+    for t in variants(q):
+        for fld in ("title", "code", "owner", "division", "work_group"):
+            cond |= Q(**{f"{fld}__icontains": t})
+    from urllib.parse import quote
+    qs = Initiative.objects.filter(business_unit_id__in=allowed).filter(cond).select_related("business_unit").order_by("business_unit__name", "code")[:40]
+    results = []
+    for i in qs:
+        if group_mode == "bu" or not getattr(i, group_mode, "").strip():
+            where = f"کسب‌وکار: {i.business_unit.name}"
+            link = f"?group_mode=bu&bu={i.business_unit_id}"
+        else:
+            val = getattr(i, group_mode).strip()
+            where = ("معاونت: " if group_mode == "division" else "کارگروه: ") + val
+            link = f"?group_mode={group_mode}&g={quote(val)}"
+        link += f"&item_type=all&view={view_mode}&sq={quote(i.code or i.title)}"
+        results.append({
+            "id": i.pk, "code": i.code, "title": i.title, "owner": i.owner, "where": where,
+            "type": i.get_item_type_display(), "status": i.get_status_display(), "url": link,
+        })
+    return JsonResponse({"results": results})
 
 
 _INITIATIVE_EXCEL_HEADERS = [
@@ -2842,7 +2903,7 @@ def operational_kpis(request):
     else:
         form = OperationalKPIForm()
 
-    items = list(OperationalKPI.objects.all().prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis", "initiatives"))
+    items = list(OperationalKPI.objects.all().annotate(analysis_count=Count("analysis_reports", distinct=True)).prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis", "initiatives"))
 
     # ماسک‌کردن هدف/عملکرد تجمعی سالانه برای کاربر مهمان (بدون لاگین) در شاخص‌های محرمانه.
     # این مقدار واقعی هیچ‌وقت به HTML کاربر مهمان ارسال نمی‌شود؛ به‌جایش یک عدد
@@ -3340,14 +3401,485 @@ def operational_kpi_trend_data(request, pk):
         })
     project_starts = [project_starts_by_month.get(m, []) for m in month_numbers]
 
+    # گزارش‌های تحلیل ماهانه‌ی همین سال — برای نشانه‌ی روی نمودار (تولتیپ و کلیک)
+    analysis_by_month = {
+        r.month: r for r in KPIAnalysisReport.objects.filter(kpi=kpi, year=selected_year).prefetch_related("rows")
+    }
+    analysis = []
+    for m in month_numbers:
+        rep = analysis_by_month.get(m)
+        if not rep:
+            analysis.append(None)
+            continue
+        analysis.append({
+            "rows": [
+                {"cause": r.cause, "impact": (float(r.impact_percent) if r.impact_percent is not None else None),
+                 "plan": r.improvement_plan, "effect": r.get_effect_time_display() if r.effect_time else ""}
+                for r in rep.rows.all()
+            ],
+            "has_notes": bool(rep.notes),
+        })
+
     return JsonResponse({
         "kpi_code": kpi.code, "kpi_title": kpi.title, "unit": kpi.unit,
         "years": years, "selected_year": selected_year,
         "months": months, "month_numbers": month_numbers,
         "target": target_vals, "actual": actual_vals,
         "project_starts": project_starts,
+        "analysis": analysis,
         "can_manage": can_manage,
     })
+
+
+# ---------------- گزارش تحلیل عملکرد ماهانه‌ی شاخص‌ها ----------------
+# هیچ شرط درصدی برای ثبت گزارش وجود ندارد؛ برای هر شاخص و هر ماه می‌توان گزارش ثبت کرد.
+# هدف/عملکرد هر ماه از OperationalKPITrendPoint و «ماه جاری» از خود ردیف شاخص خوانده می‌شود.
+
+_KPI_ANALYSIS_DEFAULT_YEAR = "1405"
+
+
+def _analysis_can_edit(user):
+    return user.is_authenticated and user.has_perm("strategic.add_kpianalysisreport") \
+        and user.has_perm("strategic.change_kpianalysisreport")
+
+
+def _analysis_serialize_report(rep):
+    return {
+        "id": rep.pk, "notes": rep.notes,
+        "rows": [
+            {
+                "cause": r.cause,
+                "impact": (float(r.impact_percent) if r.impact_percent is not None else None),
+                "plan": r.improvement_plan,
+                "effect_time": r.effect_time,
+                "effect_time_label": r.get_effect_time_display() if r.effect_time else "",
+                "initiative_id": r.initiative_id,
+                "initiative_label": (
+                    f"{r.initiative.code + ' — ' if r.initiative.code else ''}{r.initiative.title}"
+                    if r.initiative_id else ""
+                ),
+            }
+            for r in rep.rows.all()
+        ],
+    }
+
+
+def operational_kpi_analysis_data(request, pk):
+    """JSON: گزارش‌های تحلیل ماهانه‌ی یک شاخص برای یک سال + هدف/عملکرد هر ماه از داده‌ی روند."""
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+    if kpi.is_confidential and not request.user.is_authenticated:
+        return JsonResponse({"error": "این شاخص محرمانه است؛ برای مشاهده‌ی گزارش‌ها وارد سامانه شوید."}, status=403)
+
+    reports_all = KPIAnalysisReport.objects.filter(kpi=kpi)
+    trend_years = set(OperationalKPITrendPoint.objects.filter(kpi=kpi).values_list("year", flat=True))
+    years = sorted(set(reports_all.values_list("year", flat=True)) | trend_years | {_KPI_ANALYSIS_DEFAULT_YEAR}, reverse=True)
+    year = request.GET.get("year") or _KPI_ANALYSIS_DEFAULT_YEAR
+    if year not in years:
+        year = _KPI_ANALYSIS_DEFAULT_YEAR
+
+    reports = {
+        r.month: r for r in reports_all.filter(year=year).prefetch_related("rows__initiative")
+    }
+    points = {p.month: p for p in OperationalKPITrendPoint.objects.filter(kpi=kpi, year=year)}
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+
+    months = []
+    for m in range(1, 13):
+        p = points.get(m)
+        rep = reports.get(m)
+        months.append({
+            "month": m, "label": month_labels[m],
+            "target": (p.target if p else ""), "actual": (p.actual if p else ""),
+            "report": _analysis_serialize_report(rep) if rep else None,
+        })
+
+    linked_ids = set(kpi.initiatives.values_list("pk", flat=True))
+    initiatives_linked, initiatives_other = [], []
+    for ini in Initiative.objects.all().order_by("code", "title"):
+        label = f"{ini.code + ' — ' if ini.code else ''}{ini.title}"
+        (initiatives_linked if ini.pk in linked_ids else initiatives_other).append({"id": ini.pk, "label": label})
+
+    return JsonResponse({
+        "kpi_id": kpi.pk, "kpi_code": kpi.code, "kpi_title": kpi.title, "unit": kpi.unit,
+        "owner": kpi.department,
+        "current_month": {
+            "target": kpi.target_month, "actual": kpi.actual_month, "progress": kpi.progress_month,
+        },
+        "years": years, "year": year, "months": months,
+        "effect_times": [{"value": v, "label": l} for v, l in KPIAnalysisRow.EFFECT_TIME_CHOICES],
+        "initiatives_linked": initiatives_linked, "initiatives_other": initiatives_other,
+        "can_edit": _analysis_can_edit(request.user),
+        "can_delete": request.user.is_authenticated and request.user.has_perm("strategic.delete_kpianalysisreport"),
+    })
+
+
+def _analysis_clean_rows(raw_rows):
+    """ورودی خام ردیف‌ها (لیست دیکشنری) را اعتبارسنجی و پاک‌سازی می‌کند. خروجی: (rows, error)."""
+    clean = []
+    valid_times = {v for v, _ in KPIAnalysisRow.EFFECT_TIME_CHOICES}
+    valid_inis = set(Initiative.objects.values_list("pk", flat=True))
+    for i, r in enumerate(raw_rows or [], start=1):
+        cause = str(r.get("cause") or "").strip()
+        plan = str(r.get("plan") or "").strip()
+        impact_raw = r.get("impact")
+        effect = str(r.get("effect_time") or "").strip()
+        ini = r.get("initiative_id")
+        impact = None
+        if impact_raw not in (None, ""):
+            num = _parse_persian_number_view(impact_raw)
+            if num is None or num < 0 or num > 100:
+                return None, f"درصد تأثیرگذاری ردیف {i} باید عددی بین ۰ تا ۱۰۰ باشد."
+            impact = round(num, 1)
+        if effect and effect not in valid_times:
+            return None, f"زمان اثرگذاری ردیف {i} نامعتبر است."
+        try:
+            ini = int(ini) if ini not in (None, "") else None
+        except (TypeError, ValueError):
+            ini = None
+        if ini is not None and ini not in valid_inis:
+            ini = None
+        if not (cause or plan or impact is not None or effect or ini):
+            continue
+        clean.append(dict(cause=cause, impact_percent=impact, improvement_plan=plan,
+                          effect_time=effect, initiative_id=ini, order=len(clean) + 1))
+    return clean, None
+
+
+def _parse_persian_number_view(v):
+    from .models import _parse_persian_number
+    if isinstance(v, (int, float)):
+        return float(v)
+    return _parse_persian_number(str(v).replace("%", "").replace("٪", ""))
+
+
+@login_required
+def operational_kpi_analysis_save(request, pk):
+    """ثبت/ویرایش گزارش تحلیل یک ماه از یک شاخص (JSON). نیاز به مجوز بخش «تحلیل عملکرد ماهانه‌ی شاخص‌ها»."""
+    if request.method != "POST":
+        return JsonResponse({"error": "روش درخواست نامعتبر است."}, status=405)
+    if not _analysis_can_edit(request.user):
+        return JsonResponse({"error": "شما اجازه ثبت یا ویرایش گزارش تحلیل را ندارید."}, status=403)
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"error": "داده‌ی ارسالی نامعتبر است."}, status=400)
+
+    year = str(payload.get("year") or "").strip()
+    try:
+        month = int(payload.get("month"))
+    except (TypeError, ValueError):
+        month = 0
+    if not re.fullmatch(r"\d{4}", year) or not 1 <= month <= 12:
+        return JsonResponse({"error": "سال یا ماه نامعتبر است."}, status=400)
+
+    rows, err = _analysis_clean_rows(payload.get("rows"))
+    if err:
+        return JsonResponse({"error": err}, status=400)
+    notes = str(payload.get("notes") or "").strip()
+    if not rows and not notes:
+        return JsonResponse({"error": "حداقل یک ردیف یا توضیحات وارد کنید (برای حذف گزارش از دکمه‌ی «حذف گزارش» استفاده کنید)."}, status=400)
+
+    from django.db import transaction
+    with transaction.atomic():
+        rep, created = KPIAnalysisReport.objects.get_or_create(kpi=kpi, year=year, month=month)
+        rep.notes = notes
+        rep.save()
+        rep.rows.all().delete()
+        KPIAnalysisRow.objects.bulk_create([KPIAnalysisRow(report=rep, **r) for r in rows])
+
+    total = sum(float(r["impact_percent"]) for r in rows if r["impact_percent"] is not None)
+    _log_action(request, "CREATE KPIAnalysisReport" if created else "UPDATE KPIAnalysisReport", f"{rep} — {len(rows)} ردیف")
+    return JsonResponse({"ok": True, "created": created, "rows": len(rows), "impact_total": round(total, 1)})
+
+
+@login_required
+def operational_kpi_analysis_delete(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"error": "روش درخواست نامعتبر است."}, status=405)
+    if not request.user.has_perm("strategic.delete_kpianalysisreport"):
+        return JsonResponse({"error": "شما اجازه حذف گزارش تحلیل را ندارید."}, status=403)
+    kpi = get_object_or_404(OperationalKPI, pk=pk)
+    year = (request.POST.get("year") or "").strip()
+    try:
+        month = int(request.POST.get("month"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "ماه نامعتبر است."}, status=400)
+    qs = KPIAnalysisReport.objects.filter(kpi=kpi, year=year, month=month)
+    label = ", ".join(str(r) for r in qs)
+    deleted, _ = qs.delete()
+    _log_action(request, "DELETE KPIAnalysisReport", label or f"{kpi.code} {year}/{month}")
+    return JsonResponse({"ok": True, "deleted": deleted})
+
+
+# ---- ورود گزارش‌های تحلیل ماهانه از یک فایل اکسل جداگانه ----
+_AN_SHEET = "تحلیل ماهانه"
+_AN_HEADERS = ["کد شاخص", "سال", "ماه", "شرح دلیل / عارضه", "درصد تأثیرگذاری",
+               "برنامه بهبود", "زمان اثرگذاری", "کد پروژه (اختیاری)", "توضیحات"]
+_FA_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+
+
+def _an_norm(v):
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return str(v).translate(_FA_DIGITS).replace("ي", "ی").replace("ك", "ک").strip()
+
+
+def _an_import_tmp_path(token):
+    tmp_dir = os.path.join(settings.BASE_DIR, "tmp_imports")
+    os.makedirs(tmp_dir, exist_ok=True)
+    return os.path.join(tmp_dir, f"kpian_{token}.xlsx")
+
+
+def _parse_analysis_workbook(wb):
+    """خروجی: (groups, errors). groups: {(kpi_code, year, month): {rows:[...], notes:str}}"""
+    ws = wb[_AN_SHEET] if _AN_SHEET in wb.sheetnames else wb.worksheets[0]
+    month_by_name = {_an_norm(l): n for n, l in OperationalKPITrendPoint.MONTH_CHOICES}
+    time_by_label = {_an_norm(l): v for v, l in KPIAnalysisRow.EFFECT_TIME_CHOICES}
+    time_by_label.update({v: v for v, _ in KPIAnalysisRow.EFFECT_TIME_CHOICES})
+    ini_by_code = {i.code: i.pk for i in Initiative.objects.exclude(code="")}
+    kpis = {k.code: k for k in OperationalKPI.objects.all()}
+    groups, errors = {}, []
+    for rn, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        row = list(row) + [None] * (9 - len(row))
+        code, year, month_raw, cause, impact_raw, plan, eff_raw, ini_code, notes = [_an_norm(x) for x in row[:9]]
+        if not any([code, year, month_raw, cause, impact_raw, plan, eff_raw, ini_code, notes]):
+            continue
+        if not code or code not in kpis:
+            errors.append((rn, f"کد شاخص «{code or '—'}» در بانک شاخص‌ها نیست"))
+            continue
+        if not re.fullmatch(r"\d{4}", year):
+            errors.append((rn, f"سال «{year}» نامعتبر است (مثلاً ۱۴۰۵)"))
+            continue
+        month = month_by_name.get(month_raw) or (int(month_raw) if month_raw.isdigit() and 1 <= int(month_raw) <= 12 else None)
+        if not month:
+            errors.append((rn, f"ماه «{month_raw}» نامعتبر است (نام ماه یا عدد ۱ تا ۱۲)"))
+            continue
+        impact = None
+        if impact_raw:
+            num = _parse_persian_number_view(impact_raw)
+            if num is None or num < 0 or num > 100:
+                errors.append((rn, f"درصد تأثیرگذاری «{impact_raw}» باید بین ۰ تا ۱۰۰ باشد"))
+                continue
+            impact = round(num, 1)
+        effect = ""
+        if eff_raw:
+            effect = time_by_label.get(eff_raw)
+            if effect is None:
+                errors.append((rn, f"زمان اثرگذاری «{eff_raw}» در فهرست ثابت نیست"))
+                continue
+        ini = None
+        if ini_code:
+            ini = ini_by_code.get(ini_code)
+            if ini is None:
+                errors.append((rn, f"کد پروژه «{ini_code}» پیدا نشد"))
+                continue
+        g = groups.setdefault((code, year, month), {"rows": [], "notes": ""})
+        if notes and not g["notes"]:
+            g["notes"] = notes
+        if cause or plan or impact is not None or effect or ini:
+            g["rows"].append(dict(cause=cause, impact_percent=impact, improvement_plan=plan,
+                                  effect_time=effect, initiative_id=ini))
+    return groups, errors
+
+
+def _analysis_import_diff(groups):
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+    kpis = {k.code: k for k in OperationalKPI.objects.all()}
+    items = []
+    for (code, year, month), g in sorted(groups.items(), key=lambda x: (x[0][0], x[0][1], x[0][2])):
+        existing = KPIAnalysisReport.objects.filter(kpi=kpis[code], year=year, month=month).first()
+        items.append(dict(
+            code=code, title=kpis[code].title, year=year, month_label=month_labels[month],
+            rows=len(g["rows"]), notes=bool(g["notes"]),
+            old_rows=(existing.rows.count() if existing else 0), is_new=existing is None,
+        ))
+    return items
+
+
+@login_required
+def operational_kpi_analysis_import(request):
+    if not _analysis_can_edit(request.user):
+        messages.error(request, "شما اجازه‌ی ورود گزارش‌های تحلیل از اکسل را ندارید.")
+        return redirect("strategic:operational_kpis")
+    if request.method != "POST" or not request.FILES.get("excel_file"):
+        messages.error(request, "فایلی انتخاب نشده است.")
+        return redirect("strategic:operational_kpis")
+    import openpyxl
+    uploaded = request.FILES["excel_file"]
+    file_bytes = uploaded.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        groups, errors = _parse_analysis_workbook(wb)
+    except Exception:
+        messages.error(request, "فایل اکسل قابل خواندن نیست. لطفاً از فایل نمونه استفاده کنید.")
+        return redirect("strategic:operational_kpis")
+    if not groups:
+        messages.error(request, "هیچ ردیف معتبری در فایل پیدا نشد." + (f" ({len(errors)} ردیف دارای خطا)" if errors else ""))
+        return redirect("strategic:operational_kpis")
+
+    old_token = request.session.get("kpian_import_pending_token")
+    if old_token and os.path.exists(_an_import_tmp_path(old_token)):
+        os.remove(_an_import_tmp_path(old_token))
+    token = uuid.uuid4().hex
+    with open(_an_import_tmp_path(token), "wb") as f:
+        f.write(file_bytes)
+    request.session["kpian_import_pending_token"] = token
+    items = _analysis_import_diff(groups)
+    return render(request, "strategic/kpi_analysis_import_preview.html", {
+        "active_page": "operational_kpis", "token": token, "original_filename": uploaded.name,
+        "items": items, "errors": errors,
+        "new_count": sum(1 for i in items if i["is_new"]),
+        "replace_count": sum(1 for i in items if not i["is_new"]),
+        "total_rows": sum(i["rows"] for i in items),
+    })
+
+
+@login_required
+def operational_kpi_analysis_import_apply(request):
+    if not _analysis_can_edit(request.user):
+        messages.error(request, "شما اجازه‌ی این عملیات را ندارید.")
+        return redirect("strategic:operational_kpis")
+    if request.method != "POST":
+        return redirect("strategic:operational_kpis")
+    token = request.POST.get("token", "")
+    if not token or token != request.session.get("kpian_import_pending_token"):
+        messages.error(request, "این پیش‌نمایش دیگر معتبر نیست. لطفاً دوباره فایل را انتخاب کنید.")
+        return redirect("strategic:operational_kpis")
+    path = _an_import_tmp_path(token)
+    if not os.path.exists(path):
+        messages.error(request, "فایل موقت پیدا نشد؛ دوباره فایل را وارد کنید.")
+        return redirect("strategic:operational_kpis")
+    import openpyxl
+    from django.db import transaction
+    with open(path, "rb") as f:
+        wb = openpyxl.load_workbook(f, data_only=True)
+    groups, errors = _parse_analysis_workbook(wb)
+    kpis = {k.code: k for k in OperationalKPI.objects.all()}
+    created = replaced = 0
+    with transaction.atomic():
+        for (code, year, month), g in groups.items():
+            rep, was_created = KPIAnalysisReport.objects.get_or_create(kpi=kpis[code], year=year, month=month)
+            if g["notes"]:
+                rep.notes = g["notes"]
+                rep.save()
+            rep.rows.all().delete()
+            KPIAnalysisRow.objects.bulk_create([
+                KPIAnalysisRow(report=rep, order=i, **r) for i, r in enumerate(g["rows"], start=1)
+            ])
+            created += 1 if was_created else 0
+            replaced += 0 if was_created else 1
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    request.session.pop("kpian_import_pending_token", None)
+    _log_action(request, "IMPORT KPIAnalysisReport Excel", f"{created} گزارش جدید، {replaced} جایگزین، {len(errors)} ردیف خطادار")
+    messages.success(request, f"ورود گزارش‌های تحلیل انجام شد: {created} گزارش جدید، {replaced} گزارش جایگزین‌شده."
+                              + (f" {len(errors)} ردیف خطادار نادیده گرفته شد." if errors else ""))
+    return redirect("strategic:operational_kpis")
+
+
+@login_required
+def operational_kpi_analysis_import_cancel(request):
+    token = request.session.get("kpian_import_pending_token")
+    if token:
+        if os.path.exists(_an_import_tmp_path(token)):
+            os.remove(_an_import_tmp_path(token))
+        request.session.pop("kpian_import_pending_token", None)
+    messages.info(request, "ورود گزارش‌های تحلیل لغو شد؛ تغییری اعمال نشد.")
+    return redirect("strategic:operational_kpis")
+
+
+@login_required
+def operational_kpi_analysis_export(request):
+    """خروجی همه‌ی گزارش‌های تحلیل ماهانه با همان قالبِ فایل ورود؛ قابل ویرایش و ورود مجدد."""
+    if not _analysis_can_edit(request.user):
+        messages.error(request, "شما اجازه‌ی گرفتن خروجی تحلیل ماهانه را ندارید.")
+        return redirect("strategic:operational_kpis")
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = _AN_SHEET
+    ws.sheet_view.rightToLeft = True
+    ws.append(_AN_HEADERS)
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="2E5C8A")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    month_labels = dict(OperationalKPITrendPoint.MONTH_CHOICES)
+    reports = KPIAnalysisReport.objects.select_related("kpi").prefetch_related("rows__initiative").order_by("kpi__code", "year", "month")
+    for rep in reports:
+        rows = list(rep.rows.all())
+        if not rows:
+            ws.append([rep.kpi.code, rep.year, month_labels[rep.month], "", None, "", "", "", rep.notes])
+            continue
+        for i, r in enumerate(rows):
+            ws.append([
+                rep.kpi.code, rep.year, month_labels[rep.month], r.cause,
+                (float(r.impact_percent) if r.impact_percent is not None else None),
+                r.improvement_plan, (r.get_effect_time_display() if r.effect_time else ""),
+                (r.initiative.code if r.initiative_id else ""), (rep.notes if i == 0 else ""),
+            ])
+    for row in ws.iter_rows(min_row=2):
+        for c in row:
+            c.alignment = Alignment(vertical="top", wrap_text=True)
+        row[1].number_format = "@"
+    for col, w in zip("ABCDEFGHI", (14, 8, 10, 40, 14, 40, 14, 18, 36)):
+        ws.column_dimensions[col].width = w
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
+    _log_action(request, "EXPORT KPIAnalysisReport Excel", f"{reports.count()} گزارش")
+    resp = HttpResponse(buf.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    resp["Content-Disposition"] = 'attachment; filename="kpi-analysis-export.xlsx"'
+    return resp
+
+
+@login_required
+def operational_kpi_analysis_sample(request):
+    """فایل نمونه‌ی اکسل برای ورود گزارش‌های تحلیل (با یک مثال شهریور ۱۴۰۵ و برگه‌ی راهنما)."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = _AN_SHEET
+    ws.sheet_view.rightToLeft = True
+    ws.append(_AN_HEADERS)
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="2E5C8A")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    k = OperationalKPI.objects.exclude(is_confidential=True).order_by("code").first()
+    code = k.code if k else "PP-01-01"
+    ws.append([code, "1405", "شهریور", "کمبود موجودی قطعه در انبار مرکزی", 60, "تأمین قطعات از تأمین‌کننده‌ی جایگزین", "سه ماه", "", "نمونه — این ردیف‌ها را پاک یا ویرایش کنید"])
+    ws.append([code, "1405", "شهریور", "تأخیر در حمل", 40, "قرارداد حمل جدید", "یک ماه", "", ""])
+    for col, w in zip("ABCDEFGHI", (14, 8, 10, 40, 14, 40, 14, 18, 36)):
+        ws.column_dimensions[col].width = w
+    g = wb.create_sheet("راهنما")
+    g.sheet_view.rightToLeft = True
+    for line in [
+        "هر ردیف یک «دلیل/عارضه» است. چند ردیف با «کد شاخص + سال + ماه» یکسان، یک گزارش را می‌سازند.",
+        "کد شاخص باید دقیقاً مطابق بانک شاخص‌های عملیاتی باشد.",
+        "ماه: نام فارسی ماه (فروردین … اسفند) یا عدد ۱ تا ۱۲.",
+        "درصد تأثیرگذاری: عدد ۰ تا ۱۰۰ (اختیاری). اگر مجموع ۱۰۰ نباشد فقط در صفحه‌ی گزارش هشدار داده می‌شود.",
+        "زمان اثرگذاری فقط یکی از: " + "، ".join(l for _, l in KPIAnalysisRow.EFFECT_TIME_CHOICES),
+        "کد پروژه (اختیاری): کد یک پروژه/اقدام ثبت‌شده در بخش پروژه‌ها.",
+        "توضیحات: متن آزاد برای کل گزارش آن ماه (کافی است در یکی از ردیف‌های آن ماه نوشته شود).",
+        "اگر برای همان شاخص و همان ماه قبلاً گزارشی ثبت شده باشد، ردیف‌های آن با ردیف‌های فایل جایگزین می‌شود (گزارش سایر ماه‌ها و شاخص‌ها دست‌نخورده می‌ماند).",
+        "درصد تحقق، هدف و عملکرد در این فایل وارد نمی‌شوند؛ از داده‌ی روند ماهانه‌ی شاخص خوانده می‌شوند.",
+    ]:
+        g.append([line])
+    g.column_dimensions["A"].width = 120
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    resp = HttpResponse(buf.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    resp["Content-Disposition"] = 'attachment; filename="kpi-analysis-sample.xlsx"'
+    return resp
 
 
 def operational_kpi_trend_multi(request, pk):
@@ -4476,6 +5008,11 @@ def user_list(request):
                 label for key, (label, models_, _) in SECTIONS.items()
                 if f"change_{models_[0].lower()}" in perm_codenames
             ]
+            u.view_only_sections = [
+                label for key, (label, models_, _) in SECTIONS.items()
+                if f"view_{models_[0].lower()}" in perm_codenames
+                and f"change_{models_[0].lower()}" not in perm_codenames
+            ]
     return render(request, "strategic/user_list.html", {
         "active_page": "user_list", "users": users,
     })
@@ -4489,7 +5026,7 @@ def user_edit(request, pk=None):
 
     from django.contrib.auth.models import User, Permission
     from strategic.models import UserProfile, BusinessUnit
-    from strategic.permission_sections import SECTIONS, permissions_for_section
+    from strategic.permission_sections import SECTIONS, permissions_for_section, view_codename, permission_key_for_page
 
     instance = get_object_or_404(User, pk=pk) if pk else None
 
@@ -4504,6 +5041,7 @@ def user_edit(request, pk=None):
         new_password = request.POST.get("new_password", "").strip()
         is_active = request.POST.get("is_active") == "on"
         selected_sections = request.POST.getlist("sections")
+        selected_view_sections = request.POST.getlist("view_sections")
 
         if not username:
             messages.error(request, "نام کاربری الزامی است.")
@@ -4541,6 +5079,7 @@ def user_edit(request, pk=None):
             all_codenames = []
             for key in SECTIONS:
                 all_codenames.extend(permissions_for_section(key))
+                all_codenames.append(view_codename(key))
             all_perm_ids = list(Permission.objects.filter(
                 content_type__app_label="strategic", codename__in=all_codenames
             ).values_list("pk", flat=True))
@@ -4550,6 +5089,10 @@ def user_edit(request, pk=None):
             for key in selected_sections:
                 if key in SECTIONS:
                     selected_codenames.extend(permissions_for_section(key))
+                    selected_codenames.append(view_codename(key))  # ویرایش، مشاهده را هم شامل می‌شود
+            for key in selected_view_sections:
+                if key in SECTIONS:
+                    selected_codenames.append(view_codename(key))
             selected_perms = Permission.objects.filter(
                 content_type__app_label="strategic", codename__in=selected_codenames
             )
@@ -4561,7 +5104,7 @@ def user_edit(request, pk=None):
         profile.save()
 
         action = "UPDATE User" if instance else "CREATE User"
-        _log_action(request, action, f"{user_obj.username} — بخش‌های مجاز: {', '.join(selected_sections) or ('ادمین کامل' if is_admin else 'هیچ‌کدام')}")
+        _log_action(request, action, f"{user_obj.username} — ویرایش: {', '.join(selected_sections) or ('ادمین کامل' if is_admin else 'هیچ‌کدام')} — مشاهده: {', '.join(selected_view_sections) or '—'}")
         messages.success(request, f"کاربر «{username}» با موفقیت ذخیره شد.")
         return redirect("strategic:user_list")
 
@@ -4570,9 +5113,14 @@ def user_edit(request, pk=None):
     sections_ui = []
     for key, (label, model_names, bu_scoped) in SECTIONS.items():
         change_codename = f"change_{model_names[0].lower()}"
+        view_cn = f"view_{model_names[0].lower()}"
+        from strategic.permission_sections import VISIBILITY_SECTIONS, VISIBILITY_TO_PERMISSION_KEY
+        has_page = key in VISIBILITY_SECTIONS or key in VISIBILITY_TO_PERMISSION_KEY.values()
         sections_ui.append({
             "key": key, "label": label, "bu_scoped": bu_scoped,
             "checked": change_codename in current_perm_codenames,
+            "has_view": has_page,
+            "view_checked": view_cn in current_perm_codenames or change_codename in current_perm_codenames,
         })
 
     return render(request, "strategic/user_form.html", {

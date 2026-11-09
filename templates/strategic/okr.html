@@ -79,6 +79,16 @@
   #okr-page .o-md{background:#fff;border-radius:14px;padding:20px;width:min(560px,100%);max-height:90vh;overflow:auto;}
   #okr-page .o-md h3{margin:0 0 14px;font-size:15px;}
   #okr-page .o-md label{display:block;font-size:11.5px;font-weight:700;margin:10px 0 4px;color:var(--o-ink);}
+  #okr-page .kp-chip{display:flex;align-items:center;gap:6px;background:var(--accent-soft,#FDF3E7);border:1px solid rgba(201,124,44,.35);border-radius:20px;padding:4px 8px 4px 12px;font-size:11.5px;font-weight:600;margin-bottom:4px;}
+  #okr-page .kp-chip span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #okr-page .kp-chip button{border:none;background:rgba(0,0,0,.1);border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:12px;line-height:1;padding:0;}
+  #okr-page .kp-chip button:hover{background:#B0413E;color:#fff;}
+  #okr-page .kp-list{display:none;max-height:170px;overflow-y:auto;border:1px solid var(--o-border);border-radius:8px;background:#fff;padding:4px;margin-top:4px;}
+  #okr-page .kp-list.open{display:block;}
+  #okr-page .kp-list div{font-size:11.5px;line-height:1.6;padding:6px 8px;border-radius:6px;cursor:pointer;}
+  #okr-page .kp-list div:hover{background:#f3f4f6;}
+  #okr-page .kp-list .none{color:#888;cursor:default;}
+  #okr-page .kp-hint{font-size:10.5px;color:#777;line-height:1.7;margin:2px 0 8px;}
   #okr-page .o-md input[type=text],#okr-page .o-md input[type=number],#okr-page .o-md select,#okr-page .o-md textarea{width:100%;border:1px solid var(--o-border);border-radius:8px;padding:8px;font:inherit;font-size:12px;}
   #okr-page .o-md .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
   #okr-page .o-md .row button{border:0;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;}
@@ -201,13 +211,41 @@ function findKr(id){for(const o of allObjs())for(const k of o.krs)if(k.id==id)re
 function findObj(id){return allObjs().find(o=>o.id==id)}
 function modal(html){$('md').innerHTML=html;$('ov').classList.add('open')}
 function closeM(){$('ov').classList.remove('open')}
-function kpiSelect(cur){return '<select id="f_kpi"><option value="">— بدون شاخص —</option>'+KPIS.map(k=>`<option value="${k.id}" ${k.id===cur?'selected':''}>${esc(k.t)}</option>`).join('')+'</select>'}
+function kpiPicker(cur){return '<input type="hidden" id="f_kpi" value="'+(cur||'')+'"><div id="f_kchip"></div><input type="text" id="f_ks" placeholder="جستجوی شاخص با کد یا عنوان..." autocomplete="off"><div class="kp-list" id="f_kl"></div>'}
+function kpiTitleOnly(t){const i=t.indexOf(' — ');return i>=0?t.slice(i+3):t}
+function normS(t){return String(t||'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/ي/g,'ی').replace(/ك/g,'ک').toLowerCase()}
+function initKpiPicker(autoFillTitle){
+ const hid=$('f_kpi'),chip=$('f_kchip'),inp=$('f_ks'),list=$('f_kl');
+ function showChip(){
+  chip.innerHTML='';
+  const k=KPIS.find(x=>x.id===hid.value);
+  if(!k){inp.style.display='';return}
+  chip.innerHTML='<div class="kp-chip"><span>'+esc(k.t)+'</span><button type="button" title="حذف شاخص">×</button></div>';
+  chip.querySelector('button').onclick=()=>{hid.value='';showChip()};
+  inp.style.display='none';
+ }
+ function render(){
+  const q=normS(inp.value).trim();
+  const items=KPIS.filter(k=>!q||normS(k.t).indexOf(q)!==-1).slice(0,80);
+  list.innerHTML=items.length?'':'<div class="none">موردی پیدا نشد</div>';
+  items.forEach(k=>{const d=document.createElement('div');d.textContent=k.t;
+   d.onmousedown=e=>{e.preventDefault();hid.value=k.id;inp.value='';list.classList.remove('open');showChip();autoFillTitle(k)};
+   list.appendChild(d)});
+  list.classList.add('open');
+ }
+ inp.addEventListener('input',render);inp.addEventListener('focus',render);
+ inp.addEventListener('blur',()=>list.classList.remove('open'));
+ showChip();
+}
 function krForm(title,k,onOk){
  modal(`<h3>${title}</h3><label>عنوان نتیجه کلیدی</label><input type="text" id="f_t" value="${esc(k.t||'')}">
- <label>شاخص سیستم</label>${kpiSelect(k.kid||'')}
+ <label>شاخص سیستم (با تایپ جستجو کنید؛ عنوان شاخص به‌طور خودکار در کادر بالا می‌آید و قابل ویرایش است)</label>${kpiPicker(k.kid||'')}
  <label>وزن (۰ تا ۱۰۰)</label><input type="number" id="f_w" min="0" max="100" value="${k.w==null?100:k.w}">
  <label style="font-weight:500"><input type="checkbox" id="f_lo" ${k.lo?'checked':''}> کمتر بهتر است (↓)</label>
+ <div class="kp-hint">فقط برای شاخص‌هایی تیک بزنید که عدد کمتر یعنی عملکرد بهتر (مثل نرخ برگشت، هزینه یا زمان تأخیر). در این حالت درصد تحقق = هدف ÷ عملکرد محاسبه می‌شود؛ در حالت عادی = عملکرد ÷ هدف.</div>
  <div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
+ let lastAuto=null;
+ initKpiPicker(kp=>{const t=$('f_t'),nt=kpiTitleOnly(kp.t);if(!t.value.trim()||t.value===lastAuto){t.value=nt;lastAuto=nt}});
  $('f_c').onclick=closeM;
  $('f_ok').onclick=async()=>{if(await onOk({title:$('f_t').value,kpi:$('f_kpi').value,weight:$('f_w').value,lo:$('f_lo').checked}))reload()};
 }

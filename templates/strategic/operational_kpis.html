@@ -56,6 +56,38 @@
   .opk-trend-multi-col{flex:1;min-width:150px;}
   .opk-trend-multi-col > b{font-size:11.5px;color:var(--ink-faint);font-weight:700;display:block;margin-bottom:6px;}
   .opk-trend-multi-check{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 0;cursor:pointer;}
+  .opk-an-btn{display:inline-flex;align-items:center;gap:3px;margin-top:5px;margin-right:2px;border:1px solid #C9B27A;background:#FBF6E8;color:#7A5B12;border-radius:6px;padding:2px 6px;font-size:10px;line-height:1.4;cursor:pointer;font-family:inherit;vertical-align:top;}
+  .opk-an-btn:hover{background:#C97A2B;color:#fff;border-color:#C97A2B;}
+  .opk-an-btn .cnt{background:#C97A2B;color:#fff;border-radius:8px;padding:0 5px;font-size:9px;font-weight:800;}
+  .opk-an-btn:hover .cnt{background:#fff;color:#C97A2B;}
+  .opk-btn-row{display:inline-flex;flex-wrap:nowrap;gap:3px;white-space:nowrap;}
+  .opk-btn-row .opk-trend-btn,.opk-btn-row .opk-an-btn{margin:5px 0 0 0;padding:2px 7px;}
+  .opk-an-pick{position:relative;}
+  .opk-an-pick .picker-chip{margin-bottom:4px;}
+  .opk-an-list{display:none;max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px;margin-top:3px;}
+  .opk-an-list.open{display:block;}
+  .opk-an-list div{font-size:11px;line-height:1.6;padding:5px 7px;border-radius:6px;cursor:pointer;}
+  .opk-an-list div:hover{background:var(--bg);}
+  .opk-an-list .grp{font-size:10px;color:var(--ink-faint);font-weight:700;cursor:default;padding:4px 7px 2px;}
+  .opk-an-list .grp:hover{background:none;}
+  .opk-an-list .none{color:var(--ink-faint);cursor:default;}
+  .picker-chip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft,#FDF3E7);border:1px solid rgba(201,124,44,.35);border-radius:20px;padding:3px 6px 3px 10px;font-size:10.5px;font-weight:600;max-width:100%;}
+  .picker-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .picker-chip button{border:none;background:rgba(0,0,0,.08);color:var(--ink-faint);border-radius:50%;width:16px;height:16px;flex:none;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;}
+  .picker-chip button:hover{background:#B0413E;color:#fff;}
+  #opkAnalysisOverlay{z-index:3000;}
+  .opk-an-months{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0;}
+  .opk-an-mbtn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:6px 4px;font-size:11px;font-family:inherit;cursor:pointer;text-align:center;line-height:1.5;}
+  .opk-an-mbtn.has{background:#FBF6E8;border-color:#C97A2B;font-weight:700;}
+  .opk-an-mbtn.sel{outline:2px solid var(--primary);}
+  .opk-an-mbtn small{display:block;color:var(--ink-faint);font-size:9.5px;}
+  .opk-an-info{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11.5px;line-height:1.9;margin-bottom:10px;}
+  table.opk-an-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .opk-an-table th{background:var(--bg);padding:5px 7px;text-align:right;border-bottom:1px solid var(--border);color:var(--ink-soft);}
+  .opk-an-table td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .opk-an-table textarea,.opk-an-table input,.opk-an-table select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:11px;font-family:inherit;}
+  .opk-an-warn{color:#B0413E;font-size:11px;margin:6px 0;display:none;}
+  .opk-an-err{color:#B0413E;font-size:11.5px;margin:6px 0;}
   .opk-trend-swatch{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none;}
   #opkTrendMultiWarning{font-size:11px;color:#B0413E;margin-bottom:8px;}
 </style>
@@ -71,6 +103,10 @@
   <a href="{% url 'strategic:operational_kpi_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی اکسل</button></a>
   <button type="button" class="btn ghost" onclick="document.getElementById('opkImportOverlay').classList.add('open')"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>
   {% endif %}
+  {% if perms.strategic.add_kpianalysisreport and perms.strategic.change_kpianalysisreport %}
+  <a href="{% url 'strategic:operational_kpi_analysis_export' %}"><button type="button" class="btn ghost"><i class="fa-solid fa-file-export"></i> خروجی تحلیل ماهانه</button></a>
+  <button type="button" class="btn ghost" onclick="document.getElementById('opkAnImportOverlay').classList.add('open')"><i class="fa-solid fa-clipboard-list"></i> ورود تحلیل ماهانه از اکسل</button>
+  {% endif %}
   <span class="opk-count" id="opkCount">{{ total|fanum }} شاخص</span>
 </div>
 
@@ -83,7 +119,7 @@
   <thead>
     <tr>
       <th>کد</th><th>عنوان شاخص</th><th>حوزه</th><th>واحد</th><th>دپارتمان مالک</th>
-      <th>هدف/عملکرد<br><small>(ماه جاری)</small></th><th>تحقق<br><small>(ماه جاری)</small></th><th>هدف ۱۴۰۵<br><small>(تجمعی)</small></th><th>عملکرد ۱۴۰۵<br><small>(تجمعی)</small></th><th>تحقق<br><small>(تجمعی)</small></th><th></th>
+      <th>هدف/عملکرد<br><small>(ماه جاری)</small></th><th>تحقق<br><small>(ماه جاری)</small></th><th>هدف سال<br><small>(تجمعی)</small></th><th>عملکرد سال<br><small>(تجمعی)</small></th><th>تحقق<br><small>(تجمعی)</small></th><th></th>
     </tr>
     <tr class="opk-livesearch-row">
       <th><input type="text" id="liveCode" class="opk-live-input" placeholder="جستجو..."></th>
@@ -103,9 +139,12 @@
     {% for k in items %}
     <tr class="opk-row">
       <td class="opk-code">{{ k.code }}<br>
-        <button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.pk }})" title="نمایش نمودار روند این شاخص">
-          <i class="fa-solid fa-chart-line"></i> نمودار
+        <span class="opk-btn-row"><button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.pk }})" title="نمایش نمودار روند این شاخص">
+          <i class="fa-solid fa-chart-line"></i>
         </button>
+        <button type="button" class="opk-an-btn" onclick="openAnalysis({{ k.pk }})" title="تحلیل عملکرد ماهانه‌ی این شاخص{% if k.analysis_count %} ({{ k.analysis_count|fanum }} گزارش){% endif %}">
+          <i class="fa-solid fa-clipboard-list"></i>{% if k.analysis_count %}<span class="cnt">{{ k.analysis_count|fanum }}</span>{% endif %}
+        </button></span>
       </td>
       <td>{{ k.title }}
         {% if k.initiatives.all %}<span class="used-badge" style="background:#E8F3EC;color:#2F6844;" title="پروژه‌ها/اقدامات مرتبط:&#10;{% for ini in k.initiatives.all %}● {{ ini.code|default:'—' }} — {{ ini.title }} ({{ ini.get_item_type_display }}) — وضعیت: {{ ini.get_status_display }} — پیشرفت: {{ ini.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-diagram-project"></i> {{ k.initiatives.all|length }}</span>{% endif %}
@@ -171,8 +210,8 @@
       </div>
       <div class="field-group"><label>درصد تحقق ماه جاری (دستی)</label>{{ form.progress_month }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div class="field-group"><label>هدف ۱۴۰۵ (تجمعی)</label>{{ form.target_1405 }}</div>
-        <div class="field-group"><label>عملکرد ۱۴۰۵ (تجمعی)</label>{{ form.actual_1405 }}</div>
+        <div class="field-group"><label>هدف سال (تجمعی)</label>{{ form.target_1405 }}</div>
+        <div class="field-group"><label>عملکرد سال (تجمعی)</label>{{ form.actual_1405 }}</div>
       </div>
       <div class="field-group"><label>درصد تحقق (دستی)</label>{{ form.progress_1405 }}</div>
       <div class="field-group" style="display:flex;align-items:center;gap:8px;">
@@ -205,6 +244,30 @@
       </p>
       <div class="modal-actions">
         <button type="button" class="btn ghost" onclick="document.getElementById('opkImportOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ادامه و مشاهده‌ی پیش‌نمایش</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if perms.strategic.add_kpianalysisreport and perms.strategic.change_kpianalysisreport %}
+<div class="overlay" id="opkAnImportOverlay">
+  <div class="modal-card">
+    <h3>ورود گزارش‌های تحلیل ماهانه از اکسل</h3>
+    <form method="post" action="{% url 'strategic:operational_kpi_analysis_import' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="field-group">
+        <label>فایل اکسل (مطابق فایل نمونه)</label>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);line-height:1.7;">
+        این فایل جدا از فایل ورود شاخص‌هاست. برای هر «شاخص + سال + ماه» که در فایل باشد، گزارش قبلی همان ماه جایگزین می‌شود؛
+        گزارش سایر ماه‌ها و شاخص‌ها دست‌نخورده می‌ماند. قبل از ذخیره، پیش‌نمایش نشان داده می‌شود.
+        <a href="{% url 'strategic:operational_kpi_analysis_sample' %}">دانلود فایل نمونه</a> — یا با «خروجی تحلیل ماهانه» فایل اطلاعات فعلی را بگیرید، در همان فایل ردیف جدید بنویسید/ویرایش کنید و اینجا وارد کنید.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('opkAnImportOverlay').classList.remove('open')">انصراف</button>
         <button type="submit" class="btn accent">ادامه و مشاهده‌ی پیش‌نمایش</button>
       </div>
     </form>
@@ -258,6 +321,45 @@
     </div>
   </div>
 </div>
+<div class="overlay" id="opkAnalysisOverlay">
+  <div class="modal-card" style="max-width:980px;max-height:92vh;overflow-y:auto;">
+    <h3 id="opkAnTitle">تحلیل عملکرد ماهانه‌ی شاخص</h3>
+    <div class="opk-trend-year-row">
+      <label style="font-size:11.5px;">سال:</label>
+      <select id="opkAnYear"></select>
+    </div>
+    <div class="opk-an-months" id="opkAnMonths"></div>
+    <div id="opkAnBody" style="display:none;">
+      <div class="opk-an-info" id="opkAnInfo"></div>
+      <div id="opkAnViewBox"></div>
+      <div id="opkAnEditBox" style="display:none;">
+        <div style="overflow-x:auto;">
+        <table class="opk-an-table">
+          <thead><tr>
+            <th style="width:24%;">شرح دلیل / عارضه</th><th style="width:7%;">درصد تأثیر</th>
+            <th style="width:24%;">برنامه بهبود</th><th style="width:11%;">زمان اثرگذاری</th>
+            <th style="width:26%;">پروژه‌ی مرتبط (اختیاری)</th><th style="width:4%;"></th>
+          </tr></thead>
+          <tbody id="opkAnRows"></tbody>
+        </table>
+        </div>
+        <button type="button" class="btn ghost" style="margin-top:6px;" onclick="opkAnAddRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+        <div class="opk-an-warn" id="opkAnWarn"></div>
+        <div class="field-group" style="margin-top:8px;"><label>توضیحات</label>
+          <textarea id="opkAnNotes" rows="3" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px;font-family:inherit;font-size:11.5px;"></textarea>
+        </div>
+        <div class="opk-an-err" id="opkAnErr"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn danger" id="opkAnDelBtn" style="display:none;" onclick="opkAnDelete()">حذف گزارش</button>
+      <button type="button" class="btn accent" id="opkAnEditBtn" style="display:none;" onclick="opkAnStartEdit()">ثبت / ویرایش گزارش</button>
+      <button type="button" class="btn accent" id="opkAnSaveBtn" style="display:none;" onclick="opkAnSave()">ذخیره</button>
+      <button type="button" class="btn ghost" onclick="document.getElementById('opkAnalysisOverlay').classList.remove('open')">بستن</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -357,6 +459,33 @@
     const unitLabel = data.unit ? ' (' + data.unit + ')' : '';
     const projectStarts = data.project_starts || [];
     const hasProjectMarkers = projectStarts.some(function(list){ return list && list.length > 0; });
+    const analysisList = data.analysis || [];
+    const monthNumbers = data.month_numbers || [];
+
+    // نشانه‌ی گزارش تحلیل: لوزی زرد-نارنجی با علامت «T» پایین محور هر ماه که گزارش دارد
+    const analysisMarkerPlugin = {
+      id: 'opkAnalysisMarkers',
+      afterDatasetsDraw: function(chart){
+        const { ctx, chartArea, scales } = chart;
+        ctx.save();
+        analysisList.forEach(function(an, i){
+          if (!an) { return; }
+          const x = scales.x.getPixelForValue(i);
+          const y = chartArea.bottom - 12;
+          ctx.beginPath();
+          ctx.fillStyle = '#7A5B12';
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.moveTo(x, y - 9); ctx.lineTo(x + 9, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 9, y);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('ت', x, y + 0.5);
+        });
+        ctx.restore();
+      },
+    };
 
     // این پلاگین محلی (فقط برای همین نمودار) بالای هر ماهی که پروژه/اقدامی
     // شروع شده، یک پرچم توپر رنگی می‌کشه به‌همراه یک باند کم‌رنگ پس‌زمینه
@@ -459,6 +588,14 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        onClick: function(evt, elements, chart){
+          const pts = chart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
+          if (!pts || !pts.length) { return; }
+          const idx = pts[0].index;
+          if (analysisList[idx] && monthNumbers[idx]) {
+            openAnalysis(opkTrendCurrentKpiId, data.selected_year, monthNumbers[idx]);
+          }
+        },
         layout: { padding: { top: hasProjectMarkers ? 26 : 4 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -472,11 +609,22 @@
                 if (!items || !items.length) { return []; }
                 const idx = items[0].dataIndex;
                 const list = projectStarts[idx];
-                if (!list || !list.length) { return []; }
-                const lines = ['', '🚩 شروع پروژه/اقدام در این ماه:'];
-                list.forEach(function(p){
-                  lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title);
-                });
+                const lines = [];
+                if (list && list.length) {
+                  lines.push('', '🚩 شروع پروژه/اقدام در این ماه:');
+                  list.forEach(function(p){
+                    lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title);
+                  });
+                }
+                const an = analysisList[idx];
+                if (an) {
+                  lines.push('', '📋 تحلیل عملکرد این ماه (برای جزئیات کلیک کنید):');
+                  an.rows.forEach(function(r){
+                    const imp = (r.impact !== null && r.impact !== undefined) ? (' [' + r.impact + '٪]') : '';
+                    if (r.cause) { lines.push('• علت: ' + r.cause + imp); }
+                    if (r.plan) { lines.push('   ↳ برنامه: ' + r.plan + (r.effect ? (' (' + r.effect + ')') : '')); }
+                  });
+                }
                 return lines;
               },
             },
@@ -487,7 +635,7 @@
           y: { beginAtZero: true, grid: { color: '#eef0f3' } },
         },
       },
-      plugins: [projectFlagPlugin],
+      plugins: [projectFlagPlugin, analysisMarkerPlugin],
     });
 
     const noteEl = document.getElementById('opkTrendProjectNote');
@@ -776,6 +924,218 @@
     wrap.innerHTML = '';
     wrap.appendChild(table);
     manageBox.style.display = 'block';
+  }
+</script>
+
+<script>
+  const OPK_AN_URL = "{% url 'strategic:operational_kpi_analysis_data' 999999 %}";
+  const OPK_AN_SAVE_URL = "{% url 'strategic:operational_kpi_analysis_save' 999999 %}";
+  const OPK_AN_DEL_URL = "{% url 'strategic:operational_kpi_analysis_delete' 999999 %}";
+  let opkAn = null, opkAnKpi = null, opkAnMonth = null;
+  const OPK_FA = '۰۱۲۳۴۵۶۷۸۹';
+  function opkFa(v){ return String(v).replace(/\d/g, function(d){ return OPK_FA[d]; }); }
+  function opkEsc(t){ const d = document.createElement('div'); d.textContent = (t === null || t === undefined) ? '' : t; return d.innerHTML; }
+
+  function openAnalysis(kpiId, year, month){
+    opkAnKpi = kpiId;
+    let url = OPK_AN_URL.replace('999999', kpiId);
+    if (year) { url += '?year=' + encodeURIComponent(year); }
+    fetch(url, {credentials: 'same-origin'}).then(function(r){
+      return r.json().then(function(d){ return {ok: r.ok, d: d}; });
+    }).then(function(res){
+      if (!res.ok) { alert(res.d.error || 'خطا در دریافت اطلاعات.'); return; }
+      opkAn = res.d;
+      document.getElementById('opkAnTitle').textContent = 'تحلیل عملکرد ماهانه — ' + opkAn.kpi_code + ' — ' + opkAn.kpi_title;
+      const sel = document.getElementById('opkAnYear');
+      sel.innerHTML = '';
+      opkAn.years.forEach(function(y){
+        const o = document.createElement('option'); o.value = y; o.textContent = opkFa(y);
+        if (y === opkAn.year) { o.selected = true; }
+        sel.appendChild(o);
+      });
+      if (!month) {
+        const first = opkAn.months.find(function(m){ return m.report; });
+        month = first ? first.month : null;
+      }
+      opkAnRenderMonths();
+      if (month) { opkAnSelectMonth(month); } else {
+        opkAnMonth = null;
+        document.getElementById('opkAnBody').style.display = 'none';
+        opkAnButtons(false);
+      }
+      document.getElementById('opkAnalysisOverlay').classList.add('open');
+    }).catch(function(){ alert('خطا در ارتباط با سرور.'); });
+  }
+  document.getElementById('opkAnYear').addEventListener('change', function(){ openAnalysis(opkAnKpi, this.value, null); });
+
+  function opkAnRenderMonths(){
+    const box = document.getElementById('opkAnMonths');
+    box.innerHTML = '';
+    opkAn.months.forEach(function(m){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'opk-an-mbtn' + (m.report ? ' has' : '') + (m.month === opkAnMonth ? ' sel' : '');
+      b.innerHTML = opkEsc(m.label) + '<small>' + (m.report ? ('✔ ' + opkFa(m.report.rows.length) + ' ردیف') : 'بدون گزارش') + '</small>';
+      b.onclick = function(){ opkAnSelectMonth(m.month); };
+      box.appendChild(b);
+    });
+  }
+
+  function opkAnButtons(editing){
+    const m = opkAnMonth ? opkAn.months.find(function(x){ return x.month === opkAnMonth; }) : null;
+    document.getElementById('opkAnEditBtn').style.display = (!editing && m && opkAn.can_edit) ? 'inline-block' : 'none';
+    document.getElementById('opkAnEditBtn').textContent = (m && m.report) ? 'ویرایش گزارش' : 'ثبت گزارش';
+    document.getElementById('opkAnSaveBtn').style.display = editing ? 'inline-block' : 'none';
+    document.getElementById('opkAnDelBtn').style.display = (m && m.report && opkAn.can_delete) ? 'inline-block' : 'none';
+  }
+
+  function opkAnSelectMonth(month){
+    opkAnMonth = month;
+    opkAnRenderMonths();
+    const m = opkAn.months.find(function(x){ return x.month === month; });
+    const cm = opkAn.current_month;
+    document.getElementById('opkAnInfo').innerHTML =
+      '<b>' + opkEsc(m.label) + ' ' + opkFa(opkAn.year) + '</b> — ' +
+      (m.target || m.actual ? ('هدف: <b>' + opkFa(opkEsc(m.target || '—')) + '</b> | عملکرد: <b>' + opkFa(opkEsc(m.actual || '—')) + '</b>')
+                            : 'برای این ماه داده‌ی روند ثبت نشده است') +
+      '<br><span style="color:var(--ink-faint);">اطلاعات «ماه جاری» شاخص (جدا از روند) — هدف: ' + opkFa(opkEsc(cm.target || '—')) +
+      ' | عملکرد: ' + opkFa(opkEsc(cm.actual || '—')) + ' | درصد تحقق: ' + opkFa(opkEsc(cm.progress || '—')) + '</span>';
+    document.getElementById('opkAnBody').style.display = 'block';
+    document.getElementById('opkAnEditBox').style.display = 'none';
+    document.getElementById('opkAnErr').textContent = '';
+    const view = document.getElementById('opkAnViewBox');
+    view.style.display = 'block';
+    if (!m.report) {
+      view.innerHTML = '<p style="color:var(--ink-faint);font-size:12px;">برای این ماه گزارشی ثبت نشده است.</p>';
+    } else {
+      let h = '<table class="opk-an-table"><thead><tr><th>شرح دلیل / عارضه</th><th>درصد تأثیر</th><th>برنامه بهبود</th><th>زمان اثرگذاری</th><th>پروژه‌ی مرتبط</th></tr></thead><tbody>';
+      m.report.rows.forEach(function(r){
+        h += '<tr><td>' + opkEsc(r.cause) + '</td><td>' + (r.impact === null ? '—' : opkFa(r.impact) + '٪') + '</td><td>' + opkEsc(r.plan) +
+             '</td><td>' + opkEsc(r.effect_time_label || '—') + '</td><td>' + opkEsc(r.initiative_label || '—') + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      if (m.report.notes) { h += '<div class="opk-an-info" style="margin-top:8px;"><b>توضیحات:</b><br>' + opkEsc(m.report.notes).replace(/\n/g, '<br>') + '</div>'; }
+      view.innerHTML = h;
+    }
+    opkAnButtons(false);
+  }
+
+  function opkAnAddRow(r){
+    r = r || {};
+    const tr = document.createElement('tr');
+    let timeOpts = '<option value="">—</option>';
+    opkAn.effect_times.forEach(function(t){ timeOpts += '<option value="' + t.value + '"' + (r.effect_time === t.value ? ' selected' : '') + '>' + opkEsc(t.label) + '</option>'; });
+    tr.innerHTML = '<td><textarea rows="2" class="an-cause"></textarea></td><td><input type="text" class="an-impact" inputmode="decimal"></td>' +
+      '<td><textarea rows="2" class="an-plan"></textarea></td><td><select class="an-time">' + timeOpts + '</select></td>' +
+      '<td><div class="opk-an-pick"><div class="an-chip"></div><input type="text" class="an-ini-search" placeholder="جستجوی پروژه با کد یا عنوان..." autocomplete="off"><div class="opk-an-list"></div></div></td>' +
+      '<td><button type="button" class="opk-actbtn" title="حذف ردیف"><i class="fa-solid fa-xmark"></i></button></td>';
+    tr.querySelector('.an-cause').value = r.cause || '';
+    tr.querySelector('.an-plan').value = r.plan || '';
+    tr.querySelector('.an-impact').value = (r.impact === null || r.impact === undefined) ? '' : r.impact;
+    tr.querySelector('.an-impact').addEventListener('input', opkAnCheckSum);
+    tr.querySelector('td:last-child button').onclick = function(){ tr.remove(); opkAnCheckSum(); };
+    opkAnInitPicker(tr, r.initiative_id, r.initiative_label);
+    document.getElementById('opkAnRows').appendChild(tr);
+  }
+
+  function opkAnNorm(t){
+    return String(t || '').replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase();
+  }
+
+  // انتخاب‌گر پروژه با جستجوی زنده (هم‌سبک بقیه‌ی انتخاب‌گرهای سیستم)
+  function opkAnInitPicker(tr, selId, selLabel){
+    const chipBox = tr.querySelector('.an-chip');
+    const input = tr.querySelector('.an-ini-search');
+    const list = tr.querySelector('.opk-an-list');
+    tr.dataset.ini = selId || '';
+    function showChip(label){
+      chipBox.innerHTML = '';
+      if (!tr.dataset.ini) { input.style.display = ''; return; }
+      const chip = document.createElement('span');
+      chip.className = 'picker-chip';
+      const sp = document.createElement('span'); sp.textContent = label;
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'حذف لینک پروژه';
+      x.onclick = function(){ tr.dataset.ini = ''; showChip(''); };
+      chip.appendChild(sp); chip.appendChild(x); chipBox.appendChild(chip);
+      input.style.display = 'none';
+    }
+    function render(){
+      const q = opkAnNorm(input.value).trim();
+      list.innerHTML = '';
+      let shown = 0;
+      [['پروژه‌های مرتبط با این شاخص', opkAn.initiatives_linked], ['سایر پروژه‌ها', opkAn.initiatives_other]].forEach(function(g){
+        const items = g[1].filter(function(i){ return !q || opkAnNorm(i.label).indexOf(q) !== -1; }).slice(0, 60);
+        if (!items.length) { return; }
+        const h = document.createElement('div'); h.className = 'grp'; h.textContent = g[0]; list.appendChild(h);
+        items.forEach(function(i){
+          const d = document.createElement('div'); d.textContent = i.label;
+          d.onmousedown = function(e){ e.preventDefault(); tr.dataset.ini = i.id; showChip(i.label); list.classList.remove('open'); input.value = ''; };
+          list.appendChild(d); shown++;
+        });
+      });
+      if (!shown) { const n = document.createElement('div'); n.className = 'none'; n.textContent = 'موردی پیدا نشد'; list.appendChild(n); }
+      list.classList.add('open');
+    }
+    input.addEventListener('input', render);
+    input.addEventListener('focus', render);
+    input.addEventListener('blur', function(){ list.classList.remove('open'); });
+    showChip(selLabel || '');
+  }
+
+  function opkAnCheckSum(){
+    let sum = 0, any = false;
+    document.querySelectorAll('#opkAnRows .an-impact').forEach(function(i){
+      const v = parseFloat(String(i.value).replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }).replace('٪', '').replace('%', ''));
+      if (!isNaN(v)) { sum += v; any = true; }
+    });
+    const w = document.getElementById('opkAnWarn');
+    if (any && Math.abs(sum - 100) > 0.05) {
+      w.textContent = 'توجه: مجموع درصد تأثیرگذاری برابر ' + opkFa(Math.round(sum * 10) / 10) + '٪ است و ۱۰۰٪ نیست (فقط هشدار؛ ذخیره‌سازی ممکن است).';
+      w.style.display = 'block';
+    } else { w.style.display = 'none'; }
+  }
+
+  function opkAnStartEdit(){
+    const m = opkAn.months.find(function(x){ return x.month === opkAnMonth; });
+    document.getElementById('opkAnRows').innerHTML = '';
+    if (m.report && m.report.rows.length) { m.report.rows.forEach(opkAnAddRow); } else { opkAnAddRow(); }
+    document.getElementById('opkAnNotes').value = (m.report && m.report.notes) || '';
+    document.getElementById('opkAnViewBox').style.display = 'none';
+    document.getElementById('opkAnEditBox').style.display = 'block';
+    opkAnButtons(true);
+    opkAnCheckSum();
+  }
+
+  function opkAnSave(){
+    const rows = [];
+    document.querySelectorAll('#opkAnRows tr').forEach(function(tr){
+      rows.push({
+        cause: tr.querySelector('.an-cause').value,
+        impact: tr.querySelector('.an-impact').value.replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }),
+        plan: tr.querySelector('.an-plan').value,
+        effect_time: tr.querySelector('.an-time').value,
+        initiative_id: tr.dataset.ini || '',
+      });
+    });
+    fetch(OPK_AN_SAVE_URL.replace('999999', opkAnKpi), {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': opkGetCsrfToken()},
+      body: JSON.stringify({year: opkAn.year, month: opkAnMonth, rows: rows, notes: document.getElementById('opkAnNotes').value}),
+    }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }); }).then(function(res){
+      if (!res.ok) { document.getElementById('opkAnErr').textContent = res.d.error || 'خطا در ذخیره.'; return; }
+      window.location.reload();
+    }).catch(function(){ document.getElementById('opkAnErr').textContent = 'خطا در ارتباط با سرور.'; });
+  }
+
+  function opkAnDelete(){
+    if (!confirm('گزارش تحلیل این ماه حذف شود؟')) { return; }
+    const fd = new FormData();
+    fd.append('year', opkAn.year); fd.append('month', opkAnMonth);
+    fd.append('csrfmiddlewaretoken', opkGetCsrfToken());
+    fetch(OPK_AN_DEL_URL.replace('999999', opkAnKpi), {method: 'POST', credentials: 'same-origin', body: fd})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok) { window.location.reload(); } else { alert(d.error || 'خطا در حذف.'); }
+      });
   }
 </script>
 <script>

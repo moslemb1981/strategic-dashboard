@@ -1,0 +1,54 @@
+{% extends "strategic/base.html" %}
+{% block title %}پیش‌نمایش ورود تحلیل ماهانه{% endblock %}
+{% block crumb %}بانک شاخص‌های عملیاتی{% endblock %}
+{% block extra_css %}
+<style>
+  .kp-title{font-size:18px;font-weight:900;margin-bottom:2px;}
+  .kp-sub{font-size:11.5px;color:var(--ink-faint);margin-bottom:16px;}
+  .kp-summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .kp-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:12px;min-width:120px;}
+  .kp-stat b{display:block;font-size:18px;margin-bottom:2px;}
+  .kp-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:18px;}
+  table.kp-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .kp-table th{background:var(--bg);text-align:right;padding:7px 10px;font-size:10.5px;color:var(--ink-soft);border-bottom:1px solid var(--border);}
+  .kp-table td{padding:6px 10px;border-bottom:1px solid var(--border);}
+  .kp-err{color:#B0413E;}
+  .kp-actions{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+</style>
+{% endblock %}
+{% block content %}
+<div class="kp-title">پیش‌نمایش ورود گزارش‌های تحلیل ماهانه</div>
+<div class="kp-sub">فایل: {{ original_filename }} — هنوز هیچ تغییری اعمال نشده؛ فقط بعد از تأیید نهایی ذخیره می‌شود.</div>
+<div class="kp-summary">
+  <div class="kp-stat"><b>{{ new_count }}</b>گزارش جدید</div>
+  <div class="kp-stat"><b>{{ replace_count }}</b>گزارش جایگزین‌شونده</div>
+  <div class="kp-stat"><b>{{ total_rows }}</b>ردیف دلیل/برنامه</div>
+  {% if errors %}<div class="kp-stat kp-err"><b>{{ errors|length }}</b>ردیف خطادار (نادیده گرفته می‌شود)</div>{% endif %}
+</div>
+<div class="kp-wrap">
+<table class="kp-table">
+  <thead><tr><th>کد شاخص</th><th>عنوان</th><th>سال</th><th>ماه</th><th>ردیف‌های فایل</th><th>وضعیت</th></tr></thead>
+  <tbody>
+  {% for i in items %}
+    <tr><td>{{ i.code }}</td><td>{{ i.title }}</td><td>{{ i.year }}</td><td>{{ i.month_label }}</td><td>{{ i.rows }}{% if i.notes %} + توضیحات{% endif %}</td>
+      <td>{% if i.is_new %}جدید{% else %}جایگزین گزارش فعلی ({{ i.old_rows }} ردیف قبلی){% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if errors %}
+<h4 class="kp-err">ردیف‌های خطادار</h4>
+<div class="kp-wrap"><table class="kp-table"><thead><tr><th>ردیف اکسل</th><th>خطا</th></tr></thead><tbody>
+{% for rn, msg in errors %}<tr><td>{{ rn }}</td><td class="kp-err">{{ msg }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+<div class="kp-actions">
+  <form method="post" action="{% url 'strategic:operational_kpi_analysis_import_apply' %}">{% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit" class="btn accent">تأیید و ذخیره</button>
+  </form>
+  <form method="post" action="{% url 'strategic:operational_kpi_analysis_import_cancel' %}">{% csrf_token %}
+    <button type="submit" class="btn ghost">انصراف</button>
+  </form>
+</div>
+{% endblock %}

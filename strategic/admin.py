@@ -5,6 +5,7 @@ from .models import (
     OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
     OperationalKPI, OperationalKPITrendPoint,
     OrgUnit, FunctionalStrategy, Management, OKRObjective, OKRKeyResult,
+    KPIAnalysisReport, KPIAnalysisRow,
 )
 
 
@@ -263,3 +264,19 @@ class OperationalKPITrendPointAdmin(admin.ModelAdmin):
     search_fields = ("kpi__code", "kpi__title")
     autocomplete_fields = ("kpi",)
     ordering = ("kpi", "-year", "month")
+
+
+class KPIAnalysisRowInline(admin.TabularInline):
+    model = KPIAnalysisRow
+    extra = 0
+    fields = ("order", "cause", "impact_percent", "improvement_plan", "effect_time", "initiative")
+
+
+@admin.register(KPIAnalysisReport)
+class KPIAnalysisReportAdmin(admin.ModelAdmin):
+    list_display = ("kpi", "year", "month", "updated_at")
+    list_filter = ("year", "month")
+    search_fields = ("kpi__code", "kpi__title", "notes")
+    autocomplete_fields = ()
+    raw_id_fields = ("kpi",)
+    inlines = [KPIAnalysisRowInline]
