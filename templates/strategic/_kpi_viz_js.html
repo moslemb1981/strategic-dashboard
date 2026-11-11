@@ -1,0 +1,849 @@
+{% load static %}
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script>
+  const OPK_TREND_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_data' 999999 %}";
+  const OPK_TREND_DELETE_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_delete' 999999 %}";
+  const OPK_TREND_MULTI_URL_TEMPLATE = "{% url 'strategic:operational_kpi_trend_multi' 999999 %}";
+  const OPK_YEAR_PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'];
+  const OPK_TREND_MAX_SERIES = 5;
+
+  let opkTrendChartInstance = null;
+  let opkTrendCurrentKpiId = null;
+  let opkTrendCurrentYear = null;
+  let opkTrendMode = 'single';
+  let opkTrendSingleData = null;
+  let opkTrendMultiLoaded = false;
+  let opkTrendMultiData = null;
+  let opkTrendMultiColors = {};
+
+  function opkTrendUrl(kpiId, year){
+    let url = OPK_TREND_URL_TEMPLATE.replace('999999', kpiId);
+    if (year) { url += '?year=' + encodeURIComponent(year); }
+    return url;
+  }
+
+  function opkGetCsrfToken(){
+    const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : '';
+  }
+
+  function openTrendChart(kpiId, year){
+    if (kpiId !== opkTrendCurrentKpiId) {
+      opkTrendMultiLoaded = false;
+      opkTrendMultiData = null;
+    }
+    opkTrendCurrentKpiId = kpiId;
+    opkTrendMode = 'single';
+    document.getElementById('opkTrendModeSingleBtn').className = 'btn accent';
+    document.getElementById('opkTrendModeMultiBtn').className = 'btn ghost';
+    document.getElementById('opkTrendSingleBlock').style.display = 'block';
+    document.getElementById('opkTrendMultiBlock').style.display = 'none';
+    document.getElementById('opkTrendOverlay').classList.add('open');
+    document.getElementById('opkTrendTitle').textContent = 'در حال بارگذاری نمودار...';
+    document.getElementById('opkTrendYearRow').style.display = 'none';
+    document.getElementById('opkTrendEmpty').style.display = 'none';
+    document.getElementById('opkTrendChartWrap').style.display = 'none';
+    document.getElementById('opkTrendManage').style.display = 'none';
+
+    fetch(opkTrendUrl(kpiId, year))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        if (!res.ok || data.error) {
+          document.getElementById('opkTrendTitle').textContent = 'نمودار روند شاخص';
+          document.getElementById('opkTrendEmpty').textContent = data.error || 'خطا در دریافت داده‌ی نمودار.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+        document.getElementById('opkTrendTitle').textContent = 'نمودار روند — ' + data.kpi_code + ' — ' + data.kpi_title;
+
+        opkTrendSingleData = data;
+        if (!data.years || data.years.length === 0) {
+          document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است (از طریق شیت «اطلاعات روند شاخص‌ها» در فایل اکسل وارد کنید).';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        const yearSelect = document.getElementById('opkTrendYearSelect');
+        yearSelect.innerHTML = '';
+        data.years.forEach(function(y){
+          const opt = document.createElement('option');
+          opt.value = y; opt.textContent = 'سال ' + y;
+          if (y === data.selected_year) { opt.selected = true; }
+          yearSelect.appendChild(opt);
+        });
+        document.getElementById('opkTrendYearRow').style.display = data.years.length > 1 ? 'flex' : 'none';
+
+        opkTrendCurrentYear = data.selected_year;
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderTrendChart(data);
+        renderTrendManageTable(data);
+      })
+      .catch(function(){
+        document.getElementById('opkTrendTitle').textContent = 'نمودار روند شاخص';
+        document.getElementById('opkTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      });
+  }
+
+  const OPK_FLAG_COLOR = '#B0413E';
+  const OPK_FLAG_BAND_COLOR = 'rgba(176,65,62,0.08)';
+
+  function renderTrendChart(data){
+    const canvas = document.getElementById('opkTrendCanvas');
+    if (opkTrendChartInstance) { opkTrendChartInstance.destroy(); }
+    const unitLabel = data.unit ? ' (' + data.unit + ')' : '';
+    const projectStarts = data.project_starts || [];
+    const hasProjectMarkers = projectStarts.some(function(list){ return list && list.length > 0; });
+    const analysisList = data.analysis || [];
+    const monthNumbers = data.month_numbers || [];
+
+    // نشانه‌ی گزارش تحلیل: لوزی زرد-نارنجی با علامت «T» پایین محور هر ماه که گزارش دارد
+    const analysisMarkerPlugin = {
+      id: 'opkAnalysisMarkers',
+      afterDatasetsDraw: function(chart){
+        const { ctx, chartArea, scales } = chart;
+        ctx.save();
+        analysisList.forEach(function(an, i){
+          if (!an) { return; }
+          const x = scales.x.getPixelForValue(i);
+          const y = chartArea.bottom - 12;
+          ctx.beginPath();
+          ctx.fillStyle = '#7A5B12';
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.moveTo(x, y - 9); ctx.lineTo(x + 9, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 9, y);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('ت', x, y + 0.5);
+        });
+        ctx.restore();
+      },
+    };
+
+    // این پلاگین محلی (فقط برای همین نمودار) بالای هر ماهی که پروژه/اقدامی
+    // شروع شده، یک پرچم توپر رنگی می‌کشه به‌همراه یک باند کم‌رنگ پس‌زمینه
+    // و یک خط نقطه‌چین که پرچم رو به نقطه‌ی «عملکرد» همون ماه وصل می‌کنه —
+    // طوری که بدون نیاز به هاور هم، همون نگاه اول کاملاً جلب توجه کنه.
+    const projectFlagPlugin = {
+      id: 'opkProjectFlags',
+      afterDatasetsDraw: function(chart){
+        if (!hasProjectMarkers) { return; }
+        const { ctx, chartArea, scales } = chart;
+        const xScale = scales.x;
+        const actualMeta = chart.getDatasetMeta(1);
+        ctx.save();
+
+        projectStarts.forEach(function(list, i){
+          if (!list || !list.length) { return; }
+          const x = xScale.getPixelForValue(i);
+
+          // باند کم‌رنگ پس‌زمینه‌ی همون ستون ماه
+          const bandHalfWidth = Math.min(22, (xScale.width / Math.max(projectStarts.length, 1)) / 2);
+          ctx.fillStyle = OPK_FLAG_BAND_COLOR;
+          ctx.fillRect(x - bandHalfWidth, chartArea.top, bandHalfWidth * 2, chartArea.bottom - chartArea.top);
+
+          const poleTop = chartArea.top + 6;
+          const poleBottom = chartArea.top + 30;
+          const pointEl = actualMeta.data[i];
+          const pointY = pointEl ? pointEl.y : chartArea.bottom;
+
+          // خط نقطه‌چین اتصال پرچم به نقطه‌ی عملکرد
+          ctx.beginPath();
+          ctx.setLineDash([3, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleBottom);
+          ctx.lineTo(x, pointY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // میله‌ی پرچم
+          ctx.beginPath();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x, poleBottom);
+          ctx.stroke();
+
+          // پارچه‌ی پرچم (مثلث توپر)
+          ctx.beginPath();
+          ctx.fillStyle = OPK_FLAG_COLOR;
+          ctx.moveTo(x, poleTop);
+          ctx.lineTo(x + 15, poleTop + 5.5);
+          ctx.lineTo(x, poleTop + 11);
+          ctx.closePath();
+          ctx.fill();
+
+          // دایره‌ی تکیه‌گاه پایین میله
+          ctx.beginPath();
+          ctx.fillStyle = OPK_FLAG_COLOR;
+          ctx.arc(x, poleBottom, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.restore();
+      },
+    };
+
+    opkTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: data.months,
+        datasets: [
+          {
+            label: 'هدف' + unitLabel,
+            data: data.target,
+            borderColor: '#2E5C8A',
+            backgroundColor: '#2E5C8A',
+            borderDash: [6, 4],
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#2E5C8A',
+          },
+          {
+            label: 'عملکرد' + unitLabel,
+            data: data.actual,
+            borderColor: '#C97A2B',
+            backgroundColor: 'rgba(201,122,43,0.10)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            spanGaps: false,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#C97A2B',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: function(evt, elements, chart){
+          const pts = chart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
+          if (!pts || !pts.length) { return; }
+          const idx = pts[0].index;
+          if (analysisList[idx] && monthNumbers[idx]) {
+            openAnalysis(opkTrendCurrentKpiId, data.selected_year, monthNumbers[idx]);
+          }
+        },
+        layout: { padding: { top: hasProjectMarkers ? 26 : 4 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true } },
+          tooltip: {
+            rtl: true,
+            titleAlign: 'right',
+            bodyAlign: 'right',
+            callbacks: {
+              afterBody: function(items){
+                if (!items || !items.length) { return []; }
+                const idx = items[0].dataIndex;
+                const list = projectStarts[idx];
+                const lines = [];
+                if (list && list.length) {
+                  lines.push('', '🚩 شروع پروژه/اقدام در این ماه:');
+                  list.forEach(function(p){
+                    lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title);
+                  });
+                }
+                const an = analysisList[idx];
+                if (an) {
+                  lines.push('', '📋 تحلیل عملکرد این ماه (برای جزئیات کلیک کنید):');
+                  an.rows.forEach(function(r){
+                    const imp = (r.impact !== null && r.impact !== undefined) ? (' [' + r.impact + '٪]') : '';
+                    if (r.cause) { lines.push('• علت: ' + r.cause + imp); }
+                    if (r.plan) { lines.push('   ↳ برنامه: ' + r.plan + (r.effect ? (' (' + r.effect + ')') : '')); }
+                  });
+                }
+                return lines;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' } },
+        },
+      },
+      plugins: [projectFlagPlugin, analysisMarkerPlugin],
+    });
+
+    const noteEl = document.getElementById('opkTrendProjectNote');
+    if (noteEl) {
+      noteEl.style.display = hasProjectMarkers ? 'block' : 'none';
+    }
+  }
+
+  document.getElementById('opkTrendYearSelect').addEventListener('change', function(){
+    if (opkTrendCurrentKpiId) { openTrendChart(opkTrendCurrentKpiId, this.value); }
+  });
+
+  document.getElementById('opkTrendModeSingleBtn').addEventListener('click', function(){
+    opkSwitchTrendMode('single');
+  });
+  document.getElementById('opkTrendModeMultiBtn').addEventListener('click', function(){
+    opkSwitchTrendMode('multi');
+  });
+
+  function opkSwitchTrendMode(mode){
+    if (!opkTrendCurrentKpiId) { return; }
+    opkTrendMode = mode;
+    document.getElementById('opkTrendModeSingleBtn').className = mode === 'single' ? 'btn accent' : 'btn ghost';
+    document.getElementById('opkTrendModeMultiBtn').className = mode === 'multi' ? 'btn accent' : 'btn ghost';
+    document.getElementById('opkTrendSingleBlock').style.display = mode === 'single' ? 'block' : 'none';
+    document.getElementById('opkTrendMultiBlock').style.display = mode === 'multi' ? 'block' : 'none';
+
+    if (mode === 'single') {
+      document.getElementById('opkTrendManage').style.display = (opkTrendSingleData && opkTrendSingleData.can_manage) ? 'block' : 'none';
+      if (opkTrendSingleData && opkTrendSingleData.years && opkTrendSingleData.years.length) {
+        document.getElementById('opkTrendEmpty').style.display = 'none';
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderTrendChart(opkTrendSingleData);
+        renderTrendManageTable(opkTrendSingleData);
+      } else {
+        document.getElementById('opkTrendChartWrap').style.display = 'none';
+        document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است (از طریق شیت «اطلاعات روند شاخص‌ها» در فایل اکسل وارد کنید).';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      }
+    } else {
+      document.getElementById('opkTrendManage').style.display = 'none';
+      document.getElementById('opkTrendProjectNote').style.display = 'none';
+      if (opkTrendMultiLoaded) {
+        renderMultiChart();
+      } else {
+        loadMultiTrendData(opkTrendCurrentKpiId);
+      }
+    }
+  }
+
+  function loadMultiTrendData(kpiId){
+    document.getElementById('opkTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">در حال بارگذاری...</span>';
+    document.getElementById('opkTrendMultiActualChecks').innerHTML = '';
+    document.getElementById('opkTrendMultiWarning').style.display = 'none';
+
+    fetch(OPK_TREND_MULTI_URL_TEMPLATE.replace('999999', kpiId))
+      .then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); })
+      .then(function(res){
+        const data = res.data;
+        if (!res.ok || data.error) {
+          document.getElementById('opkTrendMultiTargetChecks').innerHTML = '';
+          document.getElementById('opkTrendChartWrap').style.display = 'none';
+          document.getElementById('opkTrendEmpty').textContent = data.error || 'خطا در دریافت داده.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        opkTrendMultiData = data;
+        opkTrendMultiLoaded = true;
+        opkTrendMultiColors = {};
+        data.years.forEach(function(y, idx){ opkTrendMultiColors[y] = OPK_YEAR_PALETTE[idx % OPK_YEAR_PALETTE.length]; });
+
+        if (!data.years || data.years.length === 0) {
+          document.getElementById('opkTrendMultiTargetChecks').innerHTML = '<span style="font-size:11px;color:var(--ink-faint);">داده‌ای ثبت نشده است.</span>';
+          document.getElementById('opkTrendMultiActualChecks').innerHTML = '';
+          document.getElementById('opkTrendChartWrap').style.display = 'none';
+          document.getElementById('opkTrendEmpty').textContent = 'هنوز داده‌ی روندی برای این شاخص ثبت نشده است.';
+          document.getElementById('opkTrendEmpty').style.display = 'block';
+          return;
+        }
+
+        const descYears = data.years.slice().reverse();
+        const defaultTargetYears = descYears.length ? [descYears[0]] : [];
+        const defaultActualYears = descYears.slice(0, Math.min(3, descYears.length));
+
+        const targetBox = document.getElementById('opkTrendMultiTargetChecks');
+        const actualBox = document.getElementById('opkTrendMultiActualChecks');
+        targetBox.innerHTML = '';
+        actualBox.innerHTML = '';
+
+        descYears.forEach(function(y){
+          const color = opkTrendMultiColors[y];
+
+          const targetLabel = document.createElement('label');
+          targetLabel.className = 'opk-trend-multi-check';
+          const targetCb = document.createElement('input');
+          targetCb.type = 'checkbox'; targetCb.dataset.role = 'target'; targetCb.dataset.year = y;
+          targetCb.checked = defaultTargetYears.indexOf(y) > -1;
+          const targetSwatch = document.createElement('span');
+          targetSwatch.className = 'opk-trend-swatch'; targetSwatch.style.background = color;
+          targetLabel.appendChild(targetCb);
+          targetLabel.appendChild(targetSwatch);
+          targetLabel.appendChild(document.createTextNode('سال ' + y));
+          targetBox.appendChild(targetLabel);
+
+          const actualLabel = document.createElement('label');
+          actualLabel.className = 'opk-trend-multi-check';
+          const actualCb = document.createElement('input');
+          actualCb.type = 'checkbox'; actualCb.dataset.role = 'actual'; actualCb.dataset.year = y;
+          actualCb.checked = defaultActualYears.indexOf(y) > -1;
+          const actualSwatch = document.createElement('span');
+          actualSwatch.className = 'opk-trend-swatch'; actualSwatch.style.background = color;
+          actualLabel.appendChild(actualCb);
+          actualLabel.appendChild(actualSwatch);
+          actualLabel.appendChild(document.createTextNode('سال ' + y));
+          actualBox.appendChild(actualLabel);
+        });
+
+        targetBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', opkOnMultiCheckChange); });
+        actualBox.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.addEventListener('change', opkOnMultiCheckChange); });
+
+        document.getElementById('opkTrendEmpty').style.display = 'none';
+        document.getElementById('opkTrendChartWrap').style.display = 'block';
+        renderMultiChart();
+      })
+      .catch(function(){
+        document.getElementById('opkTrendChartWrap').style.display = 'none';
+        document.getElementById('opkTrendEmpty').textContent = 'خطا در ارتباط با سرور.';
+        document.getElementById('opkTrendEmpty').style.display = 'block';
+      });
+  }
+
+  function opkOnMultiCheckChange(e){
+    const totalChecked = document.querySelectorAll('#opkTrendMultiBlock input[type=checkbox]:checked').length;
+    if (totalChecked > OPK_TREND_MAX_SERIES) {
+      e.target.checked = false;
+      document.getElementById('opkTrendMultiWarning').textContent = 'برای خوانا ماندن نمودار، حداکثر ' + OPK_TREND_MAX_SERIES + ' سری هم‌زمان قابل انتخاب است. یکی را بردارید تا بتوانید مورد دیگری اضافه کنید.';
+      document.getElementById('opkTrendMultiWarning').style.display = 'block';
+      return;
+    }
+    document.getElementById('opkTrendMultiWarning').style.display = 'none';
+    renderMultiChart();
+  }
+
+  function renderMultiChart(){
+    if (!opkTrendMultiData) { return; }
+    const data = opkTrendMultiData;
+    const canvas = document.getElementById('opkTrendCanvas');
+    if (opkTrendChartInstance) { opkTrendChartInstance.destroy(); }
+    const unitLabel = data.unit ? ' (' + data.unit + ')' : '';
+
+    const targetYears = Array.prototype.slice.call(document.querySelectorAll('#opkTrendMultiTargetChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+    const actualYears = Array.prototype.slice.call(document.querySelectorAll('#opkTrendMultiActualChecks input:checked')).map(function(cb){ return cb.dataset.year; });
+
+    const datasets = [];
+    targetYears.forEach(function(y){
+      const color = opkTrendMultiColors[y];
+      datasets.push({
+        type: 'line',
+        label: 'هدف ' + y + unitLabel,
+        data: data.series[y].target,
+        borderColor: color,
+        backgroundColor: color,
+        borderDash: [6, 4],
+        borderWidth: 2.5,
+        tension: 0.3,
+        spanGaps: false,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: color,
+        order: 1,
+      });
+    });
+    actualYears.forEach(function(y){
+      const color = opkTrendMultiColors[y];
+      datasets.push({
+        type: 'bar',
+        label: 'عملکرد ' + y + unitLabel,
+        data: data.series[y].actual,
+        backgroundColor: color + 'AA',
+        borderColor: color,
+        borderWidth: 1,
+        order: 2,
+      });
+    });
+
+    opkTrendChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels: data.months, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', rtl: true, labels: { usePointStyle: true } },
+          tooltip: { rtl: true, titleAlign: 'right', bodyAlign: 'right' },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { beginAtZero: true, grid: { color: '#eef0f3' } },
+        },
+      },
+    });
+  }
+
+  function renderTrendManageTable(data){
+    const manageBox = document.getElementById('opkTrendManage');
+    const wrap = document.getElementById('opkTrendManageWrap');
+
+    if (!data.can_manage) {
+      manageBox.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+
+    // فقط ماه‌هایی که حداقل یکی از هدف/عملکرد رو دارن؛ ترتیب طبیعی
+    // (فروردین تا اسفند) نگه داشته می‌شه — چون جدول با dir="ltr" ساخته
+    // می‌شه، همین ترتیب طبیعی باعث می‌شه فروردین بلافاصله بعد از ستون
+    // «ماه» (که خودش سمت چپ جدول قرار می‌گیره) بیاد و اسفند آخرین
+    // ستون (سمت راست) باشه — دقیقاً هم‌جهت با محور نمودار بالای جدول.
+    const cols = [];
+    for (let i = 0; i < data.months.length; i++) {
+      const target = data.target[i];
+      const actual = data.actual[i];
+      if (target === null && actual === null) { continue; }
+      cols.push({
+        month: data.months[i],
+        target: (target === null || target === undefined) ? '—' : target,
+        actual: (actual === null || actual === undefined) ? '—' : actual,
+      });
+    }
+
+    if (cols.length === 0) {
+      wrap.innerHTML = '';
+      manageBox.style.display = 'none';
+      return;
+    }
+
+    // کل جدول از صفر ساخته می‌شه (نه اینکه ردیف‌های از قبل موجود توی
+    // صفحه پر بشن) تا مرورگر همیشه یک جدول کامل و یک‌پارچه رو رندر کنه؛
+    // این باعث می‌شه اون باگ نادر نمایشیِ قبلی (که با تعویض تب رفع
+    // می‌شد) دیگه اصلاً پیش نیاد.
+    const table = document.createElement('table');
+    table.className = 'opk-trend-manage-table opk-trend-manage-table-transposed';
+    table.dir = 'ltr';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    const thCorner = document.createElement('th');
+    thCorner.textContent = 'ماه';
+    headRow.appendChild(thCorner);
+    cols.forEach(function(c){
+      const th = document.createElement('th');
+      th.textContent = c.month;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement('tbody');
+
+    const targetRow = document.createElement('tr');
+    const tdTargetLabel = document.createElement('td');
+    tdTargetLabel.textContent = 'هدف';
+    targetRow.appendChild(tdTargetLabel);
+    cols.forEach(function(c){
+      const td = document.createElement('td');
+      td.textContent = c.target;
+      targetRow.appendChild(td);
+    });
+
+    const actualRow = document.createElement('tr');
+    const tdActualLabel = document.createElement('td');
+    tdActualLabel.textContent = 'عملکرد';
+    actualRow.appendChild(tdActualLabel);
+    cols.forEach(function(c){
+      const td = document.createElement('td');
+      td.textContent = c.actual;
+      actualRow.appendChild(td);
+    });
+
+    tbody.appendChild(targetRow);
+    tbody.appendChild(actualRow);
+    table.appendChild(thead);
+    table.appendChild(tbody);
+
+    wrap.innerHTML = '';
+    wrap.appendChild(table);
+    manageBox.style.display = 'block';
+  }
+</script>
+
+<script>
+  const OPK_AN_URL = "{% url 'strategic:operational_kpi_analysis_data' 999999 %}";
+  const OPK_AN_SAVE_URL = "{% url 'strategic:operational_kpi_analysis_save' 999999 %}";
+  const OPK_AN_DEL_URL = "{% url 'strategic:operational_kpi_analysis_delete' 999999 %}";
+  let opkAn = null, opkAnKpi = null, opkAnMonth = null;
+  const OPK_FA = '۰۱۲۳۴۵۶۷۸۹';
+  function opkFa(v){ return String(v).replace(/\d/g, function(d){ return OPK_FA[d]; }); }
+  function opkEsc(t){ const d = document.createElement('div'); d.textContent = (t === null || t === undefined) ? '' : t; return d.innerHTML; }
+
+  function openAnalysis(kpiId, year, month){
+    if (opkAnKpi !== kpiId) { opkAnSumOpen = null; }
+    opkAnKpi = kpiId;
+    let url = OPK_AN_URL.replace('999999', kpiId);
+    if (year) { url += '?year=' + encodeURIComponent(year); }
+    fetch(url, {credentials: 'same-origin'}).then(function(r){
+      return r.json().then(function(d){ return {ok: r.ok, d: d}; });
+    }).then(function(res){
+      if (!res.ok) { alert(res.d.error || 'خطا در دریافت اطلاعات.'); return; }
+      opkAn = res.d;
+      document.getElementById('opkAnTitle').textContent = 'تحلیل عملکرد ماهانه — ' + opkAn.kpi_code + ' — ' + opkAn.kpi_title;
+      const sel = document.getElementById('opkAnYear');
+      sel.innerHTML = '';
+      opkAn.years.forEach(function(y){
+        const o = document.createElement('option'); o.value = y; o.textContent = opkFa(y);
+        if (y === opkAn.year) { o.selected = true; }
+        sel.appendChild(o);
+      });
+      if (!month) {
+        const first = opkAn.months.find(function(m){ return m.report; });
+        month = first ? first.month : null;
+      }
+      opkAnRenderMonths();
+      if (month) { opkAnSelectMonth(month); } else {
+        opkAnMonth = null;
+        document.getElementById('opkAnBody').style.display = 'none';
+        opkAnButtons(false);
+      }
+      document.getElementById('opkAnalysisOverlay').classList.add('open');
+    }).catch(function(){ alert('خطا در ارتباط با سرور.'); });
+  }
+  document.getElementById('opkAnYear').addEventListener('change', function(){ openAnalysis(opkAnKpi, this.value, null); });
+
+  let opkAnSumOpen = null;
+  function opkAnRenderSummary(){
+    const box = document.getElementById('opkAnSum'), det = document.getElementById('opkAnSumDet');
+    let nMonths = 0, nCause = 0, nPlan = 0;
+    const projs = {};
+    opkAn.months.forEach(function(m){
+      if (!m.report) { return; }
+      nMonths++;
+      m.report.rows.forEach(function(r){
+        if ((r.cause || '').trim()) { nCause++; }
+        if ((r.plan || '').trim()) { nPlan++; }
+        if (r.initiative_id) { projs[r.initiative_id] = r.initiative_label; }
+      });
+    });
+    const nProj = Object.keys(projs).length;
+    det.style.display = 'none';
+    if (!nMonths) { box.style.display = 'none'; opkAnSumOpen = null; return; }
+    box.style.display = 'grid';
+    const items = [
+      ['months', nMonths + ' از ۱۲', 'ماه دارای گزارش', false],
+      ['cause', nCause, 'دلیل / عارضه', true],
+      ['plan', nPlan, 'برنامه بهبود', true],
+      ['proj', nProj, 'پروژه‌ی مرتبط', true]
+    ];
+    box.innerHTML = '';
+    items.forEach(function(it){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = it[3] ? '' : 'static';
+      b.id = 'opkAnSum_' + it[0];
+      b.innerHTML = '<b>' + opkFa(it[1]) + '</b><span>' + it[2] + '</span>';
+      if (it[3]) { b.onclick = function(){ opkAnToggleSum(it[0]); }; }
+      box.appendChild(b);
+    });
+    if (opkAnSumOpen) { const k = opkAnSumOpen; opkAnSumOpen = null; opkAnToggleSum(k); }
+  }
+  function opkAnToggleSum(kind){
+    const det = document.getElementById('opkAnSumDet');
+    document.querySelectorAll('#opkAnSum button').forEach(function(b){ b.classList.remove('on'); });
+    if (opkAnSumOpen === kind) { opkAnSumOpen = null; det.style.display = 'none'; return; }
+    opkAnSumOpen = kind;
+    document.getElementById('opkAnSum_' + kind).classList.add('on');
+    let h = '';
+    if (kind === 'proj') {
+      const seen = {};
+      opkAn.months.forEach(function(m){
+        if (!m.report) { return; }
+        m.report.rows.forEach(function(r){
+          if (!r.initiative_id) { return; }
+          if (!seen[r.initiative_id]) { seen[r.initiative_id] = {label: r.initiative_label, months: []}; }
+          if (seen[r.initiative_id].months.indexOf(m.label) === -1) { seen[r.initiative_id].months.push(m.label); }
+        });
+      });
+      Object.keys(seen).forEach(function(id){
+        h += '<div>• ' + opkEsc(seen[id].label) + ' <span style="color:var(--ink-faint);">(' + opkEsc(seen[id].months.join('، ')) + ')</span></div>';
+      });
+    } else {
+      opkAn.months.forEach(function(m){
+        if (!m.report) { return; }
+        const lines = m.report.rows.filter(function(r){ return String((kind === 'cause' ? r.cause : r.plan) || '').trim(); });
+        if (!lines.length) { return; }
+        h += '<div class="mh">' + opkEsc(m.label) + '</div>';
+        lines.forEach(function(r){
+          h += '<div>• ' + opkEsc(kind === 'cause' ? r.cause : r.plan) + '</div>';
+        });
+      });
+    }
+    det.innerHTML = h || '<span style="color:var(--ink-faint);">موردی ثبت نشده است.</span>';
+    det.style.display = 'block';
+  }
+
+  function opkAnRenderMonths(){
+    opkAnRenderSummary();
+    const box = document.getElementById('opkAnMonths');
+    box.innerHTML = '';
+    opkAn.months.forEach(function(m){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'opk-an-mbtn' + (m.report ? ' has' : '') + (m.month === opkAnMonth ? ' sel' : '');
+      b.innerHTML = opkEsc(m.label) + '<small>' + (m.report ? ('✔ ' + opkFa(m.report.rows.length) + ' ردیف') : 'بدون گزارش') + '</small>';
+      b.onclick = function(){ opkAnSelectMonth(m.month); };
+      box.appendChild(b);
+    });
+  }
+
+  function opkAnButtons(editing){
+    const m = opkAnMonth ? opkAn.months.find(function(x){ return x.month === opkAnMonth; }) : null;
+    document.getElementById('opkAnEditBtn').style.display = (!editing && m && opkAn.can_edit) ? 'inline-block' : 'none';
+    document.getElementById('opkAnEditBtn').textContent = (m && m.report) ? 'ویرایش گزارش' : 'ثبت گزارش';
+    document.getElementById('opkAnSaveBtn').style.display = editing ? 'inline-block' : 'none';
+    document.getElementById('opkAnDelBtn').style.display = (m && m.report && opkAn.can_delete) ? 'inline-block' : 'none';
+  }
+
+  function opkAnSelectMonth(month){
+    opkAnMonth = month;
+    opkAnRenderMonths();
+    const m = opkAn.months.find(function(x){ return x.month === month; });
+    const cm = opkAn.current_month;
+    document.getElementById('opkAnInfo').innerHTML =
+      '<b>' + opkEsc(m.label) + ' ' + opkFa(opkAn.year) + '</b> — ' +
+      (m.target || m.actual ? ('هدف: <b>' + opkFa(opkEsc(m.target || '—')) + '</b> | عملکرد: <b>' + opkFa(opkEsc(m.actual || '—')) + '</b>')
+                            : 'برای این ماه داده‌ی روند ثبت نشده است') +
+      '<br><span style="color:var(--ink-faint);">اطلاعات «ماه جاری» شاخص (جدا از روند) — هدف: ' + opkFa(opkEsc(cm.target || '—')) +
+      ' | عملکرد: ' + opkFa(opkEsc(cm.actual || '—')) + ' | درصد تحقق: ' + opkFa(opkEsc(cm.progress || '—')) + '</span>';
+    document.getElementById('opkAnBody').style.display = 'block';
+    document.getElementById('opkAnEditBox').style.display = 'none';
+    document.getElementById('opkAnErr').textContent = '';
+    const view = document.getElementById('opkAnViewBox');
+    view.style.display = 'block';
+    if (!m.report) {
+      view.innerHTML = '<p style="color:var(--ink-faint);font-size:12px;">برای این ماه گزارشی ثبت نشده است.</p>';
+    } else {
+      let h = '<table class="opk-an-table"><thead><tr><th>شرح دلیل / عارضه</th><th>درصد تأثیر</th><th>برنامه بهبود</th><th>زمان اثرگذاری</th><th>پروژه‌ی مرتبط</th></tr></thead><tbody>';
+      m.report.rows.forEach(function(r){
+        h += '<tr><td>' + opkEsc(r.cause) + '</td><td>' + (r.impact === null ? '—' : opkFa(r.impact) + '٪') + '</td><td>' + opkEsc(r.plan) +
+             '</td><td>' + opkEsc(r.effect_time_label || '—') + '</td><td>' + opkEsc(r.initiative_label || '—') + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      if (m.report.notes) { h += '<div class="opk-an-info" style="margin-top:8px;"><b>توضیحات:</b><br>' + opkEsc(m.report.notes).replace(/\n/g, '<br>') + '</div>'; }
+      view.innerHTML = h;
+    }
+    opkAnButtons(false);
+  }
+
+  function opkAnAddRow(r){
+    r = r || {};
+    const tr = document.createElement('tr');
+    let timeOpts = '<option value="">—</option>';
+    opkAn.effect_times.forEach(function(t){ timeOpts += '<option value="' + t.value + '"' + (r.effect_time === t.value ? ' selected' : '') + '>' + opkEsc(t.label) + '</option>'; });
+    tr.innerHTML = '<td><textarea rows="2" class="an-cause"></textarea></td><td><input type="text" class="an-impact" inputmode="decimal"></td>' +
+      '<td><textarea rows="2" class="an-plan"></textarea></td><td><select class="an-time">' + timeOpts + '</select></td>' +
+      '<td><div class="opk-an-pick"><div class="an-chip"></div><input type="text" class="an-ini-search" placeholder="جستجوی پروژه با کد یا عنوان..." autocomplete="off"><div class="opk-an-list"></div></div></td>' +
+      '<td><button type="button" class="opk-actbtn" title="حذف ردیف"><i class="fa-solid fa-xmark"></i></button></td>';
+    tr.querySelector('.an-cause').value = r.cause || '';
+    tr.querySelector('.an-plan').value = r.plan || '';
+    tr.querySelector('.an-impact').value = (r.impact === null || r.impact === undefined) ? '' : r.impact;
+    tr.querySelector('.an-impact').addEventListener('input', opkAnCheckSum);
+    tr.querySelector('td:last-child button').onclick = function(){ tr.remove(); opkAnCheckSum(); };
+    opkAnInitPicker(tr, r.initiative_id, r.initiative_label);
+    document.getElementById('opkAnRows').appendChild(tr);
+  }
+
+  function opkAnNorm(t){
+    return String(t || '').replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase();
+  }
+
+  // انتخاب‌گر پروژه با جستجوی زنده (هم‌سبک بقیه‌ی انتخاب‌گرهای سیستم)
+  function opkAnInitPicker(tr, selId, selLabel){
+    const chipBox = tr.querySelector('.an-chip');
+    const input = tr.querySelector('.an-ini-search');
+    const list = tr.querySelector('.opk-an-list');
+    tr.dataset.ini = selId || '';
+    function showChip(label){
+      chipBox.innerHTML = '';
+      if (!tr.dataset.ini) { input.style.display = ''; return; }
+      const chip = document.createElement('span');
+      chip.className = 'picker-chip';
+      const sp = document.createElement('span'); sp.textContent = label;
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'حذف لینک پروژه';
+      x.onclick = function(){ tr.dataset.ini = ''; showChip(''); };
+      chip.appendChild(sp); chip.appendChild(x); chipBox.appendChild(chip);
+      input.style.display = 'none';
+    }
+    function render(){
+      const q = opkAnNorm(input.value).trim();
+      list.innerHTML = '';
+      let shown = 0;
+      [['پروژه‌های مرتبط با این شاخص', opkAn.initiatives_linked], ['سایر پروژه‌ها', opkAn.initiatives_other]].forEach(function(g){
+        const items = g[1].filter(function(i){ return !q || opkAnNorm(i.label).indexOf(q) !== -1; }).slice(0, 60);
+        if (!items.length) { return; }
+        const h = document.createElement('div'); h.className = 'grp'; h.textContent = g[0]; list.appendChild(h);
+        items.forEach(function(i){
+          const d = document.createElement('div'); d.textContent = i.label;
+          d.onmousedown = function(e){ e.preventDefault(); tr.dataset.ini = i.id; showChip(i.label); list.classList.remove('open'); input.value = ''; };
+          list.appendChild(d); shown++;
+        });
+      });
+      if (!shown) { const n = document.createElement('div'); n.className = 'none'; n.textContent = 'موردی پیدا نشد'; list.appendChild(n); }
+      list.classList.add('open');
+    }
+    input.addEventListener('input', render);
+    input.addEventListener('focus', render);
+    input.addEventListener('blur', function(){ list.classList.remove('open'); });
+    showChip(selLabel || '');
+  }
+
+  function opkAnCheckSum(){
+    let sum = 0, any = false;
+    document.querySelectorAll('#opkAnRows .an-impact').forEach(function(i){
+      const v = parseFloat(String(i.value).replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }).replace('٪', '').replace('%', ''));
+      if (!isNaN(v)) { sum += v; any = true; }
+    });
+    const w = document.getElementById('opkAnWarn');
+    if (any && Math.abs(sum - 100) > 0.05) {
+      w.textContent = 'توجه: مجموع درصد تأثیرگذاری برابر ' + opkFa(Math.round(sum * 10) / 10) + '٪ است و ۱۰۰٪ نیست (فقط هشدار؛ ذخیره‌سازی ممکن است).';
+      w.style.display = 'block';
+    } else { w.style.display = 'none'; }
+  }
+
+  function opkAnStartEdit(){
+    const m = opkAn.months.find(function(x){ return x.month === opkAnMonth; });
+    document.getElementById('opkAnRows').innerHTML = '';
+    if (m.report && m.report.rows.length) { m.report.rows.forEach(opkAnAddRow); } else { opkAnAddRow(); }
+    document.getElementById('opkAnNotes').value = (m.report && m.report.notes) || '';
+    document.getElementById('opkAnViewBox').style.display = 'none';
+    document.getElementById('opkAnEditBox').style.display = 'block';
+    opkAnButtons(true);
+    opkAnCheckSum();
+  }
+
+  function opkAnSave(){
+    const rows = [];
+    document.querySelectorAll('#opkAnRows tr').forEach(function(tr){
+      rows.push({
+        cause: tr.querySelector('.an-cause').value,
+        impact: tr.querySelector('.an-impact').value.replace(/[۰-۹]/g, function(d){ return OPK_FA.indexOf(d); }),
+        plan: tr.querySelector('.an-plan').value,
+        effect_time: tr.querySelector('.an-time').value,
+        initiative_id: tr.dataset.ini || '',
+      });
+    });
+    fetch(OPK_AN_SAVE_URL.replace('999999', opkAnKpi), {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': opkGetCsrfToken()},
+      body: JSON.stringify({year: opkAn.year, month: opkAnMonth, rows: rows, notes: document.getElementById('opkAnNotes').value}),
+    }).then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }); }).then(function(res){
+      if (!res.ok) { document.getElementById('opkAnErr').textContent = res.d.error || 'خطا در ذخیره.'; return; }
+      window.location.reload();
+    }).catch(function(){ document.getElementById('opkAnErr').textContent = 'خطا در ارتباط با سرور.'; });
+  }
+
+  function opkAnDelete(){
+    if (!confirm('گزارش تحلیل این ماه حذف شود؟')) { return; }
+    const fd = new FormData();
+    fd.append('year', opkAn.year); fd.append('month', opkAnMonth);
+    fd.append('csrfmiddlewaretoken', opkGetCsrfToken());
+    fetch(OPK_AN_DEL_URL.replace('999999', opkAnKpi), {method: 'POST', credentials: 'same-origin', body: fd})
+      .then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok) { window.location.reload(); } else { alert(d.error || 'خطا در حذف.'); }
+      });
+  }
+</script>

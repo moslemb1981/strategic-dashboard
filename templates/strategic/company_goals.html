@@ -4,6 +4,7 @@
 {% block crumb %}اهداف کلان و KPI شرکت{% endblock %}
 
 {% block extra_css %}
+{% include 'strategic/_kpi_viz_css.html' %}
 <style>
   .cg-note{font-size:11.5px;color:#7A4711;background:var(--accent-soft);padding:8px 14px;border-radius:8px;margin-bottom:20px;}
   .opk-picker-row{padding:8px 10px;border-bottom:1px solid var(--border);font-size:11.5px;cursor:pointer;}
@@ -189,7 +190,9 @@
     {% for k in kpis %}
     <tr>
       <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.code }}{% if k.source_operational_kpi %} <i class="fa-solid fa-link" style="font-size:9px;color:var(--primary);"></i>{% endif %}</td>
-      <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}</td>
+      <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}{% if k.source_operational_kpi_id %}
+        <div><span class="opk-btn-row"><button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.source_operational_kpi_id }})" title="نمایش نمودار روند این شاخص"><i class="fa-solid fa-chart-line"></i></button><button type="button" class="opk-an-btn" onclick="openAnalysis({{ k.source_operational_kpi_id }})" title="تحلیل عملکرد ماهانه‌ی این شاخص"><i class="fa-solid fa-clipboard-list"></i></button></span></div>
+        {% endif %}</td>
       <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
       <td>
         {% if k.initiatives.all %}<span class="used-badge" style="background:var(--purple-soft, #ECE8F5);color:#6C56A3;" data-tip-label="پروژه‌های تحول متصل" data-tip-items="{% for init in k.initiatives.all %}{{ init.title }}{% if init.code %} ({{ init.code }}){% endif %} — مسئول: {{ init.owner|default:'—' }} — وضعیت: {{ init.get_status_display }} — پیشرفت: {{ init.progress }}٪{% if not forloop.last %}&#10;{% endif %}{% endfor %}"><i class="fa-solid fa-route"></i> {{ k.initiatives.all|length }}</span>{% else %}<span style="color:var(--ink-faint);font-size:10.5px;">—</span>{% endif %}
@@ -340,9 +343,12 @@
   </div>
 </div>
 {{ operational_kpi_choices|json_script:"opk-choices-data" }}
+{% csrf_token %}
+{% include 'strategic/_kpi_viz_overlays.html' %}
 {% endblock %}
 
 {% block extra_js %}
+{% include 'strategic/_kpi_viz_js.html' %}
 <script>
   // --- تولتیپ سفارشی (همون سبک نقشه حرارتی / استراتژی‌های وظیفه‌ای) ---
   (function(){

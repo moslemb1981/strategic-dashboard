@@ -662,7 +662,8 @@ def roadmap_search(request):
     cond = Q()
     for t in variants(q):
         for fld in ("title", "code", "owner", "division", "work_group"):
-            cond |= Q(**{f"{fld}__icontains": t})
+            lookup_key = fld + "__icontains"
+            cond |= Q(**{lookup_key: t})
     from urllib.parse import quote
     qs = Initiative.objects.filter(business_unit_id__in=allowed).filter(cond).select_related("business_unit").order_by("business_unit__name", "code")[:40]
     results = []
@@ -2903,7 +2904,9 @@ def operational_kpis(request):
     else:
         form = OperationalKPIForm()
 
-    items = list(OperationalKPI.objects.all().annotate(analysis_count=Count("analysis_reports", distinct=True)).prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis", "initiatives"))
+    items = list(OperationalKPI.objects.all().annotate(analysis_count=Count("analysis_reports__rows", distinct=True)).prefetch_related("strategic_objectives__business_unit", "promoted_to_company_kpis", "initiatives", "promoted_to_company_kpis__initiatives"))
+    for k in items:
+        k.all_projects = _kpi_all_initiatives(k)
 
     # ماسک‌کردن هدف/عملکرد تجمعی سالانه برای کاربر مهمان (بدون لاگین) در شاخص‌های محرمانه.
     # این مقدار واقعی هیچ‌وقت به HTML کاربر مهمان ارسال نمی‌شود؛ به‌جایش یک عدد
@@ -3339,6 +3342,19 @@ def operational_kpi_import_cancel(request):
     return redirect("strategic:operational_kpis")
 
 
+def _kpi_all_initiatives(kpi):
+    """پروژه‌های مرتبط با یک شاخص عملیاتی: مستقیم + پروژه‌های شاخص(های) کلانی که از این شاخص ارتقا یافته‌اند.
+    خروجی: فهرست (پروژه، via)؛ via خالی = مستقیم، وگرنه کد شاخص کلان."""
+    found = {}
+    for ini in kpi.initiatives.all():
+        found[ini.pk] = (ini, "")
+    for ck in kpi.promoted_to_company_kpis.all():
+        for ini in ck.initiatives.all():
+            if ini.pk not in found:
+                found[ini.pk] = (ini, ck.code)
+    return list(found.values())
+
+
 def operational_kpi_trend_data(request, pk):
     """داده‌ی نمودار روند یک شاخص عملیاتی به‌صورت JSON — کاملاً جدا از هدف/عملکرد
     ماه جاری یا تجمعی سالانه؛ فقط از OperationalKPITrendPoint خوانده می‌شود.
@@ -3390,7 +3406,7 @@ def operational_kpi_trend_data(request, pk):
     # پروژه/اقدام‌هایی که تاریخ شروعشون توی همین سالِ نمودار افتاده — برای نشون
     # دادن یک نشونه‌ی مخصوص روی خط «عملکرد»، دقیقاً توی ماهی که شروع شدن.
     project_starts_by_month = {}
-    for ini in kpi.initiatives.all():
+    for ini, _via in _kpi_all_initiatives(kpi):
         if not ini.start_date:
             continue
         j_start = jdatetime.date.fromgregorian(date=ini.start_date)
@@ -3493,7 +3509,7 @@ def operational_kpi_analysis_data(request, pk):
             "report": _analysis_serialize_report(rep) if rep else None,
         })
 
-    linked_ids = set(kpi.initiatives.values_list("pk", flat=True))
+    linked_ids = set(ini.pk for ini, _via in _kpi_all_initiatives(kpi))
     initiatives_linked, initiatives_other = [], []
     for ini in Initiative.objects.all().order_by("code", "title"):
         label = f"{ini.code + ' — ' if ini.code else ''}{ini.title}"
@@ -3831,6 +3847,32 @@ def operational_kpi_analysis_export(request):
     for col, w in zip("ABCDEFGHI", (14, 8, 10, 40, 14, 40, 14, 18, 36)):
         ws.column_dimensions[col].width = w
     ws.freeze_panes = "A2"
+    # برگه‌ی خلاصه (فقط برای مشاهده؛ هنگام ورود مجدد نادیده گرفته می‌شود)
+    sm = wb.create_sheet("خلاصه")
+    sm.sheet_view.rightToLeft = True
+    sm.append(["کد شاخص", "عنوان شاخص", "سال", "ماه‌های دارای گزارش", "تعداد دلیل/عارضه", "تعداد برنامه بهبود", "تعداد پروژه‌های مرتبط"])
+    for c in sm[1]:
+        c.font = Font(bold=True, color="FFFFFF")
+        c.fill = PatternFill("solid", fgColor="C97A2B")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    groups = {}
+    for rep in reports:
+        g = groups.setdefault((rep.kpi.code, rep.kpi.title, rep.year), {"months": 0, "cause": 0, "plan": 0, "proj": set()})
+        g["months"] += 1
+        for r in rep.rows.all():
+            if (r.cause or "").strip():
+                g["cause"] += 1
+            if (r.improvement_plan or "").strip():
+                g["plan"] += 1
+            if r.initiative_id:
+                g["proj"].add(r.initiative_id)
+    for (code, title, year), g in sorted(groups.items()):
+        sm.append([code, title, year, g["months"], g["cause"], g["plan"], len(g["proj"])])
+    for row in sm.iter_rows(min_row=2):
+        row[2].number_format = "@"
+    for col, w in zip("ABCDEFG", (14, 46, 8, 16, 16, 16, 18)):
+        sm.column_dimensions[col].width = w
+    sm.freeze_panes = "A2"
     buf = io.BytesIO()
     wb.save(buf)
     _log_action(request, "EXPORT KPIAnalysisReport Excel", f"{reports.count()} گزارش")

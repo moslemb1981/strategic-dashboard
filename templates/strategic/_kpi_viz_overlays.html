@@ -1,0 +1,87 @@
+<div class="overlay" id="opkTrendOverlay">
+  <div class="modal-card" style="max-width:820px;">
+    <h3 id="opkTrendTitle">نمودار روند شاخص</h3>
+
+    <div class="opk-trend-mode-row">
+      <button type="button" class="btn accent" id="opkTrendModeSingleBtn">یک سال</button>
+      <button type="button" class="btn ghost" id="opkTrendModeMultiBtn">مقایسه‌ی چندسال</button>
+    </div>
+
+    <div id="opkTrendSingleBlock">
+      <div class="opk-trend-year-row" id="opkTrendYearRow" style="display:none;">
+        <label style="font-size:12px;color:var(--ink-faint);">سال:</label>
+        <select id="opkTrendYearSelect"></select>
+      </div>
+    </div>
+
+    <div id="opkTrendMultiBlock" style="display:none;">
+      <div class="opk-trend-multi-cols">
+        <div class="opk-trend-multi-col">
+          <b>خط هدف — برای این سال‌ها نشان بده</b>
+          <div id="opkTrendMultiTargetChecks"></div>
+        </div>
+        <div class="opk-trend-multi-col">
+          <b>ستون عملکرد — برای این سال‌ها نشان بده</b>
+          <div id="opkTrendMultiActualChecks"></div>
+        </div>
+      </div>
+      <div id="opkTrendMultiWarning" style="display:none;"></div>
+    </div>
+
+    <div id="opkTrendEmpty" style="display:none;"></div>
+    <div id="opkTrendChartWrap" style="display:none;">
+      <canvas id="opkTrendCanvas"></canvas>
+    </div>
+    <div id="opkTrendProjectNote" style="display:none;font-size:11px;color:var(--ink-faint);margin-top:6px;">
+      <i class="fa-solid fa-flag" style="color:#B0413E;"></i>
+      پرچم رنگی بالای نمودار یعنی در آن ماه، پروژه/اقدامی مرتبط با این شاخص شروع شده است (برای جزئیات، اشاره‌گر را روی همان ستون نگه دارید).
+    </div>
+    <div id="opkTrendManage" style="display:none;margin-top:12px;">
+      <div class="opk-trend-manage-wrap" id="opkTrendManageWrap"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" onclick="document.getElementById('opkTrendOverlay').classList.remove('open')">بستن</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="opkAnalysisOverlay">
+  <div class="modal-card" style="max-width:980px;max-height:92vh;overflow-y:auto;">
+    <h3 id="opkAnTitle">تحلیل عملکرد ماهانه‌ی شاخص</h3>
+    <div class="opk-trend-year-row">
+      <label style="font-size:11.5px;">سال:</label>
+      <select id="opkAnYear"></select>
+    </div>
+    <div class="opk-an-sum" id="opkAnSum" style="display:none;"></div>
+    <div class="opk-an-sumdet" id="opkAnSumDet"></div>
+    <div class="opk-an-months" id="opkAnMonths"></div>
+    <div id="opkAnBody" style="display:none;">
+      <div class="opk-an-info" id="opkAnInfo"></div>
+      <div id="opkAnViewBox"></div>
+      <div id="opkAnEditBox" style="display:none;">
+        <div style="overflow-x:auto;">
+        <table class="opk-an-table">
+          <thead><tr>
+            <th style="width:24%;">شرح دلیل / عارضه</th><th style="width:7%;">درصد تأثیر</th>
+            <th style="width:24%;">برنامه بهبود</th><th style="width:11%;">زمان اثرگذاری</th>
+            <th style="width:26%;">پروژه‌ی مرتبط (اختیاری)</th><th style="width:4%;"></th>
+          </tr></thead>
+          <tbody id="opkAnRows"></tbody>
+        </table>
+        </div>
+        <button type="button" class="btn ghost" style="margin-top:6px;" onclick="opkAnAddRow()"><i class="fa-solid fa-plus"></i> افزودن ردیف</button>
+        <div class="opk-an-warn" id="opkAnWarn"></div>
+        <div class="field-group" style="margin-top:8px;"><label>توضیحات</label>
+          <textarea id="opkAnNotes" rows="3" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px;font-family:inherit;font-size:11.5px;"></textarea>
+        </div>
+        <div class="opk-an-err" id="opkAnErr"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn danger" id="opkAnDelBtn" style="display:none;" onclick="opkAnDelete()">حذف گزارش</button>
+      <button type="button" class="btn accent" id="opkAnEditBtn" style="display:none;" onclick="opkAnStartEdit()">ثبت / ویرایش گزارش</button>
+      <button type="button" class="btn accent" id="opkAnSaveBtn" style="display:none;" onclick="opkAnSave()">ذخیره</button>
+      <button type="button" class="btn ghost" onclick="document.getElementById('opkAnalysisOverlay').classList.remove('open')">بستن</button>
+    </div>
+  </div>
+</div>
+
