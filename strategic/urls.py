@@ -116,6 +116,10 @@ urlpatterns = [
     path("stratmap/kpi/delete/<int:pk>/", views.strategic_kpi_delete, name="strategic_kpi_delete"),
     path("business-unit/add/", views.business_unit_add, name="business_unit_add"),
 
+    path("business-canvas/", views.business_canvas, name="business_canvas"),
+    path("business-canvas/print/", views.business_canvas_print, name="business_canvas_print"),
+    path("business-canvas/delete/<int:pk>/", views.business_canvas_delete, name="business_canvas_delete"),
+
     path("swot/", views.swot, name="swot"),
     path("swot/print/", views.swot_print, name="swot_print"),
     path("swot/delete/<int:pk>/", views.swot_delete, name="swot_delete"),

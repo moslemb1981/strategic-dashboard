@@ -9,6 +9,48 @@
 
   let opkTrendChartInstance = null;
   let opkTrendCurrentKpiId = null;
+  let opkOverMarker = false;
+  function opkMarkerTipEl(){
+    let el = document.getElementById('opkMarkerTip');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'opkMarkerTip';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function opkHideMarkerTip(){
+    const el = document.getElementById('opkMarkerTip');
+    if (el) { el.style.display = 'none'; }
+  }
+  function opkShowMarkerTip(hit, projectStarts, analysisList, data, cx, cy){
+    const el = opkMarkerTipEl();
+    const monthLabel = (data.months || [])[hit.i] || '';
+    let h = '';
+    if (hit.kind === 'project') {
+      h += '<div class="mt-h">🚩 شروع پروژه/اقدام در ' + opkEsc(monthLabel) + '</div>';
+      projectStarts[hit.i].forEach(function(p){
+        h += '<div class="mt-l">• ' + (p.code ? '<b>' + opkEsc(p.code) + '</b> — ' : '') + opkEsc(p.title) + '</div>';
+      });
+    } else {
+      const an = analysisList[hit.i];
+      h += '<div class="mt-h">📋 تحلیل عملکرد ' + opkEsc(monthLabel) + ' <span class="mt-s">(برای جزئیات کلیک کنید)</span></div>';
+      an.rows.forEach(function(r){
+        const imp = (r.impact !== null && r.impact !== undefined) ? ' <b>[' + opkEsc(String(r.impact)) + '٪]</b>' : '';
+        if (r.cause) { h += '<div class="mt-l">• علت: ' + opkEsc(r.cause) + imp + '</div>'; }
+        if (r.plan) { h += '<div class="mt-l mt-p">↳ برنامه: ' + opkEsc(r.plan) + (r.effect ? ' (' + opkEsc(r.effect) + ')' : '') + '</div>'; }
+      });
+    }
+    el.innerHTML = h;
+    el.style.display = 'block';
+    const w = el.offsetWidth, hh = el.offsetHeight;
+    let left = Math.min(Math.max(8, cx - w / 2), window.innerWidth - w - 8);
+    let top = hit.kind === 'project' ? cy + 22 : cy - hh - 16;
+    if (top < 8) { top = cy + 22; }
+    if (top + hh > window.innerHeight - 8) { top = Math.max(8, window.innerHeight - hh - 8); }
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+  }
   let opkTrendCurrentYear = null;
   let opkTrendMode = 'single';
   let opkTrendSingleData = null;
@@ -188,6 +230,48 @@
       },
     };
 
+    // ---- هاور جداگانه برای پرچم پروژه و نشانه‌ی «ت»؛ روی خود خط روند فقط ماه/هدف/عملکرد ----
+    opkOverMarker = false;
+    opkHideMarkerTip();
+    function opkHitMarker(chart, ev){
+      const ca = chart.chartArea, xs = chart.scales.x;
+      for (let i = 0; i < projectStarts.length; i++) {
+        const x = xs.getPixelForValue(i);
+        if (projectStarts[i] && projectStarts[i].length &&
+            ev.x >= x - 9 && ev.x <= x + 20 && ev.y >= ca.top && ev.y <= ca.top + 36) {
+          return { kind: 'project', i: i };
+        }
+        if (analysisList[i]) {
+          const cy = ca.bottom - 12;
+          if (Math.abs(ev.x - x) + Math.abs(ev.y - cy) <= 13) { return { kind: 'analysis', i: i }; }
+        }
+      }
+      return null;
+    }
+    const markerHoverPlugin = {
+      id: 'opkMarkerHover',
+      beforeEvent: function(chart, args){
+        const ev = args.event;
+        if (ev.type === 'mouseout') { opkOverMarker = false; opkHideMarkerTip(); chart.canvas.style.cursor = ''; return; }
+        if (ev.type !== 'mousemove' && ev.type !== 'click') { return; }
+        const hit = opkHitMarker(chart, ev);
+        const was = opkOverMarker;
+        opkOverMarker = !!hit;
+        chart.canvas.style.cursor = (hit && hit.kind === 'analysis') ? 'pointer' : '';
+        if (was !== !!hit) { args.changed = true; }
+        if (!hit) { opkHideMarkerTip(); return; }
+        const nat = ev.native || {};
+        if (hit.kind === 'analysis' && ev.type === 'click' && monthNumbers[hit.i]) {
+          opkHideMarkerTip();
+          openAnalysis(opkTrendCurrentKpiId, data.selected_year, monthNumbers[hit.i]);
+          return;
+        }
+        opkShowMarkerTip(hit, projectStarts, analysisList, data, nat.clientX, nat.clientY);
+      },
+      // روی پرچم/نشانه، تولتیپ پیش‌فرض (ماه/هدف/عملکرد) کشیده نشود
+      beforeTooltipDraw: function(){ return !opkOverMarker; },
+    };
+
     opkTrendChartInstance = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
@@ -224,14 +308,6 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        onClick: function(evt, elements, chart){
-          const pts = chart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
-          if (!pts || !pts.length) { return; }
-          const idx = pts[0].index;
-          if (analysisList[idx] && monthNumbers[idx]) {
-            openAnalysis(opkTrendCurrentKpiId, data.selected_year, monthNumbers[idx]);
-          }
-        },
         layout: { padding: { top: hasProjectMarkers ? 26 : 4 } },
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -240,30 +316,6 @@
             rtl: true,
             titleAlign: 'right',
             bodyAlign: 'right',
-            callbacks: {
-              afterBody: function(items){
-                if (!items || !items.length) { return []; }
-                const idx = items[0].dataIndex;
-                const list = projectStarts[idx];
-                const lines = [];
-                if (list && list.length) {
-                  lines.push('', '🚩 شروع پروژه/اقدام در این ماه:');
-                  list.forEach(function(p){
-                    lines.push('• ' + (p.code ? (p.code + ' — ') : '') + p.title);
-                  });
-                }
-                const an = analysisList[idx];
-                if (an) {
-                  lines.push('', '📋 تحلیل عملکرد این ماه (برای جزئیات کلیک کنید):');
-                  an.rows.forEach(function(r){
-                    const imp = (r.impact !== null && r.impact !== undefined) ? (' [' + r.impact + '٪]') : '';
-                    if (r.cause) { lines.push('• علت: ' + r.cause + imp); }
-                    if (r.plan) { lines.push('   ↳ برنامه: ' + r.plan + (r.effect ? (' (' + r.effect + ')') : '')); }
-                  });
-                }
-                return lines;
-              },
-            },
           },
         },
         scales: {
@@ -271,7 +323,7 @@
           y: { beginAtZero: true, grid: { color: '#eef0f3' } },
         },
       },
-      plugins: [projectFlagPlugin, analysisMarkerPlugin],
+      plugins: [projectFlagPlugin, analysisMarkerPlugin, markerHoverPlugin],
     });
 
     const noteEl = document.getElementById('opkTrendProjectNote');

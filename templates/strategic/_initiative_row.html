@@ -30,7 +30,7 @@
       {% if perms.strategic.change_initiative %}
       <button type="button" onclick="editInitiative(this)"
         data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-item-type="{{ i.item_type }}" data-owner="{{ i.owner }}"
-        data-work-group="{{ i.work_group }}" data-division="{{ i.division }}"
+        data-work-group="{{ i.work_group }}" data-division="{{ i.division }}" data-business-unit="{{ i.business_unit_id|default_if_none:'' }}"
         data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
         data-progress="{{ i.progress }}" data-status="{{ i.status }}"
         data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"

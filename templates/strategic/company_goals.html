@@ -1,5 +1,6 @@
 {% extends "strategic/base.html" %}
 {% load static %}
+{% load jalali_tags %}
 {% block title %}اهداف کلان و KPI شرکت{% endblock %}
 {% block crumb %}اهداف کلان و KPI شرکت{% endblock %}
 
@@ -191,7 +192,7 @@
     <tr>
       <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.code }}{% if k.source_operational_kpi %} <i class="fa-solid fa-link" style="font-size:9px;color:var(--primary);"></i>{% endif %}</td>
       <td{% if k.source_operational_kpi %} style="cursor:help;" data-tip-label="برگرفته از شاخص عملیاتی" data-tip-text="{{ k.source_operational_kpi.code }} — {{ k.source_operational_kpi.title }}"{% endif %}>{{ k.name }}{% if k.source_operational_kpi_id %}
-        <div><span class="opk-btn-row"><button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.source_operational_kpi_id }})" title="نمایش نمودار روند این شاخص"><i class="fa-solid fa-chart-line"></i></button><button type="button" class="opk-an-btn" onclick="openAnalysis({{ k.source_operational_kpi_id }})" title="تحلیل عملکرد ماهانه‌ی این شاخص"><i class="fa-solid fa-clipboard-list"></i></button></span></div>
+        <div><span class="opk-btn-row"><button type="button" class="opk-trend-btn" onclick="openTrendChart({{ k.source_operational_kpi_id }})" title="نمایش نمودار روند این شاخص"><i class="fa-solid fa-chart-line"></i></button><button type="button" class="opk-an-btn" onclick="openAnalysis({{ k.source_operational_kpi_id }})" title="تحلیل عملکرد ماهانه‌ی این شاخص{% if k.analysis_count %} ({{ k.analysis_count|fanum }} دلیل/عارضه ثبت‌شده){% endif %}"><i class="fa-solid fa-clipboard-list"></i>{% if k.analysis_count %}<span class="cnt">{{ k.analysis_count|fanum }}</span>{% endif %}</button></span></div>
         {% endif %}</td>
       <td><span class="kpi-domain" style="background:{{ k.domain_color }};">{{ k.domain }}</span></td>
       <td>

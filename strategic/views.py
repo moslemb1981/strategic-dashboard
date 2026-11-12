@@ -20,7 +20,7 @@ import jdatetime
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
 from .models import (
-    Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
+    Study, Initiative, Risk, SWOTItem, BusinessCanvasItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
     CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
@@ -586,16 +586,32 @@ def roadmap(request):
             messages.error(request, "شما مجاز به ویرایش پروژه‌های این کسب‌وکار نیستید.")
             return redirect("strategic:roadmap")
         if _has_perm(request, perm):
-            form = InitiativeForm(request.POST, instance=instance, business_unit=current_bu)
+            # نوع کسب‌وکار پروژه: از لیست کشویی فرم (و گرنه کسب‌وکار فعلی صفحه)
+            sel_bid = request.POST.get("init_business_unit")
+            sel_bu = next((b for b in business_units if str(b.pk) == str(sel_bid)), None) if sel_bid else None
+            post_data = request.POST
+            bu_changed = bool(instance and sel_bu and instance.business_unit_id != sel_bu.pk)
+            if bu_changed:
+                # اهداف نقشه و راهبرد TOWS مخصوص هر کسب‌وکارند؛ با تغییر کسب‌وکار پاک می‌شوند
+                post_data = request.POST.copy()
+                post_data.setlist("objectives", [])
+                post_data.setlist("source_tows", [])
+            form_bu = sel_bu or (instance.business_unit if instance and instance.business_unit_id else current_bu)
+            form = InitiativeForm(post_data, instance=instance, business_unit=form_bu)
             if form.is_valid():
                 obj = form.save(commit=False)
-                if not obj_id and current_bu:
+                if sel_bu:
+                    obj.business_unit = sel_bu
+                elif not obj_id and current_bu:
                     obj.business_unit = current_bu
                 obj.save()
                 form.save_m2m()
                 _log_action(request, "UPDATE Initiative" if obj_id else "CREATE Initiative", str(obj))
+                if bu_changed:
+                    messages.warning(request, "کسب‌وکار پروژه تغییر کرد؛ اهداف نقشه و راهبرد TOWS آن پاک شد و باید در کسب‌وکار جدید دوباره انتخاب شود.")
+                target_bu = obj.business_unit or current_bu
                 params = f"?group_mode={group_mode}"
-                params += f"&g={current_group_key}" if group_field and current_group_key else f"&bu={current_bu.pk}" if current_bu else ""
+                params += f"&g={current_group_key}" if group_field and current_group_key else f"&bu={target_bu.pk}" if target_bu else ""
                 params += f"&item_type={type_filter}&view={view_mode}"
                 return redirect(reverse("strategic:roadmap") + params)
         else:
@@ -1913,6 +1929,151 @@ def business_unit_add(request):
     return redirect("strategic:stratmap")
 
 
+# ---------------- بوم کسب‌وکار (Business Model Canvas) ----------------
+
+CANVAS_BLOCKS = [
+    # key, عنوان، عنوان لاتین، آیکن، رنگ، سؤال راهنما
+    ("partners", "شرکای کلیدی", "Key Partners", "fa-handshake", "#6d5bd0",
+     "چه تأمین‌کنندگان و شرکایی برای ارائه ارزش لازم‌اند؟ چه منابع یا فعالیت‌هایی را از آن‌ها می‌گیریم؟"),
+    ("activities", "فعالیت‌های کلیدی", "Key Activities", "fa-gears", "#1183c9",
+     "برای ارائه پیشنهاد ارزش، کانال‌ها و حفظ ارتباط، مهم‌ترین کارهایی که باید انجام شود کدام‌اند؟"),
+    ("resources", "منابع کلیدی", "Key Resources", "fa-warehouse", "#0f8a6a",
+     "چه دارایی‌های فیزیکی، انسانی، فکری و مالی برای اجرای مدل کسب‌وکار ضروری است؟"),
+    ("value", "پیشنهاد ارزش", "Value Propositions", "fa-gem", "#d64528",
+     "چه ارزشی به مشتری می‌دهیم؟ کدام مسئله او را حل می‌کنیم و کدام نیاز را برطرف می‌کنیم؟"),
+    ("relations", "ارتباط با مشتری", "Customer Relationships", "fa-heart", "#c2417f",
+     "هر بخش از مشتریان چه نوع ارتباطی (جذب، حفظ، توسعه) از ما انتظار دارد؟"),
+    ("channels", "کانال‌ها", "Channels", "fa-route", "#d08a1f",
+     "مشتری از چه مسیرهایی ما را پیدا می‌کند، خدمت را می‌خرد و تحویل می‌گیرد و پشتیبانی می‌شود؟"),
+    ("segments", "بخش‌های مشتریان", "Customer Segments", "fa-users", "#0a7c8c",
+     "برای چه کسانی ارزش خلق می‌کنیم؟ مهم‌ترین مشتریان ما چه گروه‌هایی هستند؟"),
+    ("costs", "ساختار هزینه", "Cost Structure", "fa-coins", "#5a6474",
+     "مهم‌ترین هزینه‌های ذاتی این مدل چیست؟ کدام منابع و فعالیت‌ها بیشترین هزینه را دارند؟"),
+    ("revenue", "جریان‌های درآمدی", "Revenue Streams", "fa-sack-dollar", "#2a8f3c",
+     "مشتری برای چه ارزشی و به چه شکلی (فروش، کارمزد، اشتراک، خدمت) پول می‌پردازد؟"),
+]
+_CANVAS_KEYS = [b[0] for b in CANVAS_BLOCKS]
+
+
+def _canvas_pick_bu(request, business_units):
+    bu_id = request.POST.get("business_unit") or request.GET.get("bu")
+    current_bu = None
+    if bu_id:
+        current_bu = next((b for b in business_units if str(b.pk) == str(bu_id)), None)
+    if not current_bu and business_units:
+        current_bu = business_units[0]
+    return current_bu
+
+
+def _canvas_blocks_for(current_bu):
+    """فهرست ۹ بلوک با موارد هر کدام + شمارنده‌ها."""
+    items = list(BusinessCanvasItem.objects.filter(business_unit=current_bu)) if current_bu else []
+    blocks = []
+    for key, title, en, icon, color, hint in CANVAS_BLOCKS:
+        its = [i for i in items if i.block == key]
+        blocks.append({
+            "key": key, "title": title, "en": en, "icon": icon, "color": color, "hint": hint,
+            "items": its, "count": len(its),
+            "limit": 7 if key in ("partners", "value", "segments") else (4 if key in ("costs", "revenue") else 3),
+            "draft": sum(1 for i in its if i.status == "draft"),
+        })
+    filled = sum(1 for b in blocks if b["count"])
+    return blocks, {
+        "total": len(items),
+        "draft": sum(1 for i in items if i.status == "draft"),
+        "filled": filled,
+        "pct": round(filled * 100 / 9),
+        "empty_titles": [b["title"] for b in blocks if not b["count"]],
+    }
+
+
+@guest_gate('business_canvas')
+def business_canvas(request):
+    business_units = _scoped_business_units(request)
+    current_bu = _canvas_pick_bu(request, business_units)
+    bu_param = f"?bu={current_bu.pk}" if current_bu else ""
+
+    if request.method == "POST" and current_bu:
+        if not request.user.is_authenticated:
+            return redirect("strategic:login")
+        action = request.POST.get("action", "save")
+        if action == "approve_all":
+            if _has_perm(request, "strategic.change_businesscanvasitem"):
+                n = BusinessCanvasItem.objects.filter(business_unit=current_bu, status="draft").update(status="approved")
+                _log_action(request, "APPROVE BusinessCanvasItem", f"{current_bu} x{n}")
+                messages.success(request, f"{n} مورد پیش‌نویس تأیید شد.")
+            return redirect(reverse("strategic:business_canvas") + bu_param)
+        block = request.POST.get("block", "")
+        obj_id = request.POST.get("obj_id")
+        text = (request.POST.get("text") or "").strip()[:300]
+        note = (request.POST.get("note") or "").strip()
+        status = request.POST.get("status", "approved")
+        if status not in ("approved", "draft"):
+            status = "approved"
+        if block in _CANVAS_KEYS and text:
+            perm = "strategic.change_businesscanvasitem" if obj_id else "strategic.add_businesscanvasitem"
+            instance = get_object_or_404(BusinessCanvasItem, pk=obj_id) if obj_id else None
+            if instance and instance.business_unit_id not in [b.pk for b in business_units]:
+                messages.error(request, "شما مجاز به ویرایش موارد این کسب‌وکار نیستید.")
+                return redirect("strategic:business_canvas")
+            if _has_perm(request, perm):
+                if instance:
+                    instance.text, instance.status = text, status
+                    if "note" in request.POST:
+                        instance.note = note
+                    if instance.block != block:
+                        instance.block = block
+                        last = BusinessCanvasItem.objects.filter(business_unit=current_bu, block=block).order_by("-order").first()
+                        instance.order = (last.order + 1) if last else 0
+                    instance.save()
+                    obj = instance
+                else:
+                    last = BusinessCanvasItem.objects.filter(business_unit=current_bu, block=block).order_by("-order").first()
+                    obj = BusinessCanvasItem.objects.create(
+                        business_unit=current_bu, block=block, text=text, note=note, status=status,
+                        order=(last.order + 1) if last else 0,
+                    )
+                _log_action(request, "UPDATE BusinessCanvasItem" if obj_id else "CREATE BusinessCanvasItem", str(obj))
+        elif not text:
+            messages.error(request, "متن مورد نمی‌تواند خالی باشد.")
+        return redirect(reverse("strategic:business_canvas") + bu_param)
+
+    blocks, stats = _canvas_blocks_for(current_bu)
+    return render(request, "strategic/business_canvas.html", {
+        "active_page": "business_canvas",
+        "business_units": business_units, "current_bu": current_bu,
+        "blocks": blocks, "stats": stats,
+        "block_choices": [(b["key"], b["title"]) for b in blocks],
+        "hints_json": json.dumps({b["key"]: b["hint"] for b in blocks}, ensure_ascii=False),
+    })
+
+
+@guest_gate('business_canvas')
+def business_canvas_print(request):
+    business_units = _scoped_business_units(request)
+    current_bu = _canvas_pick_bu(request, business_units)
+    blocks, stats = _canvas_blocks_for(current_bu)
+    return render(request, "strategic/business_canvas_print.html", {
+        "current_bu": current_bu, "blocks": blocks, "stats": stats,
+        "bm": {b["key"]: b for b in blocks},
+    })
+
+
+@login_required
+def business_canvas_delete(request, pk):
+    if request.method == "POST" and _has_perm(request, "strategic.delete_businesscanvasitem"):
+        _obj = get_object_or_404(BusinessCanvasItem, pk=pk)
+        if _obj.business_unit_id not in [b.pk for b in _scoped_business_units(request)]:
+            messages.error(request, "شما مجاز به حذف موارد این کسب‌وکار نیستید.")
+            return redirect("strategic:business_canvas")
+        _label = str(_obj)
+        bu_pk = _obj.business_unit_id
+        _obj.delete()
+        _log_action(request, "DELETE BusinessCanvasItem", _label)
+        return redirect(reverse("strategic:business_canvas") + f"?bu={bu_pk}")
+    return redirect("strategic:business_canvas")
+
+
 # ---------------- SWOT ----------------
 
 @guest_gate('swot')
@@ -2474,7 +2635,7 @@ def company_goals(request):
                     _log_action(request, "UPDATE CompanyKPI" if obj_id else "CREATE CompanyKPI", str(form.instance))
                     return redirect("strategic:company_goals")
 
-    kpis = list(CompanyKPI.objects.all().select_related("source_operational_kpi").prefetch_related("objectives"))
+    kpis = list(CompanyKPI.objects.all().select_related("source_operational_kpi").prefetch_related("objectives").annotate(analysis_count=Count("source_operational_kpi__analysis_reports__rows", distinct=True)))
     objectives = list(CompanyObjective.objects.all().prefetch_related("kpis"))
     grouped = []
     seen_groups = {}

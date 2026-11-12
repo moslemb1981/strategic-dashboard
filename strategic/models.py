@@ -2335,3 +2335,37 @@ class SectionVisibility(models.Model):
     def __str__(self):
         return f"{self.label or self.key} — {'عمومی' if self.is_public else 'قفل (فقط کاربر عضو)'}"
 
+
+class BusinessCanvasItem(models.Model):
+    """یک مورد (برگه) در یکی از ۹ بلوک «بوم کسب‌وکار» (اوستروالدر) برای هر کسب‌وکار."""
+    BLOCK_CHOICES = [
+        ("partners", "شرکای کلیدی"),
+        ("activities", "فعالیت‌های کلیدی"),
+        ("resources", "منابع کلیدی"),
+        ("value", "پیشنهاد ارزش"),
+        ("relations", "ارتباط با مشتری"),
+        ("channels", "کانال‌ها"),
+        ("segments", "بخش‌های مشتریان"),
+        ("costs", "ساختار هزینه"),
+        ("revenue", "جریان‌های درآمدی"),
+    ]
+    STATUS_CHOICES = [("approved", "تأیید شده"), ("draft", "پیش‌نویس (نیازمند تأیید)")]
+
+    business_unit = models.ForeignKey(
+        BusinessUnit, on_delete=models.CASCADE, related_name="canvas_items", verbose_name="کسب‌وکار",
+    )
+    block = models.CharField(max_length=12, choices=BLOCK_CHOICES, verbose_name="بلوک")
+    text = models.CharField(max_length=300, verbose_name="متن")
+    note = models.TextField(blank=True, default="", verbose_name="توضیح / منبع")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="approved", verbose_name="وضعیت")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["business_unit", "block", "order", "id"]
+        verbose_name = "مورد بوم کسب‌وکار"
+        verbose_name_plural = "موارد بوم کسب‌وکار"
+
+    def __str__(self):
+        return f"{self.business_unit} — {self.get_block_display()}: {self.text[:40]}"

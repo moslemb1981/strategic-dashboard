@@ -1,0 +1,76 @@
+{% load static %}
+{% load jalali_tags %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>بوم کسب‌وکار — {{ current_bu.name|default:product_name }}</title>
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<style>
+  @page{ size: A4 landscape; margin: 10mm 12mm; }
+  *{box-sizing:border-box;}
+  body{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;margin:0;padding:14px 16px;color:#14202f;background:#fff;direction:rtl;font-size:11px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .toolbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;}
+  .toolbar button{font-family:inherit;font-size:12px;font-weight:600;border:1px solid #dcdfe4;background:#f7f8fa;color:#14202f;padding:7px 14px;border-radius:8px;cursor:pointer;}
+  .toolbar .status{font-size:11px;color:#8b93a1;align-self:center;margin-inline-end:auto;}
+  header{display:flex;align-items:center;gap:10px;padding-bottom:7px;border-bottom:2px solid #C97A2B;margin-bottom:10px;}
+  header img{height:26px;}
+  header .co{font-size:9px;font-weight:700;color:#5a6474;}
+  .bu-name{font-size:16px;font-weight:900;margin:0;line-height:1.15;}
+  .bu-sub{font-size:9.5px;color:#C97A2B;font-weight:700;}
+  header .meta{margin-inline-start:auto;text-align:left;font-size:8px;color:#8b93a1;}
+
+  .cv{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;}
+  .b{border:1px solid #d9dde4;border-radius:7px;overflow:hidden;break-inside:avoid;background:#fff;position:relative;}
+  .b::before{content:"";display:block;height:3px;background:var(--c);}
+  .b h3{margin:0;padding:5px 7px 1px;font-size:10px;color:var(--c);}
+  .b h3 small{display:block;font-size:6.5px;color:#8b93a1;font-weight:400;direction:ltr;text-align:right;}
+  .b ul{list-style:none;margin:0;padding:3px 6px 6px;display:flex;flex-direction:column;gap:3px;}
+  .b li{font-size:8px;line-height:1.45;background:color-mix(in srgb,var(--c) 8%,#fff);border-inline-start:2px solid var(--c);border-radius:4px;padding:3px 5px;}
+  .b li.draft{border-inline-start-color:#e0b25a;background:#fff6e0;}
+  .b li em{font-style:normal;font-size:6.5px;font-weight:800;color:#8a5a0a;margin-inline-end:3px;}
+  .b li i{display:block;font-style:normal;font-size:7px;color:#5a6474;}
+  .b .empty{font-size:7.5px;color:#aab;padding:3px 7px 6px;}
+  .partners{grid-column:1/span 2;grid-row:1/span 2;} .activities{grid-column:3/span 2;grid-row:1;} .resources{grid-column:3/span 2;grid-row:2;}
+  .value{grid-column:5/span 2;grid-row:1/span 2;} .relations{grid-column:7/span 2;grid-row:1;} .channels{grid-column:7/span 2;grid-row:2;}
+  .segments{grid-column:9/span 2;grid-row:1/span 2;} .costs{grid-column:1/span 5;grid-row:3;} .revenue{grid-column:6/span 5;grid-row:3;}
+  .costs ul,.revenue ul{display:grid;grid-template-columns:1fr 1fr;}
+  footer{margin-top:8px;font-size:8px;color:#8b93a1;text-align:center;border-top:1px solid #e3e6eb;padding-top:5px;}
+  .legend{font-size:7.5px;color:#6b7380;margin-top:5px;}
+  @media print{.toolbar{display:none;}}
+</style>
+</head>
+<body>
+  <div class="toolbar"><span class="status" id="status">در حال آماده‌سازی چاپ…</span><button onclick="window.print()">چاپ / ذخیره PDF</button></div>
+  <header>
+    <img src="{% static 'images/logo.svg' %}" alt="">
+    <div><div class="co">{{ product_name }} | {{ product_tagline }}</div>
+      <h1 class="bu-name">بوم کسب‌وکار — {{ current_bu.name|default:"—" }}</h1>
+      <div class="bu-sub">{{ current_bu.get_archetype_display }} · {{ stats.filled }} بلوک از ۹ بلوک تکمیل‌شده · {{ stats.total }} مورد</div></div>
+    <div class="meta">تاریخ گزارش: {% jalali_now %}</div>
+  </header>
+  <div id="canvas">
+    <div class="cv">
+      {% for b in blocks %}
+      <div class="b {{ b.key }}" style="--c:{{ b.color }};">
+        <h3>{{ b.title }}<small>{{ b.en }}</small></h3>
+        {% if b.items %}<ul>{% for it in b.items %}<li class="{% if it.status == 'draft' %}draft{% endif %}">{% if it.status == 'draft' %}<em>پیش‌نویس</em>{% endif %}{{ it.text }}</li>{% endfor %}</ul>
+        {% else %}<div class="empty">موردی ثبت نشده</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if stats.draft %}<div class="legend">موارد با پس‌زمینه زرد «پیش‌نویس» هستند و هنوز تأیید نشده‌اند.</div>{% endif %}
+  </div>
+  <footer>{{ product_name }} — {{ product_tagline }} — {{ org_office }}</footer>
+  <script>
+    function fitToOnePage(){
+      var c=document.getElementById('canvas'),MM=3.7795,availH=(210-20-30)*MM;
+      c.style.zoom=1; var h=c.scrollHeight;
+      if(h>availH){c.style.zoom=Math.max(availH/h,0.5);}
+    }
+    window.addEventListener('load',function(){fitToOnePage();setTimeout(function(){document.getElementById('status').style.display='none';window.print();},250);});
+    window.addEventListener('resize',fitToOnePage);
+  </script>
+</body>
+</html>

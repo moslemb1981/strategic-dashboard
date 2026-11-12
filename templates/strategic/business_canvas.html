@@ -1,0 +1,289 @@
+{% extends "strategic/base.html" %}
+{% load static %}
+{% load jalali_tags %}
+{% block title %}بوم کسب‌وکار{% endblock %}
+{% block crumb %}بوم کسب‌وکار{% endblock %}
+
+{% block extra_css %}
+<style>
+  .bmc{font-family:'Vazirmatn','IRANSans',Tahoma,sans-serif;--ink:#0d1b2e;--muted:#5a6474;--hair:#dde1e8;--brake:#d64528;--card:#fff;}
+  .bmc *{box-sizing:border-box;}
+  .bmc .bu-bar{display:flex;align-items:center;gap:.28rem;flex-wrap:wrap;margin-bottom:.8rem;}
+  .bmc .bu-tab{font-size:.6rem;font-weight:600;padding:.2rem .5rem;border-radius:6px;border:1px solid var(--hair);background:#fff;color:var(--muted);white-space:nowrap;}
+  .bmc .bu-tab:hover{border-color:var(--brake);color:var(--brake);}
+  .bmc .bu-tab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .bmc .bu-add-btn{font-size:.6rem;font-weight:600;padding:.2rem .45rem;border-radius:6px;border:1px dashed var(--hair);background:transparent;color:var(--muted);cursor:pointer;}
+  .bmc .bu-add-btn:hover{border-color:var(--brake);color:var(--brake);}
+  .bmc .bu-empty{padding:2.5rem;text-align:center;color:var(--muted);font-size:.85rem;background:#fff;border:1px dashed var(--hair);border-radius:12px;margin-bottom:1rem;}
+
+  /* نوار خلاصه */
+  .bmc .sumbar{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;background:var(--card);border:1px solid var(--hair);
+    border-radius:14px;padding:.8rem 1.1rem;margin-bottom:1rem;box-shadow:0 10px 26px -18px rgba(13,27,46,.3);}
+  .bmc .ring{position:relative;width:62px;height:62px;flex-shrink:0;}
+  .bmc .ring svg{transform:rotate(-90deg);}
+  .bmc .ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:900;color:var(--ink);}
+  .bmc .sum-main{min-width:170px;}
+  .bmc .sum-main .t1{font-size:.86rem;font-weight:800;color:var(--ink);}
+  .bmc .sum-main .t2{font-size:.68rem;color:var(--muted);margin-top:2px;line-height:1.6;}
+  .bmc .stat{padding:0 1rem;border-inline-start:1px solid var(--hair);text-align:center;}
+  .bmc .stat b{display:block;font-size:1.15rem;font-weight:900;color:var(--ink);line-height:1.2;}
+  .bmc .stat small{font-size:.6rem;color:var(--muted);}
+  .bmc .stat.warn b{color:#b9770e;}
+  .bmc .sum-actions{margin-inline-start:auto;display:flex;gap:8px;flex-wrap:wrap;}
+  .bmc .approve-btn{font-family:inherit;font-size:.72rem;font-weight:700;border:1px solid #e0b25a;background:#fff7e6;color:#8a5a0a;border-radius:8px;padding:.45rem .8rem;cursor:pointer;}
+  .bmc .approve-btn:hover{background:#ffefc9;}
+
+  /* خود بوم */
+  .bmc .canvas{display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:auto auto auto;gap:.55rem;
+    background:linear-gradient(180deg,#f4f6f9,#eef1f5);border:1px solid var(--hair);border-radius:18px;padding:.7rem;
+    box-shadow:0 18px 40px -26px rgba(13,27,46,.45);}
+  .bmc .blk{background:var(--card);border-radius:13px;border:1px solid var(--hair);display:flex;flex-direction:column;
+    overflow:hidden;position:relative;min-height:150px;transition:box-shadow .18s,transform .18s;}
+  .bmc .blk:hover{box-shadow:0 14px 30px -16px color-mix(in srgb,var(--c) 55%,transparent);transform:translateY(-2px);}
+  .bmc .blk::before{content:"";position:absolute;inset-inline:0;top:0;height:4px;background:var(--c);}
+  .bmc .b-head{display:flex;align-items:center;gap:.5rem;padding:.7rem .7rem .35rem;}
+  .bmc .b-ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--c);font-size:.8rem;flex-shrink:0;}
+  .bmc .b-title{font-size:.8rem;font-weight:800;color:var(--ink);line-height:1.25;}
+  .bmc .b-en{font-size:.55rem;color:var(--muted);letter-spacing:.2px;direction:ltr;text-align:right;}
+  .bmc .b-cnt{margin-inline-start:auto;font-size:.62rem;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 12%,#fff);
+    border-radius:20px;padding:1px 8px;min-width:22px;text-align:center;}
+  .bmc .b-info{border:none;background:none;color:#aab1bd;cursor:help;font-size:.72rem;padding:0 2px;}
+  .bmc .b-info:hover{color:var(--c);}
+  .bmc .b-body{padding:.2rem .55rem .35rem;display:flex;flex-direction:column;gap:.35rem;flex:1;}
+  .bmc .it{display:flex;align-items:flex-start;gap:.35rem;background:color-mix(in srgb,var(--c) 7%,#fff);border:1px solid color-mix(in srgb,var(--c) 22%,#fff);
+    border-inline-start:3px solid var(--c);border-radius:8px;padding:.36rem .45rem;font-size:.7rem;line-height:1.55;color:var(--ink);}
+  .bmc .it.draft{background:repeating-linear-gradient(135deg,#fffaf0,#fffaf0 7px,#fff3d9 7px,#fff3d9 14px);border:1px dashed #e0b25a;border-inline-start:3px solid #e0b25a;}
+  .bmc .it .tx{flex:1;min-width:0;word-break:break-word;}
+  .bmc .it .nt{display:block;font-size:.6rem;color:var(--muted);margin-top:2px;line-height:1.5;}
+  .bmc .it .dtag{display:inline-block;font-size:.5rem;font-weight:800;color:#8a5a0a;background:#ffe7ae;border-radius:4px;padding:0 5px;margin-inline-end:5px;vertical-align:middle;}
+  .bmc .it .acts{display:flex;gap:1px;flex-shrink:0;opacity:0;transition:opacity .15s;}
+  .bmc .it:hover .acts,.bmc .it:focus-within .acts{opacity:1;}
+  .bmc .it .acts button{border:none;background:none;cursor:pointer;color:#8b93a1;font-size:.66rem;padding:2px 3px;border-radius:4px;}
+  .bmc .it .acts button:hover{color:var(--c);background:#fff;}
+  .bmc .it .acts .del:hover{color:#d6402f;}
+  .bmc .b-empty{font-size:.64rem;color:#a2a9b5;line-height:1.7;padding:.25rem .15rem;}
+  .bmc .b-add{margin:0 .55rem .55rem;border:1px dashed color-mix(in srgb,var(--c) 45%,#fff);background:transparent;color:var(--c);
+    font-family:inherit;font-size:.66rem;font-weight:700;border-radius:8px;padding:.3rem;cursor:pointer;}
+  .bmc .b-add:hover{background:color-mix(in srgb,var(--c) 9%,#fff);}
+
+  .bmc .blk.partners{grid-column:1 / span 2;grid-row:1 / span 2;}
+  .bmc .blk.activities{grid-column:3 / span 2;grid-row:1;}
+  .bmc .blk.resources{grid-column:3 / span 2;grid-row:2;}
+  .bmc .blk.value{grid-column:5 / span 2;grid-row:1 / span 2;}
+  .bmc .blk.relations{grid-column:7 / span 2;grid-row:1;}
+  .bmc .blk.channels{grid-column:7 / span 2;grid-row:2;}
+  .bmc .blk.segments{grid-column:9 / span 2;grid-row:1 / span 2;}
+  .bmc .blk.costs{grid-column:1 / span 5;grid-row:3;min-height:120px;}
+  .bmc .blk.revenue{grid-column:6 / span 5;grid-row:3;min-height:120px;}
+  .bmc .blk.value{background:linear-gradient(180deg,#fff,#fff6f3);}
+  .bmc .blk.costs .b-body,.bmc .blk.revenue .b-body{display:grid;grid-template-columns:repeat(2,1fr);align-content:start;}
+  .bmc .blk.costs .b-empty,.bmc .blk.revenue .b-empty{grid-column:1/-1;}
+
+  @media(max-width:1100px){
+    .bmc .canvas{grid-template-columns:repeat(2,1fr);grid-template-rows:none;}
+    .bmc .blk,.bmc .blk.partners,.bmc .blk.activities,.bmc .blk.resources,.bmc .blk.value,.bmc .blk.relations,.bmc .blk.channels,
+    .bmc .blk.segments,.bmc .blk.costs,.bmc .blk.revenue{grid-column:auto;grid-row:auto;}
+    .bmc .blk.value{grid-column:1 / -1;}
+  }
+  @media(max-width:640px){.bmc .canvas{grid-template-columns:1fr;}.bmc .blk.costs .b-body,.bmc .blk.revenue .b-body{display:flex;}}
+
+  .bmc .legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.66rem;color:var(--muted);margin:.7rem .2rem 0;align-items:center;}
+  .bmc .legend i{display:inline-block;width:18px;height:11px;border-radius:3px;vertical-align:middle;margin-inline-end:5px;}
+  .bmc .gap-note{margin-top:.8rem;background:#fff;border:1px solid var(--hair);border-radius:12px;padding:.7rem 1rem;font-size:.72rem;color:var(--muted);line-height:1.8;}
+  .bmc .gap-note b{color:var(--ink);}
+  .bmc .gap-note span.chip{display:inline-block;background:#f1f3f6;border-radius:6px;padding:0 7px;margin:0 2px;color:var(--ink);font-weight:600;}
+
+  .bmc-modal .hint{font-size:.68rem;color:var(--muted);background:#f6f8fb;border-radius:8px;padding:.5rem .7rem;line-height:1.7;margin-top:6px;}
+
+  /* ===== نمای فشرده (پیش‌فرض): کل بوم در یک صفحه ===== */
+  .bmc .view-toggle{font-family:inherit;font-size:.7rem;font-weight:700;border:1px solid var(--hair);background:#fff;color:var(--ink);border-radius:8px;padding:.42rem .75rem;cursor:pointer;}
+  .bmc .view-toggle:hover{border-color:var(--brake);color:var(--brake);}
+  .bmc .b-more{display:none;border:none;background:none;font-family:inherit;font-size:.62rem;font-weight:700;color:var(--c);cursor:pointer;padding:2px 4px;text-align:start;}
+  .bmc .b-more:hover{text-decoration:underline;}
+  .bmc .canvas.compact{grid-template-rows:auto auto auto;}
+  .bmc .canvas.compact .blk{min-height:0 !important;}
+  .bmc .canvas.compact .b-head{padding:.5rem .6rem .2rem;}
+  .bmc .canvas.compact .b-ico{width:26px;height:26px;font-size:.7rem;}
+  .bmc .canvas.compact .b-title{font-size:.74rem;}
+  .bmc .canvas.compact .b-body{min-height:0;gap:.26rem;padding:.1rem .45rem .3rem;scrollbar-width:thin;}
+  .bmc .canvas.compact .it{padding:.24rem .4rem;font-size:.64rem;line-height:1.45;border-radius:7px;}
+  .bmc .canvas.compact .b-empty{font-size:.6rem;line-height:1.6;}
+  .bmc .canvas.compact .b-add{margin:0 .45rem .4rem;padding:.2rem;font-size:.62rem;}
+  .bmc .canvas.compact .blk.costs .b-body,.bmc .canvas.compact .blk.revenue .b-body{grid-template-columns:repeat(2,1fr);}
+  .bmc .canvas.compact .blk.costs .b-more,.bmc .canvas.compact .blk.revenue .b-more{grid-column:1/-1;}
+  .bmc .canvas.compact .blk.value .b-body{justify-content:flex-start;}
+  .bmc .canvas.compact .b-add{flex-shrink:0;}
+  .bmc .sumbar{padding:.55rem 1rem;gap:.9rem;margin-bottom:.7rem;}
+  .bmc .ring{width:50px;height:50px;}.bmc .ring svg{width:50px;height:50px;}.bmc .ring b{font-size:.7rem;}
+  .bmc .stat b{font-size:1rem;}
+  .print-header{display:none;}
+</style>
+<style media="print">
+  .topheader,.sidebar,.topbar,.bu-bar,.sum-actions,.b-add,.acts,.b-info{display:none !important;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bmc" id="bmcRoot">
+  <div class="topbar">
+    <div><h1>بوم کسب‌وکار</h1><div class="sub">مدل کسب‌وکار هر حوزه در ۹ بلوک: از مشتری و ارزش پیشنهادی تا منابع، هزینه و درآمد</div></div>
+    {% if current_bu %}
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'strategic:business_canvas_print' %}?bu={{ current_bu.pk }}" target="_blank"><button type="button" class="btn ghost"><i class="fa-solid fa-file-pdf"></i> خروجی PDF</button></a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="bu-bar">
+    {% for bu in business_units %}
+    <a class="bu-tab {% if bu == current_bu %}active{% endif %}" href="?bu={{ bu.pk }}" title="{{ bu.name }} — {{ bu.get_archetype_display }}">{{ bu.name|cut:"کسب و کار " }}</a>
+    {% endfor %}
+    {% if perms.strategic.add_businessunit %}
+    <button type="button" class="bu-add-btn" onclick="document.getElementById('bmcBuOverlay').classList.add('open')"><i class="fa-solid fa-plus"></i> کسب‌وکار جدید</button>
+    {% endif %}
+  </div>
+
+  {% if not current_bu %}
+  <div class="bu-empty">هنوز هیچ کسب‌وکاری تعریف نشده — از دکمه «کسب‌وکار جدید» بالا شروع کنید.</div>
+  {% else %}
+
+  <div class="sumbar">
+    <div class="ring">
+      <svg width="62" height="62" viewBox="0 0 62 62"><circle cx="31" cy="31" r="26" fill="none" stroke="#e8ebf0" stroke-width="7"/>
+        <circle cx="31" cy="31" r="26" fill="none" stroke="{% if stats.pct == 100 %}#0f8a6a{% else %}#d64528{% endif %}" stroke-width="7" stroke-linecap="round"
+          stroke-dasharray="{% widthratio stats.pct 100 163.4 %} 163.4"/></svg>
+      <b>{{ stats.filled }}/۹</b>
+    </div>
+    <div class="sum-main">
+      <div class="t1">{{ current_bu.name }}</div>
+      <div class="t2">{{ current_bu.get_archetype_display }} · {% if stats.filled == 9 %}هر ۹ بلوک تکمیل شده است{% else %}{{ stats.filled }} بلوک از ۹ بلوک تکمیل شده{% endif %}</div>
+    </div>
+    <div class="stat"><b>{{ stats.total }}</b><small>مورد ثبت‌شده</small></div>
+    {% if stats.draft %}<div class="stat warn"><b>{{ stats.draft }}</b><small>پیش‌نویس نیازمند تأیید</small></div>{% endif %}
+    <div class="sum-actions">
+      {% if stats.draft and perms.strategic.change_businesscanvasitem %}
+      <form method="post" style="margin:0;" onsubmit="return confirm('همه پیش‌نویس‌های این کسب‌وکار به‌عنوان «تأیید شده» ثبت شوند؟');">{% csrf_token %}
+        <input type="hidden" name="business_unit" value="{{ current_bu.pk }}"><input type="hidden" name="action" value="approve_all">
+        <button type="submit" class="approve-btn"><i class="fa-solid fa-circle-check"></i> تأیید همه پیش‌نویس‌ها</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="canvas compact" id="bmcCanvas">
+    {% for b in blocks %}
+    <section class="blk {{ b.key }}" style="--c:{{ b.color }};" data-block="{{ b.key }}">
+      <div class="b-head">
+        <div class="b-ico"><i class="fa-solid {{ b.icon }}"></i></div>
+        <div><div class="b-title">{{ b.title }}</div><div class="b-en">{{ b.en }}</div></div>
+        <button type="button" class="b-info" title="{{ b.hint }}"><i class="fa-regular fa-circle-question"></i></button>
+        <span class="b-cnt">{{ b.count }}</span>
+      </div>
+      <div class="b-body">
+        {% for it in b.items %}
+        <div class="it {% if it.status == 'draft' %}draft{% endif %}" title="{{ it.text }}" data-id="{{ it.pk }}" data-block="{{ it.block }}" data-text="{{ it.text }}" data-status="{{ it.status }}">
+          <div class="tx">{% if it.status == 'draft' %}<span class="dtag">پیش‌نویس</span>{% endif %}{{ it.text }}</div>
+          <div class="acts">
+            {% if perms.strategic.change_businesscanvasitem %}<button type="button" title="ویرایش" onclick="bmcEdit(this.closest('.it'))"><i class="fa-solid fa-pen"></i></button>{% endif %}
+            {% if perms.strategic.delete_businesscanvasitem %}<form method="post" action="{% url 'strategic:business_canvas_delete' it.pk %}" style="margin:0;" onsubmit="return confirm('این مورد حذف شود؟');">{% csrf_token %}<button type="submit" class="del" title="حذف"><i class="fa-solid fa-xmark"></i></button></form>{% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="b-empty">{{ b.hint }}</div>
+        {% endfor %}
+      </div>
+      {% if perms.strategic.add_businesscanvasitem %}
+      <button type="button" class="b-add" onclick="bmcAdd('{{ b.key }}')"><i class="fa-solid fa-plus"></i> افزودن مورد</button>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#eaf3fb;border-inline-start:3px solid #1183c9;"></i>مورد تأیید شده</span>
+    <span><i style="background:repeating-linear-gradient(135deg,#fffaf0,#fffaf0 4px,#fff3d9 4px,#fff3d9 8px);border:1px dashed #e0b25a;"></i>پیش‌نویس — نیازمند بازبینی و تأیید</span>
+    <span><i class="fa-regular fa-circle-question" style="width:auto;background:none;"></i>راهنمای هر بلوک: نشانگر را روی علامت سؤال ببرید</span>
+  </div>
+
+  {% if stats.empty_titles %}
+  <div class="gap-note"><b>بلوک‌های خالی:</b>
+    {% for t in stats.empty_titles %}<span class="chip">{{ t }}</span>{% endfor %}
+    — پیشنهاد: ابتدا «بخش‌های مشتریان» و «پیشنهاد ارزش» را تکمیل کنید؛ بقیه بلوک‌ها از این دو نتیجه می‌شوند.
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% if current_bu %}
+<div class="overlay" id="bmcOverlay">
+  <div class="modal-card bmc-modal" style="max-width:460px;">
+    <h3 id="bmcModalTitle">افزودن مورد</h3>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="business_unit" value="{{ current_bu.pk }}">
+      <input type="hidden" name="obj_id" id="bmc_obj_id" value="">
+      <div class="field-group"><label>بلوک</label>
+        <select name="block" id="bmc_block">{% for k, t in block_choices %}<option value="{{ k }}">{{ t }}</option>{% endfor %}</select>
+        <div class="hint" id="bmc_hint"></div>
+      </div>
+      <div class="field-group"><label>متن (کوتاه و روشن)</label><textarea name="text" id="bmc_text" rows="2" maxlength="300" required></textarea></div>
+      <div class="field-group"><label>وضعیت</label>
+        <select name="status" id="bmc_status"><option value="approved">تأیید شده</option><option value="draft">پیش‌نویس (نیازمند تأیید)</option></select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('bmcOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ثبت</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="overlay" id="bmcBuOverlay">
+  <div class="modal-card" style="max-width:360px;">
+    <h3>افزودن کسب‌وکار جدید</h3>
+    <form method="post" action="{% url 'strategic:business_unit_add' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="strategic:business_canvas">
+      <div class="field-group"><label>نام کسب‌وکار</label><input type="text" name="name" required></div>
+      <div class="field-group"><label>رویکرد استراتژیک</label>
+        <select name="archetype">
+          <option value="intimacy">صمیمیت با مشتری</option>
+          <option value="excellence">برتری عملیاتی</option>
+          <option value="exclusive">ایجاد فضای انحصاری</option>
+          <option value="other">سایر</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="document.getElementById('bmcBuOverlay').classList.remove('open')">انصراف</button>
+        <button type="submit" class="btn accent">ثبت کسب‌وکار</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  var HINTS = {{ hints_json|safe }};
+  var ov = document.getElementById('bmcOverlay');
+  if(!ov) return;
+  var $ = function(id){return document.getElementById(id);};
+  function hint(){ $('bmc_hint').textContent = HINTS[$('bmc_block').value] || ''; }
+  $('bmc_block').addEventListener('change', hint);
+  window.bmcAdd = function(key){
+    $('bmcModalTitle').textContent = 'افزودن مورد';
+    $('bmc_obj_id').value=''; $('bmc_block').value=key; $('bmc_text').value=''; $('bmc_status').value='approved';
+    hint(); ov.classList.add('open'); setTimeout(function(){$('bmc_text').focus();},50);
+  };
+  window.bmcEdit = function(el){
+    $('bmcModalTitle').textContent = 'ویرایش مورد';
+    $('bmc_obj_id').value=el.dataset.id; $('bmc_block').value=el.dataset.block; $('bmc_text').value=el.dataset.text;
+    $('bmc_status').value=el.dataset.status;
+    hint(); ov.classList.add('open');
+  };
+})();
+</script>
+{% endblock %}

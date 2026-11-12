@@ -111,6 +111,12 @@
       <div class="field-group"><label>کد پروژه (اختیاری)</label>{{ form.code }}</div>
       <div class="field-group"><label>عنوان پروژه</label>{{ form.title }}</div>
       <div class="field-group"><label>نوع</label>{{ form.item_type }}</div>
+      <div class="field-group"><label>نوع کسب‌وکار</label>
+        <select name="init_business_unit" id="id_init_business_unit">
+          {% for bu in business_units %}<option value="{{ bu.pk }}"{% if bu.pk == current_bu.pk %} selected{% endif %}>{{ bu.name }}</option>{% endfor %}
+        </select>
+        <div id="buChangeHint" style="display:none;font-size:11px;color:#B0413E;margin-top:4px;line-height:1.7;">با تغییر کسب‌وکار، «اهداف نقشه» و «راهبرد TOWS» انتخاب‌شده پاک می‌شود و باید در کسب‌وکار جدید دوباره انتخاب شود.</div>
+      </div>
       <div class="field-group"><label>واحد مسئول</label>{{ form.owner }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div class="field-group"><label>کارگروه</label>{{ form.work_group }}</div>
@@ -464,6 +470,14 @@
   document.addEventListener('DOMContentLoaded', function(){
     const typeEl = document.getElementById('id_item_type');
     if (typeEl) typeEl.addEventListener('change', toggleProgressField);
+    const buSel = document.getElementById('id_init_business_unit');
+    if (buSel) {
+      buSel.dataset.cur = buSel.value;
+      buSel.addEventListener('change', function(){
+        const h = document.getElementById('buChangeHint');
+        if (h) h.style.display = (buSel.dataset.orig && buSel.dataset.orig !== buSel.value) ? 'block' : 'none';
+      });
+    }
   });
 
   function newInitiative(){
@@ -472,6 +486,9 @@
     document.querySelectorAll('.picker-box input[type="checkbox"]').forEach(cb => cb.checked = false);
     syncPickerBoxes();
     toggleProgressField();
+    const buSel = document.getElementById('id_init_business_unit');
+    if (buSel) { buSel.value = buSel.dataset.cur || buSel.value; buSel.dataset.orig = ''; }
+    const buHint = document.getElementById('buChangeHint'); if (buHint) buHint.style.display = 'none';
     document.getElementById('modalTitle').textContent = 'افزودن پروژه جدید';
     document.getElementById('submitBtn').textContent = 'ثبت پروژه';
     openModal();
@@ -491,6 +508,9 @@
     document.getElementById('id_progress').value = d.progress;
     document.getElementById('id_status').value = d.status;
     toggleProgressField();
+    const buSel2 = document.getElementById('id_init_business_unit');
+    if (buSel2) { if (d.businessUnit) { buSel2.value = d.businessUnit; } buSel2.dataset.orig = d.businessUnit || ''; }
+    const buHint2 = document.getElementById('buChangeHint'); if (buHint2) buHint2.style.display = 'none';
     const objIds = (d.objectives || '').split(',').filter(Boolean);
     document.querySelectorAll('input[name="objectives"]').forEach(cb => { cb.checked = objIds.includes(cb.value); });
     const kpiIds = (d.sourceKpi || '').split(',').filter(Boolean);

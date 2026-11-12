@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Study, Initiative, Risk, SWOTItem, TOWSStrategy, StrategicObjective,
+    Study, Initiative, Risk, SWOTItem, BusinessCanvasItem, TOWSStrategy, StrategicObjective,
     Competitor, PestelFactor, BusinessUnit, StrategyTheme, PorterForce,
     OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S, ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes, CompanyObjective, CompanyKPI, Document, StrategicKPI, LegalRequirement, EnvironmentalFactor,
     OperationalKPI, OperationalKPITrendPoint,
@@ -280,3 +280,10 @@ class KPIAnalysisReportAdmin(admin.ModelAdmin):
     autocomplete_fields = ()
     raw_id_fields = ("kpi",)
     inlines = [KPIAnalysisRowInline]
+
+
+@admin.register(BusinessCanvasItem)
+class BusinessCanvasItemAdmin(admin.ModelAdmin):
+    list_display = ("text", "block", "business_unit", "status", "order")
+    list_filter = ("business_unit", "block", "status")
+    search_fields = ("text", "note")
