@@ -67,15 +67,15 @@
     font-family:inherit;font-size:.66rem;font-weight:700;border-radius:8px;padding:.3rem;cursor:pointer;}
   .bmc .b-add:hover{background:color-mix(in srgb,var(--c) 9%,#fff);}
 
-  .bmc .blk.partners{grid-column:1 / span 2;grid-row:1 / span 2;}
-  .bmc .blk.activities{grid-column:3 / span 2;grid-row:1;}
-  .bmc .blk.resources{grid-column:3 / span 2;grid-row:2;}
+  .bmc .blk.partners{grid-column:9 / span 2;grid-row:1 / span 2;}
+  .bmc .blk.activities{grid-column:7 / span 2;grid-row:1;}
+  .bmc .blk.resources{grid-column:7 / span 2;grid-row:2;}
   .bmc .blk.value{grid-column:5 / span 2;grid-row:1 / span 2;}
-  .bmc .blk.relations{grid-column:7 / span 2;grid-row:1;}
-  .bmc .blk.channels{grid-column:7 / span 2;grid-row:2;}
-  .bmc .blk.segments{grid-column:9 / span 2;grid-row:1 / span 2;}
-  .bmc .blk.costs{grid-column:1 / span 5;grid-row:3;min-height:120px;}
-  .bmc .blk.revenue{grid-column:6 / span 5;grid-row:3;min-height:120px;}
+  .bmc .blk.relations{grid-column:3 / span 2;grid-row:1;}
+  .bmc .blk.channels{grid-column:3 / span 2;grid-row:2;}
+  .bmc .blk.segments{grid-column:1 / span 2;grid-row:1 / span 2;}
+  .bmc .blk.costs{grid-column:6 / span 5;grid-row:3;min-height:120px;}
+  .bmc .blk.revenue{grid-column:1 / span 5;grid-row:3;min-height:120px;}
   .bmc .blk.value{background:linear-gradient(180deg,#fff,#fff6f3);}
   .bmc .blk.costs .b-body,.bmc .blk.revenue .b-body{display:grid;grid-template-columns:repeat(2,1fr);align-content:start;}
   .bmc .blk.costs .b-empty,.bmc .blk.revenue .b-empty{grid-column:1/-1;}
@@ -163,9 +163,9 @@
     {% if stats.draft %}<div class="stat warn"><b>{{ stats.draft }}</b><small>پیش‌نویس نیازمند تأیید</small></div>{% endif %}
     <div class="sum-actions">
       {% if stats.draft and perms.strategic.change_businesscanvasitem %}
-      <form method="post" style="margin:0;" onsubmit="return confirm('همه پیش‌نویس‌های این کسب‌وکار به‌عنوان «تأیید شده» ثبت شوند؟');">{% csrf_token %}
+      <form method="post" style="margin:0;" onsubmit="return confirm('همه‌ی پیش‌نویس‌های این کسب‌وکار به‌عنوان «تأیید شده» ثبت شوند؟');">{% csrf_token %}
         <input type="hidden" name="business_unit" value="{{ current_bu.pk }}"><input type="hidden" name="action" value="approve_all">
-        <button type="submit" class="approve-btn"><i class="fa-solid fa-circle-check"></i> تأیید همه پیش‌نویس‌ها</button>
+        <button type="submit" class="approve-btn"><i class="fa-solid fa-circle-check"></i> تأیید همه‌ی پیش‌نویس‌ها</button>
       </form>
       {% endif %}
     </div>
@@ -209,7 +209,7 @@
   {% if stats.empty_titles %}
   <div class="gap-note"><b>بلوک‌های خالی:</b>
     {% for t in stats.empty_titles %}<span class="chip">{{ t }}</span>{% endfor %}
-    — پیشنهاد: ابتدا «بخش‌های مشتریان» و «پیشنهاد ارزش» را تکمیل کنید؛ بقیه بلوک‌ها از این دو نتیجه می‌شوند.
+    — پیشنهاد: ابتدا «بخش‌های مشتریان» و «پیشنهاد ارزش» را تکمیل کنید؛ بقیه‌ی بلوک‌ها از این دو نتیجه می‌شوند.
   </div>
   {% endif %}
   {% endif %}

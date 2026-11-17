@@ -20,6 +20,7 @@ import jdatetime
 from .jalali_utils import jalali_str_to_gregorian, gregorian_to_jalali_str
 
 from .models import (
+    OKRObjective,
     Study, Initiative, Risk, SWOTItem, BusinessCanvasItem, TOWSStrategy, StrategicObjective, Competitor, PestelFactor,
     BusinessUnit, StrategyTheme, PorterForce, OrgIdentity, OrgValue, QualityPolicyPoint, McKinsey7S,
     ValueChainActivity, Stakeholder, CrossImpactFactor, CrossImpactLink, Scenario, ScenarioAxes,
@@ -5322,7 +5323,7 @@ def user_edit(request, pk=None):
         sections_ui.append({
             "key": key, "label": label, "bu_scoped": bu_scoped,
             "checked": change_codename in current_perm_codenames,
-            "has_view": has_page,
+            "has_view": has_page, "view_only": key == "executive_show",
             "view_checked": view_cn in current_perm_codenames or change_codename in current_perm_codenames,
         })
 
@@ -5830,84 +5831,121 @@ def _executive_bu_story(bu, objectives_all, initiatives_all, risks_all):
     }
 
 
-@login_required
-def executive_show(request):
-    """نمای روایی سطح هیات مدیره: هر کسب‌وکار در یک نگاه — از کجا آمده، به کدام
-    استراتژی وصل است، عملکردش چیست، چه پروژه‌هایی دارد و نتیجه‌ی نهایی چه بوده.
-    عمداً در هیچ منویی لینک نشده؛ فقط با تایپ دستی /show/ در آدرس قابل دسترسی است."""
-    business_units = list(BusinessUnit.objects.all().order_by("order", "name"))
+def _exec_num(x):
+    try:
+        return float(str(x).replace(",", "").replace("%", "").strip())
+    except (TypeError, ValueError):
+        return None
 
-    objectives_all = list(
-        StrategicObjective.objects.filter(business_unit__isnull=False)
-        .select_related("theme", "business_unit")
-        .prefetch_related("linked_kpis", "linked_operational_kpis__trend_points", "functional_strategies__linked_operational_kpis")
-    )
-    _attach_computed_objective_status(objectives_all)
 
-    initiatives_all = list(
-        Initiative.objects.filter(business_unit__isnull=False)
-        .select_related("business_unit")
-        .prefetch_related("source_tows__source_items", "objectives")
-    )
+def _exec_fix(s):
+    # «ه‌ی» پایانی → «ه» (طبق قاعده‌ی املایی سامانه)
+    return re.sub(r"ه\u200cی(?=[\s،؛:.\)\(«»\-—/'\"]|$)", "ه", s or "")
 
-    # ریسک‌های وصل‌شده به یک هدف استراتژیک — تا زیر همان استراتژی (کنار پروژه‌های
-    # سبز) با رنگ قرمز/نارنجی نشان داده شوند، طبق پیشنهاد تاییدشده در این نما.
-    risks_all = list(
-        Risk.objects.filter(linked_objective__business_unit__isnull=False)
-        .select_related("linked_objective")
-    )
 
-    cards = [_executive_bu_story(bu, objectives_all, initiatives_all, risks_all) for bu in business_units]
+def _executive_dashboard_data():
+    """داده‌ی «دیدبان استراتژی» (/show/): درخت OKR سازمان ← معاونت ← مدیریت
+    با تحقق هر نتیجه‌ی کلیدی از شاخص متصل، روند ماهانه‌ی ۱۴۰۵ و وضعیت پروژه‌ها.
+    فقط می‌خواند؛ چیزی در دیتابیس نمی‌نویسد."""
+    import collections
+    import datetime
 
-    # ————— جمع‌بندی سطح هلدینگ (برای نوار خلاصه‌ی اجرایی بالای صفحه) —————
-    scored = [c for c in cards if c["overall_pct"] is not None]
-    if scored:
-        holding_avg = round(sum(c["overall_pct"] for c in scored) / len(scored))
-        holding_avg_deg = round(holding_avg * 3.6)
-        holding_avg_color = _pct_color_hex(holding_avg)
-        best = max(scored, key=lambda c: c["overall_pct"])
-        worst = min(scored, key=lambda c: c["overall_pct"])
-    else:
-        holding_avg = holding_avg_deg = None
-        holding_avg_color = "#9aa1ab"
-        best = worst = None
+    trend = collections.defaultdict(dict)
+    for t in OperationalKPITrendPoint.objects.filter(year="1405"):
+        trend[t.kpi_id][int(t.month)] = (_exec_num(t.target), _exec_num(t.actual))
 
-    on_track_bu = sum(1 for c in scored if c["overall_pct"] >= 90)
-    watch_bu = sum(1 for c in scored if 80 <= c["overall_pct"] < 90)
-    risk_bu = sum(1 for c in scored if c["overall_pct"] < 80)
+    def kpi_projects(k):
+        """پروژه‌های مرتبط با شاخص (مستقیم + از طریق شاخص کلان ارتقایافته)؛ m = ماه شروع در ۱۴۰۵ (۰ = نامشخص/سال دیگر)."""
+        out = []
+        for ini, _via in _kpi_all_initiatives(k):
+            m = 0
+            sd = ed = ""
+            if ini.start_date:
+                js = jdatetime.date.fromgregorian(date=ini.start_date)
+                sd = js.strftime("%Y/%m/%d")
+                if str(js.year) == "1405":
+                    m = js.month  # فقط برای پرچم روی نمودار (شروع در ۱۴۰۵)
+            if ini.end_date:
+                ed = jdatetime.date.fromgregorian(date=ini.end_date).strftime("%Y/%m/%d")
+            out.append(dict(c=ini.code or "", t=_exec_fix(ini.title), s=ini.get_status_display(),
+                            d=(ini.status == "done"), pr=ini.progress, m=m, sd=sd, ed=ed))
+        return out
 
-    total_initiatives = len(initiatives_all)
-    done_initiatives = sum(1 for i in initiatives_all if i.status == "done")
-    active_initiatives = sum(1 for i in initiatives_all if i.status == "in_progress")
-    total_objectives = len(objectives_all)
-
-    if holding_avg is not None:
-        headline = (
-            f"در یک نگاه: از {len(cards)} کسب‌وکار، {on_track_bu} کسب‌وکار در مسیر هدف، "
-            f"{watch_bu} نیازمند پیگیری و {risk_bu} در معرض ریسک قرار دارند — "
-            f"میانگین تحقق اهداف راهبردی در سطح هلدینگ {holding_avg}٪ است."
+    def op_kpi(k):
+        if not k:
+            return None
+        return dict(
+            c=k.code, n=_exec_fix(k.title), u=k.unit,
+            t=_exec_num(k.target_1405), a=_exec_num(k.actual_1405),
+            p=_exec_num(k.progress_1405), m=_exec_num(k.progress_month),
+            tr=[trend[k.id].get(i) for i in range(1, 13)] if k.id in trend else None,
+            pj=kpi_projects(k),
         )
-    else:
-        headline = "هنوز شاخص کافی برای جمع‌بندی وضعیت هلدینگ ثبت نشده است."
 
-    summary = {
-        "bu_count": len(cards),
-        "holding_avg": holding_avg,
-        "holding_avg_deg": holding_avg_deg,
-        "holding_avg_color": holding_avg_color,
-        "on_track_bu": on_track_bu,
-        "watch_bu": watch_bu,
-        "risk_bu": risk_bu,
-        "total_objectives": total_objectives,
-        "total_initiatives": total_initiatives,
-        "done_initiatives": done_initiatives,
-        "active_initiatives": active_initiatives,
-        "best": best,
-        "worst": worst,
-        "headline": headline,
-    }
+    def co_kpi(ck):
+        pc = _exec_num(ck.progress_1405)
+        return dict(
+            c=ck.code, n=_exec_fix(ck.name), u=ck.unit,
+            t=_exec_num(ck.target_1405), a=_exec_num(ck.actual_1405),
+            p=None if pc is None else pc * 100, m=None, tr=None,
+        )
 
-    return render(request, "strategic/executive_show.html", {"cards": cards, "summary": summary})
+    def key_results(obj):
+        res = []
+        for k in obj.key_results.select_related("operational_kpi", "company_kpi").order_by("order", "code"):
+            d = dict(c=k.code, t=_exec_fix(k.title), w=k.weight, dn=bool(k.lower_is_better))
+            # درصد تحقق دقیقاً همان منطق صفحه‌ی OKR است (OKRKeyResult.pct: هدف/عملکرد شاخص)
+            if k.operational_kpi:
+                d["k"] = op_kpi(k.operational_kpi)
+                d["kt"] = "ع"
+            elif k.company_kpi:
+                d["k"] = co_kpi(k.company_kpi)
+                d["kt"] = "ش"
+            if d.get("k"):
+                d["k"]["t"], d["k"]["a"], d["k"]["p"] = k.target, k.actual, k.pct
+            res.append(d)
+        return res
+
+    def objectives(qs):
+        return [
+            dict(c=o.code, t=_exec_fix(o.title), k=key_results(o), pc=(o.parent.code if o.parent else None))
+            for o in qs.select_related("parent").order_by("order", "code")
+        ]
+
+    units = []
+    for u in OrgUnit.objects.order_by("kind", "order"):
+        groups = []
+        own = objectives(OKRObjective.objects.filter(org_unit=u, level="deputy"))
+        if own:
+            groups.append(dict(n="اهداف کلان واحدها" if u.kind == "ceo_direct" else "اهداف خود معاونت", o=own))
+        for m in u.managements.order_by("order"):
+            ob = objectives(OKRObjective.objects.filter(org_unit=u, level="management", management_ref=m))
+            if ob:
+                groups.append(dict(n=_exec_fix(m.name), o=ob))
+        units.append(dict(n=u.name, g=groups, ind=(u.kind == "ceo_direct")))
+
+    company = objectives(OKRObjective.objects.filter(level="company"))
+
+    today = datetime.date.today()
+    divs = collections.defaultdict(lambda: dict(done=0, run=0, late=0))
+    for i in Initiative.objects.all():
+        d = divs[i.division or i.owner or "—"]
+        if i.status == "done":
+            d["done"] += 1
+        elif i.end_date and i.end_date < today:
+            d["late"] += 1
+        else:
+            d["run"] += 1
+
+    return {"units": units, "co": company, "init": dict(divs)}
+
+
+@guest_gate('executive_show')
+def executive_show(request):
+    """دیدبان استراتژی: داشبورد یک‌صفحه‌ای سه‌سطحی (سازمان ← معاونت ← مدیریت)
+    بر پایه‌ی OKR با دریل‌دان/دریل‌آپ. داده درون صفحه جاسازی می‌شود و صفحه خودش
+    هر چند دقیقه یک‌بار بارگذاری مجدد می‌شود. (جایگزین نمای قدیمی روایی هر کسب‌وکار.)"""
+    return render(request, "strategic/executive_show.html", {"dash": _executive_dashboard_data()})
 
 
 @guest_gate('kpi_heatmap')

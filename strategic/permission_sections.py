@@ -33,6 +33,8 @@ SECTIONS = {
     "market_intel": ("هوش بازار", ["Competitor", "CustomerSatisfactionBenchmark", "DomesticRawMaterial", "MarketIntelReport"], False),
     "functional_strategies": ("استراتژی وظیفه‌ای", ["FunctionalStrategy"], False),
     "okr": ("اهداف و نتایج کلیدی (OKR)", ["OKRObjective", "OKRKeyResult", "Management"], False),
+    # صفحه فقط‌نمایشی؛ مجوز «مشاهده» آن همان view_okrkeyresult است (مستقل از مجوز OKR)
+    "executive_show": ("دیدبان استراتژی", ["OKRKeyResult"], False),
 }
 
 BU_SCOPED_SECTION_KEYS = [key for key, (_, _, bu_scoped) in SECTIONS.items() if bu_scoped]
@@ -62,6 +64,7 @@ VISIBILITY_SECTIONS = {
     "stratmap": "نقشه استراتژیک",
     "functional_strategies": "استراتژی وظیفه‌ای",
     "okr": "اهداف و نتایج کلیدی (OKR)",
+    "executive_show": "دیدبان استراتژی",
     "risk": "نقشه ریسک",
     "company_goals": "اهداف کلان و KPI شرکت",
     "operational_kpis": "بانک شاخص‌های عملیاتی",

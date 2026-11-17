@@ -62,6 +62,7 @@
       </div>
       <nav class="nav">
         <a class="nav-item {% if active_page == 'home' %}active{% endif %}" href="{% url 'strategic:home' %}"><i class="fa-solid fa-gauge"></i>خانه <small style="opacity:.6;font-size:9px;">(اینفوگرافی)</small>{% if 'home' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
+        <a class="nav-item" href="{% url 'strategic:executive_show' %}" target="_blank" rel="noopener"><i class="fa-solid fa-binoculars"></i>دیدبان استراتژی{% if 'executive_show' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'documents' %}active{% endif %}" href="{% url 'strategic:documents' %}"><i class="fa-solid fa-folder-open"></i>اسناد و دستورالعمل‌ها{% if 'documents' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
         <a class="nav-item {% if active_page == 'org_identity' %}active{% endif %}" href="{% url 'strategic:org_identity' %}"><i class="fa-solid fa-flag"></i>ارکان جهت‌ساز سازمان{% if 'org_identity' in locked_section_keys %}<i class="fa-solid fa-lock nav-lock-ico" title="این بخش برای کاربر مهمان (بدون ورود) قفل است"></i>{% endif %}</a>
 
