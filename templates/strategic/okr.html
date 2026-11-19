@@ -105,6 +105,8 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button type="button" class="o-top-btn" id="printBtn"><i class="fa-solid fa-print"></i> نسخه چاپی</button>
       <button type="button" class="o-top-btn" id="printAllBtn">چاپ همه</button>
+      <a href="{% url 'strategic:scorecard_home' %}" class="o-top-btn" style="text-decoration:none"><i class="fa-solid fa-clipboard-check"></i> کارنامه‌ها</a>
+      {% if can_edit %}<a href="{% url 'strategic:scorecard_weights' %}" class="o-top-btn" style="text-decoration:none"><i class="fa-solid fa-scale-balanced"></i> وزن اهداف کارنامه</a>{% endif %}
       {% if request.user.is_superuser %}
       <a href="{% url 'strategic:okr_export' %}" class="o-top-btn" style="text-decoration:none"><i class="fa-solid fa-file-export"></i> خروجی اکسل</a>
       <button type="button" class="o-top-btn" onclick="document.getElementById('okrFile').click()"><i class="fa-solid fa-file-import"></i> ورود از اکسل</button>

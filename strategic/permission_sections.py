@@ -35,6 +35,8 @@ SECTIONS = {
     "okr": ("اهداف و نتایج کلیدی (OKR)", ["OKRObjective", "OKRKeyResult", "Management"], False),
     # صفحه فقط‌نمایشی؛ مجوز «مشاهده» آن همان view_okrkeyresult است (مستقل از مجوز OKR)
     "executive_show": ("دیدبان استراتژی", ["OKRKeyResult"], False),
+    # کارنامه عملکرد: مشاهده همان مجوز دیدبان است؛ ویرایش با این مدل‌ها
+    "scorecard": ("کارنامه عملکرد", ["ScorecardConfig", "ScorecardEntry", "LiaisonTopic", "LiaisonParam", "LiaisonScore", "ScorecardProject", "ScorecardProjectMonth", "ScorecardPeriod", "ScorecardOwnerConfig"], False),
 }
 
 BU_SCOPED_SECTION_KEYS = [key for key, (_, _, bu_scoped) in SECTIONS.items() if bu_scoped]

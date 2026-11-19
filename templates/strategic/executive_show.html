@@ -54,7 +54,8 @@ button.step:hover{background:rgba(56,167,255,.1);border-color:rgba(56,167,255,.3
 
 /* صحنه و صفحه */
 .stage{position:relative;min-height:0;overflow:hidden;margin:-6px;padding:6px}
-.page{height:100%;display:grid;grid-template-columns:minmax(21rem,24rem) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:12px}
+.page{height:100%;display:grid;grid-template-columns:minmax(21rem,24rem) minmax(15rem,18.5rem) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:12px}
+.chgc{grid-column:2;grid-row:1}.objc{grid-column:3;grid-row:1}.objc.wide{grid-column:2/4}.page>.kids{grid-column:2/4;grid-row:2}
 .page.leaving{position:absolute;inset:6px;pointer-events:none}
 .card{background:linear-gradient(160deg,rgba(21,48,79,.78),rgba(11,26,44,.7));border:1px solid var(--line);border-radius:1.15rem;box-shadow:0 14px 40px -22px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);min-height:0;display:flex;flex-direction:column;animation:rise .7s var(--ease) both;animation-delay:var(--d,0s)}
 @keyframes rise{from{opacity:0;transform:translateY(14px)}}
@@ -63,7 +64,7 @@ button.step:hover{background:rgba(56,167,255,.1);border-color:rgba(56,167,255,.3
 .scr{overflow:auto;min-height:0;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}
 
 /* کارت اصلی: گیج */
-.hero{grid-row:1/3;padding:.9rem 1.1rem 1rem;gap:.5rem;overflow:hidden}
+.hero{grid-row:1/3;padding:.8rem 1.1rem .8rem;gap:.35rem;overflow:hidden}
 .hero .tt{text-align:center}
 .hero .tt small{font-size:.72rem;color:var(--tx4)}
 .hero .tt h1{margin:.1rem 0 0;font-size:1.12rem;font-weight:800;line-height:1.45}
@@ -83,8 +84,8 @@ button.step:hover{background:rgba(56,167,255,.1);border-color:rgba(56,167,255,.3
 .legend{display:flex;justify-content:center;gap:1rem;font-size:.68rem;color:var(--tx4)}
 .legend i{display:inline-block;width:.55rem;height:.55rem;border-radius:50%;margin-left:.3rem;vertical-align:baseline}
 .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.2rem}
-.kp div{background:rgba(255,255,255,.035);border:1px solid var(--line2);border-radius:.8rem;padding:.45rem .3rem;text-align:center}
-.kp b{display:block;font-size:1.5rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.kp div{background:rgba(255,255,255,.035);border:1px solid var(--line2);border-radius:.8rem;padding:.25rem .3rem;text-align:center}
+.kp b{display:block;font-size:1.25rem;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .kp span{font-size:.66rem;color:var(--tx3)}
 .sec{font-size:.72rem;color:var(--tx4);font-weight:700;margin:.5rem 0 .2rem;display:flex;align-items:center;gap:.5rem}
 .sec::after{content:"";flex:1;height:1px;background:var(--line2)}
@@ -171,8 +172,35 @@ button.wi:hover{background:rgba(56,167,255,.12);border-color:rgba(56,167,255,.35
 .foot{font-size:.7rem;color:var(--tx4);text-align:center}
 
 
+/* ===== روند ماهانه و تغییرات ===== */
+.trd{display:flex;flex-direction:column;gap:.35rem;min-height:0;flex:1}
+.hero>*{flex:none}.hero>.trd,.hero>.sec+.trd{flex:1 1 auto;min-height:6.5rem}
+.sec::after{order:1}.sec .dp{order:2;font-size:.68rem;font-weight:800;border:1px solid currentColor;border-radius:99px;padding:0 .55rem;white-space:nowrap;background:rgba(255,255,255,.03)}
+.trh{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.trh .dl{display:flex;align-items:baseline;gap:.35rem}
+.trh .dl b{font-size:1.9rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.trh .dl i{font-style:normal;font-size:.8rem;font-weight:800}
+.trh small{display:block;font-size:.68rem;color:var(--tx4);line-height:1.5;text-align:left}
+.trh small b{color:var(--tx);font-variant-numeric:tabular-nums}
+.trs{width:100%;flex:1;min-height:0;height:100%;display:block;overflow:visible}
+.trs .ln{stroke-dasharray:900;animation:dashIn2 1.3s var(--ease) both .35s}
+@keyframes dashIn2{from{stroke-dashoffset:900}to{stroke-dashoffset:0}}
+.trs .ar{animation:fadeIn .9s both .9s}
+.trs .dt{animation:fadeIn .4s both;animation-delay:calc(.5s + var(--i)*70ms)}
+.trs .lastp{animation:ping 2.6s ease-out infinite 1.6s;transform-box:fill-box;transform-origin:center}
+@keyframes ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(3);opacity:0}}
+.chg{display:flex;flex-direction:column;gap:.6rem;padding:0 .9rem .8rem;overflow:auto;min-height:0;flex:1;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}
+.chg h3{margin:0 0 .25rem;font-size:.72rem;font-weight:800;display:flex;align-items:center;gap:.4rem}
+.chg h3.up{color:var(--ok)}.chg h3.dn{color:var(--bad)}
+.chr{padding-block:.35rem!important;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.6rem;align-items:center;width:100%;text-align:right;background:rgba(255,255,255,.03);border:1px solid var(--line2);border-radius:.6rem;padding:.2rem .6rem;margin-bottom:4px;transition:.18s}
+button.chr:hover{background:rgba(56,167,255,.12);border-color:rgba(56,167,255,.35)}
+.chr .n{font-size:.74rem;color:var(--tx2);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.chr b{font-size:.84rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chr b small{font-size:.62rem;font-weight:500;color:var(--tx4);margin-right:.25rem}
+.chn{color:var(--tx4);font-size:.72rem;padding:.25rem .2rem}
+
 @keyframes arcIn{from{stroke-dashoffset:var(--c)}}
-@media(max-width:1100px){html{font-size:14px}body{overflow:auto}.app{position:static;transform:none;width:auto;height:auto;padding:12px 16px}.drawer{zoom:1}.stage{overflow:visible}.page{grid-template-columns:1fr;grid-template-rows:auto}.hero{grid-row:auto}.steps{grid-template-columns:1fr}.sep{display:none}.kr{grid-template-columns:minmax(0,1fr) 3.6rem}.kr .v,.kr>div:nth-child(2){display:none}.oh{grid-template-columns:3rem minmax(0,1fr) 3.6rem 0}.strip{display:none}}
+@media(max-width:1100px){html{font-size:14px}body{overflow:auto}.app{position:static;transform:none;width:auto;height:auto;padding:12px 16px}.drawer{zoom:1}.stage{overflow:visible}.page{grid-template-columns:1fr;grid-template-rows:auto}.hero{grid-row:auto}.chgc,.objc,.page>.kids{grid-column:auto;grid-row:auto}.steps{grid-template-columns:1fr}.sep{display:none}.kr{grid-template-columns:minmax(0,1fr) 3.6rem}.kr .v,.kr>div:nth-child(2){display:none}.oh{grid-template-columns:3rem minmax(0,1fr) 3.6rem 0}.strip{display:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ===== جلوه‌های نوری ===== */
 @property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
@@ -215,6 +243,7 @@ button.wi:hover{background:rgba(56,167,255,.12);border-color:rgba(56,167,255,.35
       <button class="btn" id="bBack" type="button">‹ بازگشت</button>
       <button class="btn" id="bHome" type="button">نمای سازمان</button>
       <button class="btn" id="bRot" type="button" title="هر ۲۰ ثانیه واحد بعدی">▶ چرخش خودکار</button>
+      <a class="btn" href="/scorecard/" target="_blank" rel="noopener" style="text-decoration:none">کارنامه‌ها</a>
       <button class="btn" id="bFull" type="button">تمام‌صفحه</button>
       <div class="clock"><b id="ck">--:--</b><span id="cd"></span><button class="live" id="live" type="button" title="نمایش جلوه تازه‌سازی"><i></i><span id="lt">به‌روزرسانی</span></button></div>
     </div>
@@ -338,6 +367,52 @@ function objRow(o,open,i){const c=cnts(o.krs),pc=o.pc?`<span class="pc">← <bdi
    ${strip(o.krs)}<div class="op${o.p!=null&&o.p<80?' bad':''}" style="color:${colOf(o.p)}">${o.p==null?'بدون عملکرد':SN[stOf(o.p)]}</div><span class="cv">‹</span></button>
    <div class="okr"><div><div class="kin">${o.krs.map(krRow).join('')}</div></div></div></div>`}
 
+/* ---------- روند ماهانه و تغییرات ---------- */
+function ratM(m,dn){if(!m||!m[0]||m[0]<=0||m[1]==null)return null;if(dn){if(!m[1])return null;return cap(m[0]/m[1]*100)}return cap(m[1]/m[0]*100)}
+/* روند ماهانه با همان منطق گیج/OKR: درصد هر نتیجه‌ی کلیدی ← میانگین وزنی هدف ← میانگین ساده‌ی اهداف.
+   ماه جاری = دقیقاً عدد گیج. ماه‌های قبل: آخرین ثبت ماهانه‌ی شاخص تا آن ماه؛ شاخص بدون سابقه، با مقدار فعلی ثابت. */
+const okrPct=(dn,m)=>{if(!m||m[0]==null||m[1]==null)return null;const t=m[0],a=m[1];let r;
+  if(dn){r=a<=0?150:t<=0?0:Math.max(0,Math.min(Math.round(t/a*100),150))}else{if(t===0)return null;r=Math.max(0,Math.min(Math.round(a/t*100),150))}
+  return Math.min(r,100)};
+const hasPt=m=>m&&m[0]&&m[1]!=null;
+let _TL=null;function lastMonth(){if(_TL!=null)return _TL;let L=-1;const all=ROOT.objs.flatMap(o=>o.krs).concat(ROOT.krs||[]);
+  all.forEach(k=>{((k.k&&k.k.tr)||[]).forEach((m,i)=>{if(hasPt(m)&&i>L)L=i})});return _TL=L}
+function krPAt(k,i,L){if(i>=L)return k.p;if(!k.k)return null;const tr=k.k.tr;
+  if(!tr||!tr.some(hasPt))return k.p;
+  for(let j=i;j>=0;j--)if(hasPt(tr[j]))return okrPct(k.dn,tr[j]);return null}
+function trendOf(n){const L=lastMonth(),objs=objsOf(n);
+  return Array.from({length:12},(_,i)=>i>L?null:avgR(objs.map(o=>wavg(o.krs.map(k=>({w:k.w,p:krPAt(k,i,L)}))))))}
+function trendHTML(n){
+  const T=trendOf(n),ix=T.map((v,i)=>v==null?-1:i).filter(i=>i>=0);
+  if(ix.length<2)return `<div class="sec">روند ماهانه</div><div class="empty" style="padding:.8rem 0">برای نمایش روند، حداقل دو ماه عملکرد ثبت‌شده لازم است.</div>`;
+  const li=ix[ix.length-1],pi=ix[ix.length-2],d=T[li]-T[pi],col=d>0?'var(--ok)':d<0?'var(--bad)':'var(--tx3)',arrow=d>0?'▲':d<0?'▼':'■';
+  const W=300,H=112,pl=8,pr=8,pt=14,pb=30,bw=(W-pl-pr)/12,vs=ix.map(i=>T[i]),lo=Math.max(0,Math.min(70,Math.min(...vs)-8)),hi=100;
+  const X=i=>pl+i*bw+bw/2,Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
+  let g='';[[90,'#4fd36b'],[80,'#f3a21a']].forEach(([v,c])=>{if(v>lo)g+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-opacity=".38" stroke-dasharray="3 4"/><text x="${W-pr}" y="${Y(v)-3}" text-anchor="end" font-size="9.5" fill="${c}" fill-opacity=".8">${fa(v)}</text>`});
+  const pts=ix.map(i=>[X(i),Y(T[i])]),path=pts.map((q,j)=>(j?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ');
+  const area=path+` L${pts[pts.length-1][0].toFixed(1)} ${H-pb} L${pts[0][0].toFixed(1)} ${H-pb} Z`;
+  let dots='',lab='';
+  ix.forEach((i,j)=>{const last=i===li,c=SC[stOf(T[i])];
+    dots+=`${last?`<circle class="lastp" cx="${X(i)}" cy="${Y(T[i])}" r="5" fill="${c}"/>`:''}<circle class="dt" style="--i:${j}" cx="${X(i)}" cy="${Y(T[i])}" r="${last?4.6:3.2}" fill="#0b1b2e" stroke="${c}" stroke-width="2"><title>${MON[i]}: ${fa(T[i])}٪</title></circle>`;
+    if(last||j===0||ix.length<=7)dots+=`<text x="${X(i)}" y="${Y(T[i])-8}" text-anchor="middle" font-size="11" font-weight="800" fill="${c}">${fa(T[i])}</text>`});
+  for(let i=0;i<12;i++)lab+=`<text x="${X(i)}" y="${H-(i%2?4:16)}" text-anchor="middle" font-size="9" fill="${T[i]==null?'#4b6179':'#9db3ca'}">${MON[i]}</text>`;
+  return `<div class="sec" title="با همان منطق گیج محاسبه می‌شود؛ نقطه‌ی ماه جاری دقیقاً برابر عدد گیج است. در ماه‌های قبل، شاخص‌هایی که سابقه‌ی ماهانه ندارند با مقدار فعلی‌شان ثابت فرض شده‌اند.">روند ماهانه ۱۴۰۵<span class="dp" style="color:${col}">${arrow} ${d===0?'۰':fa(Math.abs(d))} امتیاز · نسبت به ${MON[pi]}</span></div>
+   <div class="trd">
+   <svg class="trs" viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs><linearGradient id="tg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#38a7ff" stop-opacity=".28"/><stop offset="1" stop-color="#38a7ff" stop-opacity="0"/></linearGradient></defs>
+   ${g}<path class="ar" d="${area}" fill="url(#tg)"/><path class="ln" d="${path}" fill="none" stroke="#8fd0ff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>${dots}${lab}</svg></div>`}
+function changesOf(krs){const seen=new Set(),rows=[];
+  krs.forEach(k=>{if(!k.k||seen.has(k.k.c))return;seen.add(k.k.c);const id=[];(k.k.tr||[]).forEach((m,i)=>{const r=ratM(m,k.dn);if(r!=null)id.push([i,r])});
+    if(id.length<2)return;const a=id[id.length-2],b=id[id.length-1];rows.push({k,from:a[0],to:b[0],d:Math.round(b[1]-a[1])})});
+  const last=rows.length?Math.max(...rows.map(r=>r.to)):-1;return {rows:rows.filter(r=>r.to===last),last}}
+function changesHTML(krs){
+  const {rows,last}=changesOf(krs);
+  if(!rows.length)return `<div class="card chgc" style="--d:.12s"><div class="ch"><h2>تغییرات این ماه</h2><span>داده‌ی دو ماه متوالی ثبت نشده</span></div></div>`;
+  const up=rows.filter(r=>r.d>0).sort((a,b)=>b.d-a.d).slice(0,3),dn=rows.filter(r=>r.d<0).sort((a,b)=>a.d-b.d).slice(0,3);
+  const row=(r,c)=>`<button class="chr" type="button" data-kr="${esc(r.k.code)}" title="${esc(r.k.k.n)} — ${MON[r.from]} ← ${MON[r.to]}"><span class="n">${esc(r.k.k.n)}</span><b style="color:${c}">${r.d>0?'▲':'▼'} ${fa(Math.abs(r.d))}<small>${MON[r.from].slice(0,3)}←${MON[r.to].slice(0,3)}</small></b></button>`;
+  const col=(t,cls,c,a)=>`<div><h3 class="${cls}">${t}</h3>${a.length?a.map(r=>row(r,c)).join(''):'<div class="chn">مورد قابل‌ذکری نیست</div>'}</div>`;
+  return `<div class="card chgc" style="--d:.12s"><div class="ch"><h2>تغییرات ${MON[last]} نسبت به ثبت قبلی</h2><span>${fa(rows.length)} شاخص دارای مقایسه · برای جزئیات بزنید</span></div>
+   <div class="chg">${col('▲ بیشترین بهبود','up','var(--ok)',up)}${col('▼ بیشترین افت','dn','var(--bad)',dn)}</div></div>`}
+
 function pageHTML(n){
   const krs=n.lvl===0?ROOT.objs.flatMap(o=>o.krs):n.krs, {c,nd}=cnts(krs), p=n.p;
   const title=n.lvl===0?'شرکت سایپا یدک':n.name, sub=n.lvl===0?'سطح سازمان · OKR ۱۴۰۵':n.lvl===1?'سطح معاونت · شامل مدیریت‌های زیرمجموعه':`سطح مدیریت · ${esc(n.parent.name)}`;
@@ -346,12 +421,11 @@ function pageHTML(n){
   const hero=`<div class="card hero" style="--d:0s"><div class="tt"><small>${sub}</small><h1>${esc(title)}</h1></div>${gauge(p)}
     <div class="legend"><span><i style="background:var(--ok)"></i>۹۰٪ و بالاتر</span><span><i style="background:var(--warn)"></i>۸۰ تا ۹۰</span><span><i style="background:var(--bad)"></i>کمتر از ۸۰</span></div>
     <div class="kp"><div><b class="ok cnt" data-v="${c[0]}">۰</b><span>در مسیر</span></div><div><b class="warn cnt" data-v="${c[1]}">۰</b><span>نیازمند توجه</span></div><div><b class="bad cnt" data-v="${c[2]}">۰</b><span>نیازمند اقدام</span></div></div>
-    <div class="mut" style="font-size:.68rem;text-align:center">${fa(krs.length)} نتیجه کلیدی · ${fa(nd)} بدون عملکرد ثبت‌شده</div>
-    <div class="sec" title="نتایج کلیدی عملکرد ثبت‌شده که تحقق آن‌ها کمتر از ۹۰٪ است؛ از پایین‌ترین شروع می‌شود">پایین‌ترین نتایج (زیر ۹۰٪)</div>
-    <div class="wk">${weak.length?weak.map(k=>`<${k.k?'button':'div'} class="wi" ${k.k?`data-kr="${esc(k.code)}" type="button"`:''}><span class="n" title="${esc(k.title)}">${esc(k.title)}</span><b style="color:${colOf(k.p)}">${fa(Math.round(k.p))}٪</b><div class="bar"><i style="width:${k.p}%;background:${colOf(k.p)}"></i></div></${k.k?'button':'div'}>`).join(''):'<div class="empty" style="padding:.6rem 0">همه نتایج عملکرد ثبت‌شده در مسیر هستند ✓</div>'}</div>
+    <div class="mut" style="font-size:.64rem;text-align:center;margin-top:-.1rem">${fa(krs.length)} نتیجه کلیدی · ${fa(nd)} بدون عملکرد ثبت‌شده</div>
+    ${trendHTML(n)}
     ${pjTxt?`<div class="pj">${pjTxt}</div>`:''}</div>`;
   const objs=objsOf(n),oh=n.lvl===0?'اهداف کلان سازمان':n.lvl===1?'اهداف خود معاونت':'اهداف مدیریت';
-  const objCard=`<div class="card" style="--d:.08s"><div class="ch"><h2>${oh}</h2><span>${fa(objs.length)} هدف · برای دیدن نتایج کلیدی روی هدف بزنید</span></div><div class="scr" id="objs">${objs.length?objs.map((o,i)=>objRow(o,false,i)).join(''):'<div class="empty">برای این واحد هدف مستقیمی ثبت نشده؛ مدیریت‌ها را ببینید.</div>'}</div></div>`;
+  const objCard=`<div class="card objc${n.lvl===0?' wide':''}" style="--d:.08s"><div class="ch"><h2>${oh}</h2><span>${fa(objs.length)} هدف · برای دیدن نتایج کلیدی روی هدف بزنید</span></div><div class="scr" id="objs">${objs.length?objs.map((o,i)=>objRow(o,false,i)).join(''):'<div class="empty">برای این واحد هدف مستقیمی ثبت نشده؛ مدیریت‌ها را ببینید.</div>'}</div></div>`;
   const kids=kidsOf(n);let low;
   if(kids.length){
     low=`<div class="card kids" style="--d:.16s"><div class="ch"><h2>${n.lvl===0?'معاونت‌ها و واحدها':'مدیریت‌های زیرمجموعه'}</h2><span>${fa(kids.length)} واحد · برای ورود به جزئیات بزنید</span></div><div class="scr"><div class="kg">${kids.map((k,i)=>{const d=cnts(k.krs),tot=Math.max(1,k.krs.length);
@@ -362,7 +436,7 @@ function pageHTML(n){
   }else{
     const seen=new Set(),ks=krs.filter(k=>k.k&&!seen.has(k.k.c)&&seen.add(k.k.c));
     low=`<div class="card kids" style="--d:.16s"><div class="ch"><h2>شاخص‌های مرتبط · روند ماهانه ۱۴۰۵</h2><span>${fa(ks.length)} شاخص · برای جزئیات بزنید</span></div><div class="scr">${ks.length?`<div class="sps">${ks.map((k,i)=>{const kk=k.k,col=colOf(k.p);return `<button class="sp" type="button" data-kr="${esc(k.code)}" style="--i:${i}"><div class="sn" title="${esc(kk.n)}">${esc(kk.n)}</div><div class="sv"><b style="color:${col}">${fv(kk.a)}</b><small>هدف ${fv(kk.t)} <bdi>${esc(kk.u||'')}</bdi></small></div>${kk.tr?spark(kk.tr,k.dn):''}</button>`}).join('')}</div>`:'<div class="empty">برای این واحد شاخص عملیاتی متصل ثبت نشده است.</div>'}</div></div>`}
-  return hero+objCard+low}
+  return hero+objCard+(n.lvl>0?changesHTML(krs):'')+low}
 
 /* ---------- گام‌نما ---------- */
 function stepsHTML(){const P=path(cur),sib=l=>l===1?ROOT.ch:P[1]?P[1].ch.filter(g=>!g.own):[];let h='';

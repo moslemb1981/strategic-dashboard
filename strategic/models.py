@@ -62,6 +62,7 @@ class Initiative(models.Model):
     )
     work_group = models.CharField(max_length=150, blank=True, verbose_name="کارگروه")
     division = models.CharField(max_length=150, blank=True, verbose_name="معاونت")
+    project_manager = models.CharField(max_length=150, blank=True, verbose_name="مدیر پروژه")
     objectives = models.ManyToManyField(
         "StrategicObjective", blank=True, related_name="initiatives",
         verbose_name="اهداف استراتژیک مرتبط",
@@ -2044,6 +2045,13 @@ class AuditFinding(models.Model):
         return self.description[:60]
 
 
+def head_photo_path(instance, filename):
+    import os
+    import uuid
+    ext = os.path.splitext(filename)[1].lower()[:6]
+    return f"heads/{uuid.uuid4().hex}{ext}"
+
+
 class OrgUnit(models.Model):
     """واحد سطح بالای چارت سازمانی — «مدیریت مستقل» (زیرمجموعه‌ی مستقیم مدیرعامل) یا «معاونت».
     قابل افزودن/حذف/تغییر ترتیب از پنل مدیریت، بدون نیاز به تغییر کد."""
@@ -2056,6 +2064,9 @@ class OrgUnit(models.Model):
     name = models.CharField(max_length=200, unique=True, verbose_name="نام")
     kind = models.CharField(max_length=12, choices=KIND_CHOICES, default="deputy", verbose_name="نوع واحد")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش (راست به چپ)")
+    has_scorecard = models.BooleanField(default=False, verbose_name="کارنامه عملکرد دارد")
+    head_name = models.CharField(max_length=150, blank=True, verbose_name="نام مسئول (معاون/مدیر)")
+    head_photo = models.FileField(upload_to=head_photo_path, blank=True, verbose_name="عکس مسئول")
 
     class Meta:
         ordering = ["kind", "order", "name"]
@@ -2077,6 +2088,10 @@ class Management(models.Model):
     org_unit = models.ForeignKey(OrgUnit, on_delete=models.PROTECT, related_name="managements", verbose_name="معاونت / واحد سازمانی")
     name = models.CharField(max_length=200, verbose_name="نام مدیریت")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب نمایش")
+    has_scorecard = models.BooleanField(default=False, verbose_name="کارنامه عملکرد دارد")
+    scorecard_weight = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="وزن در کارنامه معاونت (٪)")
+    head_name = models.CharField(max_length=150, blank=True, verbose_name="نام مسئول (مدیر)")
+    head_photo = models.FileField(upload_to=head_photo_path, blank=True, verbose_name="عکس مسئول")
 
     class Meta:
         ordering = ["org_unit__kind", "org_unit__order", "order", "name"]
@@ -2232,6 +2247,7 @@ class OKRObjective(models.Model):
     )
     parent_text = models.CharField(max_length=500, blank=True, verbose_name="هدف بالادستی (متن، وقتی هدفی با آن کد نیست)")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+    scorecard_weight = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="وزن در کارنامه (٪)")
 
     class Meta:
         ordering = ["level", "org_unit__order", "management", "order", "code"]
@@ -2369,3 +2385,183 @@ class BusinessCanvasItem(models.Model):
 
     def __str__(self):
         return f"{self.business_unit} — {self.get_block_display()}: {self.text[:40]}"
+
+
+# ---------------- کارنامه عملکرد ----------------
+
+class ScorecardConfig(models.Model):
+    """تنظیمات سراسری کارنامه (یک ردیف): عنوان و وزن چهار بخش بالای کارنامه، توضیحات، امضاها و ماه فعال."""
+
+    title_1 = models.CharField(max_length=200, default="امتیاز دستیابی به اهداف OKR مدیریت", verbose_name="عنوان ردیف ۱ (OKR)")
+    title_2 = models.CharField(max_length=200, default="امتیاز دستیابی به اهداف شاخص‌های سازمان", verbose_name="عنوان ردیف ۲ (سازمان)")
+    title_3 = models.CharField(max_length=200, default="امتیاز میزان پیشرفت پروژه‌های طرح +۱۰۰", verbose_name="عنوان ردیف ۳ (پروژه‌ها)")
+    title_4 = models.CharField(max_length=200, default="امتیاز رابط در نظام ارزیابی عملکرد و ارائه گزارشات مدیر طرح +۱۰۰", verbose_name="عنوان ردیف ۴ (رابط)")
+    weight_1 = models.PositiveSmallIntegerField(default=45, verbose_name="وزن ردیف ۱ (٪)")
+    weight_2 = models.PositiveSmallIntegerField(default=30, verbose_name="وزن ردیف ۲ (٪)")
+    weight_3 = models.PositiveSmallIntegerField(default=15, verbose_name="وزن ردیف ۳ (٪)")
+    weight_4 = models.PositiveSmallIntegerField(default=10, verbose_name="وزن ردیف ۴ (٪)")
+    liaison_title = models.CharField(max_length=200, default="امتیاز نظام برنامه‌ریزی و نظارت راهبردی", verbose_name="عنوان جدول رابط")
+    notes = models.TextField(blank=True, verbose_name="توضیحات انتهای کارنامه (هر خط یک مورد)")
+    signatures = models.TextField(blank=True, default="", verbose_name="امضاها (JSON: عنوان، سمت، نام)")
+    sig1_title = models.CharField(max_length=100, blank=True, default="تهیه‌کننده", verbose_name="امضا ۱: عنوان")
+    sig1_role = models.CharField(max_length=150, blank=True, default="مدیر برنامه‌ریزی و نظارت راهبردی", verbose_name="امضا ۱: سمت / نام")
+    sig2_title = models.CharField(max_length=100, blank=True, default="تأییدکننده", verbose_name="امضا ۲: عنوان")
+    sig2_role = models.CharField(max_length=150, blank=True, default="معاون طرح و برنامه", verbose_name="امضا ۲: سمت / نام")
+    sig3_title = models.CharField(max_length=100, blank=True, default="تصویب‌کننده", verbose_name="امضا ۳: عنوان")
+    sig3_role = models.CharField(max_length=150, blank=True, default="مدیرعامل", verbose_name="امضا ۳: سمت / نام")
+    period_year = models.PositiveSmallIntegerField(default=1405, verbose_name="سال کارنامه (شمسی)")
+    period_month = models.PositiveSmallIntegerField(default=1, verbose_name="ماه کارنامه (۱ تا ۱۲)")
+    empty_as_zero = models.BooleanField(default=False, verbose_name="هدف بدون داده صفر حساب شود (وگرنه از مخرج حذف می‌شود)")
+    project_page_limit = models.PositiveSmallIntegerField(default=24, verbose_name="آستانه انتقال جدول پروژه‌ها به صفحه بعد (چاپ)")
+
+    class Meta:
+        verbose_name = "تنظیمات کارنامه"
+        verbose_name_plural = "تنظیمات کارنامه"
+
+    def __str__(self):
+        return "تنظیمات کارنامه"
+
+    @property
+    def sig_list(self):
+        """فهرست امضاها [{t, r, n}]: از ستون signatures، وگرنه از سه امضای قدیمی."""
+        import json
+        try:
+            lst = json.loads(self.signatures) if self.signatures else None
+        except ValueError:
+            lst = None
+        if isinstance(lst, list):
+            return [{"t": str(x.get("t", "")), "r": str(x.get("r", "")), "n": str(x.get("n", ""))} for x in lst if isinstance(x, dict)]
+        return [{"t": self.sig1_title, "r": self.sig1_role, "n": ""},
+                {"t": self.sig2_title, "r": self.sig2_role, "n": ""},
+                {"t": self.sig3_title, "r": self.sig3_role, "n": ""}]
+
+    @classmethod
+    def get(cls):
+        obj = cls.objects.first()
+        if obj is None:
+            obj = cls.objects.create(notes=cls.DEFAULT_NOTES)
+        return obj
+
+    DEFAULT_NOTES = (
+        "امتیاز دستیابی به اهداف شاخص‌های سازمان همان امتیاز اعلامی شرکت مادر در کارنامه عملکرد شرکت است.\n"
+        "برای اهدافی که تحقق آن‌ها کمتر از ۹۰٪ است، فرم تحلیل عملکرد باید توسط مالک هدف تکمیل و برای دفتر طرح و برنامه ارسال شود."
+    )
+
+    @property
+    def weights(self):
+        return [self.weight_1, self.weight_2, self.weight_3, self.weight_4]
+
+    @property
+    def titles(self):
+        return [self.title_1, self.title_2, self.title_3, self.title_4]
+
+
+class ScorecardPeriod(models.Model):
+    """داده‌ی ماهانه‌ی مشترک همه‌ی کارنامه‌ها: نمره‌ی شرکت مادر و تاریخ تهیه."""
+    year = models.PositiveSmallIntegerField(verbose_name="سال")
+    month = models.PositiveSmallIntegerField(verbose_name="ماه")
+    org_score = models.FloatField(null=True, blank=True, verbose_name="امتیاز شاخص‌های سازمان (شرکت مادر)")
+    prepared_date = models.CharField(max_length=20, blank=True, verbose_name="تاریخ تهیه")
+
+    class Meta:
+        unique_together = [("year", "month")]
+        verbose_name = "ماه کارنامه"
+        verbose_name_plural = "ماه‌های کارنامه"
+
+
+class ScorecardOwnerConfig(models.Model):
+    """جایگزینی وزن چهار بخش برای یک کارنامه (خالی = وزن سراسری). owner_key: u<id> معاونت، m<id> مدیریت."""
+    owner_key = models.CharField(max_length=20, unique=True, verbose_name="کلید واحد")
+    weight_1 = models.PositiveSmallIntegerField(null=True, blank=True)
+    weight_2 = models.PositiveSmallIntegerField(null=True, blank=True)
+    weight_3 = models.PositiveSmallIntegerField(null=True, blank=True)
+    weight_4 = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "وزن اختصاصی کارنامه"
+        verbose_name_plural = "وزن‌های اختصاصی کارنامه"
+
+
+class ScorecardEntry(models.Model):
+    """ثبت دستی ماهانه‌ی یک کارنامه: امتیاز ماه گذشته."""
+    owner_key = models.CharField(max_length=20, verbose_name="کلید واحد")
+    year = models.PositiveSmallIntegerField(verbose_name="سال")
+    month = models.PositiveSmallIntegerField(verbose_name="ماه")
+    prev_score = models.FloatField(null=True, blank=True, verbose_name="امتیاز ماه گذشته")
+
+    class Meta:
+        unique_together = [("owner_key", "year", "month")]
+        verbose_name = "ثبت ماهانه کارنامه"
+        verbose_name_plural = "ثبت‌های ماهانه کارنامه"
+
+
+class LiaisonTopic(models.Model):
+    title = models.CharField(max_length=200, verbose_name="موضوع")
+    base_score = models.PositiveSmallIntegerField(default=50, verbose_name="امتیاز پایه")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "موضوع امتیاز رابط"
+        verbose_name_plural = "موضوع‌های امتیاز رابط"
+
+    def __str__(self):
+        return self.title
+
+
+class LiaisonParam(models.Model):
+    topic = models.ForeignKey(LiaisonTopic, on_delete=models.CASCADE, related_name="params", verbose_name="موضوع")
+    text = models.CharField(max_length=500, verbose_name="شرح پارامتر")
+    max_score = models.PositiveSmallIntegerField(default=10, verbose_name="حداکثر امتیاز")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["topic__order", "order", "id"]
+        verbose_name = "پارامتر امتیاز رابط"
+        verbose_name_plural = "پارامترهای امتیاز رابط"
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class LiaisonScore(models.Model):
+    """امتیاز کسب‌شده‌ی یک پارامتر رابط برای یک کارنامه در یک ماه (ثبت دستی)."""
+    owner_key = models.CharField(max_length=20, verbose_name="کلید واحد")
+    year = models.PositiveSmallIntegerField(verbose_name="سال")
+    month = models.PositiveSmallIntegerField(verbose_name="ماه")
+    param = models.ForeignKey(LiaisonParam, on_delete=models.CASCADE, related_name="scores", verbose_name="پارامتر")
+    earned = models.FloatField(default=0, verbose_name="امتیاز کسب‌شده")
+
+    class Meta:
+        unique_together = [("owner_key", "year", "month", "param")]
+        verbose_name = "امتیاز رابط"
+        verbose_name_plural = "امتیازهای رابط"
+
+
+class ScorecardProject(models.Model):
+    """پروژه/اقدامی که در کارنامه‌ی یک واحد می‌آید (انتخاب مدیر سیستم)."""
+    owner_key = models.CharField(max_length=20, verbose_name="کلید واحد")
+    initiative = models.ForeignKey("Initiative", on_delete=models.CASCADE, related_name="scorecard_links", verbose_name="پروژه")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        unique_together = [("owner_key", "initiative")]
+        ordering = ["owner_key", "order", "id"]
+        verbose_name = "پروژه‌ی کارنامه"
+        verbose_name_plural = "پروژه‌های کارنامه"
+
+
+class ScorecardProjectMonth(models.Model):
+    """اعداد ماهانه‌ی یک پروژه در کارنامه: برنامه‌ای، واقعی، واقعی ماه قبل و توضیح (ثبت دستی)."""
+    link = models.ForeignKey(ScorecardProject, on_delete=models.CASCADE, related_name="months", verbose_name="پروژه‌ی کارنامه")
+    year = models.PositiveSmallIntegerField(verbose_name="سال")
+    month = models.PositiveSmallIntegerField(verbose_name="ماه")
+    plan = models.FloatField(default=100, verbose_name="برنامه‌ای ماه")
+    actual = models.FloatField(default=0, verbose_name="واقعی ماه")
+    prev = models.FloatField(null=True, blank=True, verbose_name="واقعی ماه قبل")
+    note = models.CharField(max_length=300, blank=True, verbose_name="توضیحات")
+
+    class Meta:
+        unique_together = [("link", "year", "month")]
+        verbose_name = "اعداد ماهانه پروژه‌ی کارنامه"
+        verbose_name_plural = "اعداد ماهانه پروژه‌های کارنامه"

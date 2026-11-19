@@ -1,0 +1,43 @@
+{% extends "strategic/base.html" %}
+{% load jalali_tags %}
+{% block title %}ثبت کارنامه{% endblock %}
+{% block crumb %}ثبت کارنامه — {{ owner.name }}{% endblock %}
+{% block content %}
+<style>
+.sc{--b:#1F4E78;--l:#DEE4EC;--m:#64748B;--s:#F3F5F8;--red:#d64545;--yel:#e0a21b;--grn:#2e9e5b}
+.sc h2{font-size:1.05rem;margin:.2rem 0 .6rem}.sc .box{background:#fff;border:1px solid var(--l);border-radius:.5rem;padding:.9rem 1rem;margin-bottom:1rem}
+.sc table{border-collapse:collapse;width:100%}.sc th,.sc td{border:1px solid var(--l);padding:.3rem .5rem;text-align:center}.sc th{background:#E9EDF4;font-weight:500}.sc td.t{text-align:right}
+.sc input[type=text],.sc input[type=number],.sc select{font:inherit;border:1px solid var(--l);border-radius:.4rem;padding:.15rem .5rem;max-width:100%}.sc input[type=number]{width:5.5rem}.sc input.w{width:100%}
+.sc .btn{font:inherit;background:var(--b);color:#fff;border:0;border-radius:.4rem;padding:.3rem 1.1rem;cursor:pointer;text-decoration:none;display:inline-block}.sc .btn.o{background:#fff;color:var(--b);border:1px solid var(--b)}
+.sc .pill{display:inline-block;min-width:3rem;padding:0 .4rem;border-radius:1rem;color:#fff;font-weight:700}.sc .r{background:var(--red)}.sc .y{background:var(--yel);color:#222}.sc .g{background:var(--grn)}.sc .n{background:var(--m)}
+.sc .sub{color:var(--m);font-size:.85rem}.sc .tw{overflow-x:auto}.sc .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.7rem}
+.sc .cardl{display:block;border:1px solid var(--l);border-radius:.5rem;padding:.6rem .8rem;text-decoration:none;color:inherit;background:#fff}.sc .cardl:hover{border-color:var(--b)}
+</style>
+<div class="sc"><form method="post">{% csrf_token %}
+<div class="box"><h2>{{ owner.name }} — {{ month_name }} {{ year|fanum }}</h2>
+<div>امتیاز ماه گذشته: <input type="number" step="any" name="prev_score" value="{{ prev|default_if_none:'' }}"> &nbsp; <a class="btn o" href="{% url 'strategic:scorecard_view' owner.key %}?y={{ year }}&m={{ month }}">مشاهده کارنامه</a></div>
+<p class="sub">امتیاز شاخص‌های سازمان (شرکت مادر) و تاریخ تهیه در «تنظیمات کارنامه» ثبت می‌شود.</p></div>
+
+<div class="box"><h2>امتیاز رابط (امتیاز کسب‌شده هر پارامتر)</h2><div class="tw"><table><tr><th>موضوع</th><th>پارامتر</th><th>حداکثر</th><th>کسب‌شده</th></tr>
+{% for t in lia.topics %}{% for p in t.params %}<tr><td class="t">{{ t.title }}</td><td class="t">{{ p.text }}</td><td>{{ p.max|fanum }}</td><td><input type="number" step="any" min="0" max="{{ p.max }}" name="lia_{{ p.id }}" value="{{ p.earned }}"></td></tr>{% endfor %}{% endfor %}
+<tr><td class="t" colspan="3">امتیاز رابط</td><td><span class="pill {% if lia.score is None %}n{% elif lia.score < 80 %}r{% elif lia.score < 90 %}y{% else %}g{% endif %}">{{ lia.score|default_if_none:"—" }}</span></td></tr></table></div></div>
+
+<div class="box"><h2>پروژه‌های این کارنامه</h2>
+<p class="sub">درصد تحقق = واقعی ÷ برنامه‌ای. پیش‌فرض واقعی همان پیشرفت فعلی پروژه در سیستم است؛ مدیر پروژه در خود پروژه (پروژه‌های تحول) ثبت می‌شود.</p>
+{% if projects %}<div class="tw"><table><tr><th>پروژه</th><th>مدیر</th><th>برنامه‌ای</th><th>واقعی</th><th>واقعی ماه قبل</th><th>توضیحات</th><th>حذف</th></tr>
+{% for r in projects %}<tr><td class="t"><bdi>{{ r.code }}</bdi> {{ r.title }}</td><td>{{ r.manager|default:"—" }}</td>
+<td><input type="number" step="any" name="pj_{{ r.id }}_plan" value="{{ r.plan_raw }}"></td><td><input type="number" step="any" name="pj_{{ r.id }}_actual" value="{{ r.actual_raw }}"></td><td><input type="number" step="any" name="pj_{{ r.id }}_prev" value="{{ r.prev|default_if_none:'' }}"></td>
+<td><input type="text" class="w" name="pj_{{ r.id }}_note" value="{{ r.note }}"></td><td><input type="checkbox" name="pj_{{ r.id }}_del" value="1"></td></tr>{% endfor %}</table></div>{% else %}<p class="sub">هنوز پروژه‌ای انتخاب نشده است.</p>{% endif %}
+<h2 style="margin-top:1rem">افزودن پروژه / اقدام</h2>
+<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+<input type="text" id="q" placeholder="جستجو در عنوان یا کد" oninput="flt()" style="width:16rem">
+<select id="ft" onchange="flt()"><option value="">پروژه و اقدام</option><option value="project">فقط پروژه</option><option value="action">فقط اقدام</option></select>
+<select id="fd" onchange="flt()"><option value="">همه معاونت‌ها</option>{% for d in divs %}<option>{{ d }}</option>{% endfor %}</select>
+<select id="fw" onchange="flt()"><option value="">همه کارگروه‌ها</option>{% for w in wgs %}<option>{{ w }}</option>{% endfor %}</select>
+<span class="sub" id="fc"></span></div>
+<div class="tw" style="max-height:22rem;overflow:auto;margin-top:.5rem"><table id="al"><thead><tr><th style="position:sticky;top:0;z-index:2"></th><th style="position:sticky;top:0;z-index:2">کد</th><th style="position:sticky;top:0;z-index:2">عنوان</th><th style="position:sticky;top:0;z-index:2">واحد / معاونت</th><th style="position:sticky;top:0;z-index:2">کارگروه</th><th style="position:sticky;top:0;z-index:2">پیشرفت</th></tr></thead><tbody>
+{% for i in all_init %}{% if not i.on %}<tr data-s="{{ i.code }} {{ i.title }}" data-t="{{ i.t }}" data-d="{{ i.div }}" data-w="{{ i.wg }}"><td><input type="checkbox" name="add_init" value="{{ i.id }}"></td><td dir="ltr">{{ i.code }}</td><td class="t">{{ i.title }}</td><td>{{ i.div }}</td><td>{{ i.wg }}</td><td>{{ i.pr|fanum }}٪</td></tr>{% endif %}{% endfor %}</tbody></table></div></div>
+<button class="btn" type="submit">ذخیره</button></form></div>
+<script>function flt(){var q=document.getElementById('q').value.trim(),t=document.getElementById('ft').value,d=document.getElementById('fd').value,w=document.getElementById('fw').value,n=0;
+document.querySelectorAll('#al tbody tr').forEach(function(r){var ok=(!q||r.dataset.s.indexOf(q)>=0)&&(!t||r.dataset.t==t)&&(!d||r.dataset.d==d)&&(!w||r.dataset.w==w);r.style.display=ok?'':'none';if(ok)n++});document.getElementById('fc').textContent=n+' مورد'}flt()</script>
+{% endblock %}

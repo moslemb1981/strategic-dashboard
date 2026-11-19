@@ -1,6 +1,6 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
-from . import views
+from . import views, scorecard
 
 app_name = "strategic"
 
@@ -133,6 +133,16 @@ urlpatterns = [
 
     # نمای اجرایی/هیات مدیره — عمداً در هیچ منویی لینک نشده، فقط با تایپ دستی /show/
     path("show/", views.executive_show, name="executive_show"),
+
+    # کارنامه عملکرد (منطق در scorecard.py)
+    path("scorecard/", scorecard.scorecard_home, name="scorecard_home"),
+    path("scorecard/kpi-chart/<int:pk>/", scorecard.scorecard_kpi_chart, name="scorecard_kpi_chart"),
+    path("scorecard/weights/", scorecard.scorecard_weights, name="scorecard_weights"),
+    path("scorecard/settings/", scorecard.scorecard_settings, name="scorecard_settings"),
+    path("scorecard/photo/<str:key>/set/", scorecard.scorecard_photo_edit, name="scorecard_photo_edit"),
+    path("scorecard/photo/<str:key>/", scorecard.scorecard_photo, name="scorecard_photo"),
+    path("scorecard/<str:key>/", scorecard.scorecard_view, name="scorecard_view"),
+    path("scorecard/<str:key>/edit/", scorecard.scorecard_edit, name="scorecard_edit"),
 
     path("kpi-heatmap/", views.kpi_heatmap, name="kpi_heatmap"),
 ]

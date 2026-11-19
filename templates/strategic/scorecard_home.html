@@ -1,0 +1,22 @@
+{% extends "strategic/base.html" %}
+{% load jalali_tags %}
+{% block title %}کارنامه عملکرد{% endblock %}
+{% block crumb %}کارنامه عملکرد{% endblock %}
+{% block content %}
+<style>
+.sc{--b:#1F4E78;--l:#DEE4EC;--m:#64748B;--s:#F3F5F8;--red:#d64545;--yel:#e0a21b;--grn:#2e9e5b}
+.sc h2{font-size:1.05rem;margin:.2rem 0 .6rem}.sc .box{background:#fff;border:1px solid var(--l);border-radius:.5rem;padding:.9rem 1rem;margin-bottom:1rem}
+.sc table{border-collapse:collapse;width:100%}.sc th,.sc td{border:1px solid var(--l);padding:.3rem .5rem;text-align:center}.sc th{background:#E9EDF4;font-weight:500}.sc td.t{text-align:right}
+.sc input[type=text],.sc input[type=number],.sc select{font:inherit;border:1px solid var(--l);border-radius:.4rem;padding:.15rem .5rem;max-width:100%}.sc input[type=number]{width:5.5rem}.sc input.w{width:100%}
+.sc .btn{font:inherit;background:var(--b);color:#fff;border:0;border-radius:.4rem;padding:.3rem 1.1rem;cursor:pointer;text-decoration:none;display:inline-block}.sc .btn.o{background:#fff;color:var(--b);border:1px solid var(--b)}
+.sc .pill{display:inline-block;min-width:3rem;padding:0 .4rem;border-radius:1rem;color:#fff;font-weight:700}.sc .r{background:var(--red)}.sc .y{background:var(--yel);color:#222}.sc .g{background:var(--grn)}.sc .n{background:var(--m)}
+.sc .sub{color:var(--m);font-size:.85rem}.sc .tw{overflow-x:auto}.sc .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.7rem}
+.sc .cardl{display:block;border:1px solid var(--l);border-radius:.5rem;padding:.6rem .8rem;text-decoration:none;color:inherit;background:#fff}.sc .cardl:hover{border-color:var(--b)}
+</style>
+<div class="sc">
+<div class="box" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap"><h2 style="margin:0">کارنامه عملکرد — {{ month_name }} {{ y|fanum }}</h2>
+{% if can_edit %}<a class="btn o" href="{% url 'strategic:scorecard_settings' %}" style="margin-right:auto">تنظیمات کارنامه</a>{% endif %}</div>
+{% for title, items in groups %}<div class="box"><h2>{{ title }}</h2><div class="grid">
+{% for c in items %}<a class="cardl" href="{% url 'strategic:scorecard_view' c.owner.key %}?y={{ y }}&m={{ m }}"><b>{{ c.owner.name }}</b><br><span class="sub">{% if c.head %}{{ c.head }} · {% endif %}{{ c.n|fanum }} هدف OKR</span><br><span class="pill {{ c.cls }}">{{ c.total|fanum }}</span> <span class="sub">{{ c.status }}</span></a>{% endfor %}
+</div></div>{% empty %}<div class="box">هنوز واحدی برای کارنامه فعال نشده است.</div>{% endfor %}
+</div>{% endblock %}

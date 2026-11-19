@@ -1,0 +1,52 @@
+{% extends "strategic/base.html" %}
+{% load jalali_tags %}
+{% block title %}تنظیمات کارنامه{% endblock %}
+{% block crumb %}تنظیمات کارنامه{% endblock %}
+{% block content %}
+<style>
+.sc{--b:#1F4E78;--l:#DEE4EC;--m:#64748B;--s:#F3F5F8;--red:#d64545;--yel:#e0a21b;--grn:#2e9e5b}
+.sc h2{font-size:1.05rem;margin:.2rem 0 .6rem}.sc .box{background:#fff;border:1px solid var(--l);border-radius:.5rem;padding:.9rem 1rem;margin-bottom:1rem}
+.sc table{border-collapse:collapse;width:100%}.sc th,.sc td{border:1px solid var(--l);padding:.3rem .5rem;text-align:center}.sc th{background:#E9EDF4;font-weight:500}.sc td.t{text-align:right}
+.sc input[type=text],.sc input[type=number],.sc select{font:inherit;border:1px solid var(--l);border-radius:.4rem;padding:.15rem .5rem;max-width:100%}.sc input[type=number]{width:5.5rem}.sc input.w{width:100%}
+.sc .btn{font:inherit;background:var(--b);color:#fff;border:0;border-radius:.4rem;padding:.3rem 1.1rem;cursor:pointer;text-decoration:none;display:inline-block}.sc .btn.o{background:#fff;color:var(--b);border:1px solid var(--b)}
+.sc .pill{display:inline-block;min-width:3rem;padding:0 .4rem;border-radius:1rem;color:#fff;font-weight:700}.sc .r{background:var(--red)}.sc .y{background:var(--yel);color:#222}.sc .g{background:var(--grn)}.sc .n{background:var(--m)}
+.sc .sub{color:var(--m);font-size:.85rem}.sc .tw{overflow-x:auto}.sc .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.7rem}
+.sc .cardl{display:block;border:1px solid var(--l);border-radius:.5rem;padding:.6rem .8rem;text-decoration:none;color:inherit;background:#fff}.sc .cardl:hover{border-color:var(--b)}
+</style>
+<div class="sc"><form method="post" enctype="multipart/form-data">{% csrf_token %}
+<div class="box" style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="btn o" href="{% url 'strategic:scorecard_home' %}">مشاهده کارنامه‌ها</a><a class="btn o" href="{% url 'strategic:scorecard_weights' %}">وزن اهداف</a></div>
+<div class="box"><h2>ماه کارنامه و امتیاز سازمان</h2>
+<div>سال: <input type="number" name="period_year" value="{{ cfg.period_year }}"> ماه: <select name="period_month">{% for n, nm in months %}<option value="{{ n }}"{% if n == cfg.period_month %} selected{% endif %}>{{ nm }}</option>{% endfor %}</select>
+&nbsp; تاریخ تهیه: <input type="text" name="prepared_date" value="{{ period.prepared_date|default:'' }}" style="width:8rem"></div>
+<p>امتیاز شاخص‌های سازمان (شرکت مادر) این ماه: <input type="number" step="any" min="0" max="100" name="org_score" value="{{ period.org_score|default_if_none:'' }}"></p></div>
+
+<div class="box"><h2>جدول بالای کارنامه (عنوان و وزن پیش‌فرض)</h2><div class="tw"><table><tr><th>عنوان</th><th>وزن (٪)</th></tr>
+<tr><td><input class="w" type="text" name="title_1" value="{{ cfg.title_1 }}"></td><td><input type="number" name="weight_1" value="{{ cfg.weight_1 }}"></td></tr>
+<tr><td><input class="w" type="text" name="title_2" value="{{ cfg.title_2 }}"></td><td><input type="number" name="weight_2" value="{{ cfg.weight_2 }}"></td></tr>
+<tr><td><input class="w" type="text" name="title_3" value="{{ cfg.title_3 }}"></td><td><input type="number" name="weight_3" value="{{ cfg.weight_3 }}"></td></tr>
+<tr><td><input class="w" type="text" name="title_4" value="{{ cfg.title_4 }}"></td><td><input type="number" name="weight_4" value="{{ cfg.weight_4 }}"></td></tr></table></div>
+<p class="sub">جمع وزن‌ها باید ۱۰۰ باشد. برای واحدی که پروژه ندارد، وزن اختصاصی را در جدول واحدها پایین‌تر بدهید.</p>
+<label><input type="checkbox" name="empty_as_zero" {% if cfg.empty_as_zero %}checked{% endif %}> هدف بدون داده صفر حساب شود (وگرنه از مخرج حذف می‌شود)</label>
+<p>آستانه انتقال جدول پروژه‌ها به صفحه دوم چاپ: <input type="number" name="project_page_limit" value="{{ cfg.project_page_limit }}"></p></div>
+
+<div class="box"><h2>جدول رابط</h2><p>عنوان جدول: <input type="text" name="liaison_title" value="{{ cfg.liaison_title }}" style="width:60%"></p>
+{% for t in topics %}<div class="box" style="background:var(--s)"><div>موضوع: <input type="text" name="t{{ t.id }}_title" value="{{ t.title }}" style="width:45%"> امتیاز پایه: <input type="number" name="t{{ t.id }}_base" value="{{ t.base_score }}"> <label><input type="checkbox" name="t{{ t.id }}_del" value="1"> حذف موضوع</label></div>
+<table style="margin-top:.5rem"><tr><th>پارامتر</th><th>حداکثر</th><th>حذف</th></tr>
+{% for p in t.params.all %}<tr><td><input class="w" type="text" name="p{{ p.id }}_text" value="{{ p.text }}"></td><td><input type="number" name="p{{ p.id }}_max" value="{{ p.max_score }}"></td><td><input type="checkbox" name="p{{ p.id }}_del" value="1"></td></tr>{% endfor %}
+<tr><td><input class="w" type="text" name="np_text" placeholder="پارامتر جدید"><input type="hidden" name="np_topic" value="{{ t.id }}"></td><td><input type="number" name="np_max" value="10"></td><td></td></tr></table></div>{% endfor %}
+<div>موضوع جدید: <input type="text" name="nt_title" style="width:45%"> امتیاز پایه: <input type="number" name="nt_base" value="50"></div></div>
+
+<div class="box"><h2>توضیحات و امضاها</h2><textarea name="notes" rows="4" style="width:100%;font:inherit">{{ cfg.notes }}</textarea><p class="sub">هر خط یک مورد.</p>
+<h2 style="margin-top:1rem">امضاها</h2><p class="sub">هر ردیف یک کادر امضا زیر کارنامه است؛ نام امضاکننده داخل کادر چاپ می‌شود. برای افزودن یا حذف کادر از دکمه‌ها استفاده کنید و در پایان ذخیره را بزنید.</p>
+<div class="tw"><table id="sg"><thead><tr><th>عنوان</th><th>سمت</th><th>نام امضاکننده</th><th>حذف</th></tr></thead><tbody>
+{% for g in sigs %}<tr><td><input class="w" type="text" name="sg_t" value="{{ g.t }}"></td><td><input class="w" type="text" name="sg_r" value="{{ g.r }}"></td><td><input class="w" type="text" name="sg_n" value="{{ g.n }}"></td><td><button type="button" class="btn o" onclick="this.closest('tr').remove()">حذف</button></td></tr>{% endfor %}</tbody></table></div>
+<button type="button" class="btn o" style="margin-top:.5rem" onclick="sgAdd()">+ افزودن امضا</button></div>
+<script>function sgAdd(){var tb=document.querySelector('#sg tbody'),r=document.createElement('tr');r.innerHTML='<td><input class="w" type="text" name="sg_t"></td><td><input class="w" type="text" name="sg_r"></td><td><input class="w" type="text" name="sg_n"></td><td><button type="button" class="btn o" onclick="this.closest(\'tr\').remove()">حذف</button></td>';tb.appendChild(r)}</script>
+
+<div class="box"><h2>واحدها</h2><p class="sub">کارنامه دارد؛ نام و عکس مسئول؛ وزن چهار ردیف کارنامه (۱ OKR، ۲ سازمان، ۳ پروژه، ۴ رابط). خانه‌ها با وزن پیش‌فرض پر هستند؛ عدد را تغییر دهید تا برای آن واحد اختصاصی شود (زرد). برگرداندن به پیش‌فرض: هر چهار خانه را مساوی پیش‌فرض بگذارید.</p><div class="tw"><table>
+<tr><th>واحد</th><th>نوع</th><th>کارنامه</th><th>نام مسئول</th><th>عکس</th><th>وزن ۱</th><th>وزن ۲</th><th>وزن ۳</th><th>وزن ۴</th><th>مشاهده</th></tr>
+{% for u in units %}<tr><td class="t">{{ u.label }}</td><td class="t">{{ u.kind }}</td><td><input type="checkbox" name="o{{ u.key }}_has" {% if u.o.has_scorecard %}checked{% endif %}></td>
+<td><input type="text" name="o{{ u.key }}_head" value="{{ u.o.head_name }}"></td>
+<td><input type="file" name="o{{ u.key }}_photo" accept="image/*" style="max-width:9rem">{% if u.o.head_photo %}<label><input type="checkbox" name="o{{ u.key }}_photo_del" value="1"> حذف</label>{% endif %}</td>
+{% for w in u.w %}<td><input type="number" min="0" max="100" name="o{{ u.key }}_w{{ forloop.counter }}" value="{{ w }}" style="width:4rem{% if u.custom %};background:#FFF6DD{% endif %}"></td>{% endfor %}<td><a href="{% url 'strategic:scorecard_view' u.key %}">کارنامه</a></td></tr>{% endfor %}</table></div></div>
+<button class="btn" type="submit">ذخیره تنظیمات</button></form></div>{% endblock %}

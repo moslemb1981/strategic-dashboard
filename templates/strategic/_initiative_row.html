@@ -5,6 +5,7 @@
     <span class="type-pill {% if i.item_type == 'action' %}type-action{% endif %}">{{ i.get_item_type_display }}</span>
     <span class="init-row-title" data-tip-text="{{ i.title }}">{{ i.title }}</span>
     <span class="init-row-owner" data-tip-text="{{ i.owner }}">{{ i.owner|default:"—" }}</span>
+    <span class="init-row-owner" data-tip-text="{{ i.project_manager }}">{{ i.project_manager|default:"—" }}</span>
     <span class="init-row-progress">
       {% if i.item_type == 'project' %}
       <span class="share-track"><span class="share-fill" style="width:{{ i.progress }}%;background:{{ i.status_hex }};"></span></span>
@@ -30,7 +31,7 @@
       {% if perms.strategic.change_initiative %}
       <button type="button" onclick="editInitiative(this)"
         data-id="{{ i.pk }}" data-code="{{ i.code }}" data-title="{{ i.title }}" data-item-type="{{ i.item_type }}" data-owner="{{ i.owner }}"
-        data-work-group="{{ i.work_group }}" data-division="{{ i.division }}" data-business-unit="{{ i.business_unit_id|default_if_none:'' }}"
+        data-work-group="{{ i.work_group }}" data-division="{{ i.division }}" data-project-manager="{{ i.project_manager }}" data-business-unit="{{ i.business_unit_id|default_if_none:'' }}"
         data-start="{{ i.start_date|jalali }}" data-end="{{ i.end_date|jalali }}"
         data-progress="{{ i.progress }}" data-status="{{ i.status }}"
         data-objectives="{% for o in i.objectives.all %}{{ o.pk }}{% if not forloop.last %},{% endif %}{% endfor %}"

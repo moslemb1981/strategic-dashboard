@@ -16,5 +16,6 @@ setup(
         "strategic/license_check.py",
         "strategic/apps.py",
         "strategic/urls.py",
+        "strategic/scorecard.py",
     ], language_level="3")
 )

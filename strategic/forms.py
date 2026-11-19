@@ -80,7 +80,7 @@ class InitiativeForm(forms.ModelForm):
     class Meta:
         model = Initiative
         fields = [
-            "code", "title", "item_type", "owner", "work_group", "division", "start_date", "end_date", "progress", "status", "objectives",
+            "code", "title", "item_type", "owner", "work_group", "division", "project_manager", "start_date", "end_date", "progress", "status", "objectives",
             "source_kpi", "source_operational_kpi", "source_tows", "source_risk",
         ]
         widgets = {
@@ -89,6 +89,7 @@ class InitiativeForm(forms.ModelForm):
             "owner": forms.TextInput(attrs={"placeholder": "مثلاً: واحد مطالعات"}),
             "work_group": forms.TextInput(attrs={"placeholder": "مثلاً: کارگروه تحول دیجیتال"}),
             "division": forms.TextInput(attrs={"placeholder": "مثلاً: معاونت طرح و برنامه"}),
+            "project_manager": forms.TextInput(attrs={"placeholder": "نام مدیر پروژه"}),
             "progress": forms.NumberInput(attrs={"min": 0, "max": 100}),
             "objectives": forms.CheckboxSelectMultiple(),
             "source_kpi": forms.CheckboxSelectMultiple(),

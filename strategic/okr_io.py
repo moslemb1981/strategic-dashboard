@@ -50,6 +50,8 @@ def import_workbook(wb, keep=False, dry_run=False):
 
     stats = {"obj": 0, "kr": 0, "nokpi": 0}
     with transaction.atomic():
+        # وزن کارنامه‌ی اهداف با حذف و ساخت دوباره از بین نرود (به‌کمک کد هدف)
+        kept_w = dict(OKRObjective.objects.exclude(scorecard_weight=None).values_list("code", "scorecard_weight"))
         if not keep:
             OKRObjective.objects.all().delete()
         made, pending = {}, []
@@ -94,6 +96,10 @@ def import_workbook(wb, keep=False, dry_run=False):
                 made[code] = cur
                 pending.append((cur, par))
                 stats["obj"] += 1
+        for code_, ob_ in made.items():
+            if code_ in kept_w and ob_.scorecard_weight is None:
+                ob_.scorecard_weight = kept_w[code_]
+                ob_.save(update_fields=["scorecard_weight"])
         for ob, par in pending:
             if par in made:
                 ob.parent = made[par]

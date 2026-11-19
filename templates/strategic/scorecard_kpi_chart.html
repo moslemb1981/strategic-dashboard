@@ -1,0 +1,24 @@
+{% load static %}<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نمودار شاخص</title>
+<link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/fontawesome.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/solid.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<link rel="stylesheet" href="{% static 'css/strategic.css' %}">
+{% include 'strategic/_kpi_viz_css.html' %}
+<style>body{background:transparent!important}</style>
+</head><body>
+<form style="display:none">{% csrf_token %}</form>
+{% include 'strategic/_kpi_viz_overlays.html' %}
+{% include 'strategic/_kpi_viz_js.html' %}
+<script>
+(function(){
+  var ov=document.getElementById('opkTrendOverlay');
+  function closeAll(){try{parent.postMessage({scKpiClose:1},'*')}catch(e){}}
+  new MutationObserver(function(){if(!ov.classList.contains('open')&&!document.getElementById('opkAnalysisOverlay').classList.contains('open'))closeAll()})
+    .observe(ov,{attributes:true,attributeFilter:['class']});
+  ov.addEventListener('mousedown',function(e){if(e.target===ov)closeAll()});
+  openTrendChart({{ kpi_id }});
+})();
+</script></body></html>

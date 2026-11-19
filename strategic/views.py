@@ -702,7 +702,7 @@ def roadmap_search(request):
 
 _INITIATIVE_EXCEL_HEADERS = [
     "کد پروژه", "عنوان پروژه", "نوع (پروژه/اقدام)", "واحد مسئول", "کارگروه", "معاونت", "کسب‌وکار", "تاریخ شروع (شمسی)",
-    "تاریخ پایان (شمسی)", "پیشرفت (٪)", "وضعیت",
+    "تاریخ پایان (شمسی)", "پیشرفت (٪)", "وضعیت", "مدیر پروژه",
 ]
 _INITIATIVE_STATUS_LABEL_TO_KEY = {label: key for key, label in Initiative.STATUS_CHOICES}
 _INITIATIVE_TYPE_LABEL_TO_KEY = {label: key for key, label in Initiative.TYPE_CHOICES}
@@ -803,12 +803,12 @@ def initiative_export(request):
             i.business_unit.name if i.business_unit else "",
             gregorian_to_jalali_str(i.start_date) if i.start_date else "",
             gregorian_to_jalali_str(i.end_date) if i.end_date else "",
-            i.progress, i.get_status_display(),
+            i.progress, i.get_status_display(), i.project_manager,
         ]
         for col, val in enumerate(values, start=1):
             ws.cell(row=row_i, column=col, value=val)
 
-    widths = [14, 34, 16, 20, 22, 22, 22, 14, 14, 10, 16]
+    widths = [14, 34, 16, 20, 22, 22, 22, 14, 14, 10, 16, 20]
     for col, w in enumerate(widths, start=1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
 
@@ -983,6 +983,8 @@ def initiative_import(request):
             code=code, item_type=item_type, owner=owner, work_group=work_group, division=division, business_unit=business_unit,
             start_date=start_date, end_date=end_date, progress=progress, status=status,
         )
+        if len(row) > 11:  # ستون «مدیر پروژه» (فایل‌های قدیمی بدون این ستون مقدار فعلی را نگه می‌دارند)
+            defaults["project_manager"] = _s(row[11])
         if existing:
             for k, v in defaults.items():
                 setattr(existing, k, v)

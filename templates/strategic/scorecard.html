@@ -1,0 +1,182 @@
+{% load static jalali_tags %}<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>کارنامه {{ owner.name }}</title>
+<link rel="stylesheet" href="{% static 'css/strategic-fonts.css' %}">
+<style>
+
+:root{--bg:#f3f4f6;--paper:#fff;--fg:#1c2230;--mut:#6b7385;--line:#d9dde5;--acc:#1f5fbf;--head:#e9edf4;--red:#d64545;--yel:#e0a21b;--grn:#2e9e5b;--soft:#f7f8fb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--paper:#1b2029;--fg:#e8ebf2;--mut:#9aa3b5;--line:#343b4a;--acc:#6fa3f0;--head:#252c3a;--red:#ef6a6a;--yel:#e8b84a;--grn:#4fc080;--soft:#222835;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12151c;--paper:#1b2029;--fg:#e8ebf2;--mut:#9aa3b5;--line:#343b4a;--acc:#6fa3f0;--head:#252c3a;--red:#ef6a6a;--yel:#e8b84a;--grn:#4fc080;--soft:#222835;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Vazirmatn',Tahoma,sans-serif;font-size:14px;line-height:1.8;padding-block:1rem;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:62rem;margin:auto}
+h1{font-size:1.25rem;margin:.2rem 0}h2{font-size:1rem;margin:0 0 .6rem}
+.sub{color:var(--mut);margin:0 0 .8rem}
+.pb{font:inherit;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:.4rem;padding:.2rem .9rem;cursor:pointer;margin-right:auto}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 1rem}
+.tabs button{font:inherit;border:1px solid var(--line);background:var(--paper);color:var(--fg);padding:.35rem .9rem;border-radius:2rem;cursor:pointer}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.sel{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+select,input[type=number]{font:inherit;background:var(--paper);color:var(--fg);border:1px solid var(--line);border-radius:.4rem;padding:.2rem .5rem}
+input[type=number]{width:5rem}
+.paper{background:var(--paper);border:1px solid var(--line);border-radius:.5rem;padding:1rem;margin-bottom:1rem}
+.ph{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:.6rem;margin-bottom:.8rem;gap:.5rem;flex-wrap:wrap}
+.ph b{font-size:1.02rem}.logo{color:var(--acc);font-weight:700}
+.hd{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1rem;padding:.2rem .2rem .9rem;border-bottom:3px solid var(--acc);margin-bottom:.9rem}
+.hd-t{display:flex;flex-direction:column;gap:.1rem;text-align:right}.hd-t small{color:var(--mut);font-size:.8rem}.hd-t b{font-size:1.3rem;margin-bottom:.2rem;text-align:center}.hd-t span{color:var(--mut)}.hd-t u{text-decoration:none;color:var(--fg);font-weight:500}
+.lg{background:#fff;border:1px solid var(--line);border-radius:.5rem;padding:.2rem .5rem}.lg img{height:4rem;display:block}
+.gbox{text-align:center;border:1px solid var(--line);border-radius:.6rem;padding:.6rem .4rem;background:var(--soft)}
+.who{display:flex;gap:.9rem;align-items:center;border:1px solid var(--line);border-radius:.5rem;padding:.6rem .9rem;margin-bottom:1rem}.ph-ph{width:4.6rem;height:5.2rem;border:1px solid var(--line);border-radius:.4rem;background:var(--soft);overflow:hidden;flex:none}.wl{display:flex;flex-direction:column;gap:.2rem}
+.top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16rem);gap:1rem;align-items:center;margin-bottom:1rem}
+@media(max-width:640px){.top{grid-template-columns:1fr}}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:34rem}
+th,td{border:1px solid var(--line);padding:.3rem .5rem;text-align:center}
+th{background:var(--head);font-weight:500}td.t{text-align:right}
+tr.gr td{background:var(--soft);font-weight:500}
+tr.tot td{background:var(--head);font-weight:700}
+.pill{display:inline-block;min-width:3rem;padding:0 .4rem;border-radius:1rem;color:#fff;font-weight:700}
+.r{background:var(--red)}.y{background:var(--yel);color:#222}.g{background:var(--grn)}.n{background:var(--mut)}
+.cap{display:inline-block;border:1px solid var(--line);padding:.1rem .8rem;border-radius:.3rem;margin:.4rem 0;background:var(--soft)}
+.notes{border:1px solid var(--line);border-radius:.4rem;padding:.5rem .8rem;margin:1rem 0}
+.sig{display:grid;grid-template-columns:repeat(var(--n,3),1fr);border:1px solid var(--line);text-align:center}
+.sig div{padding:.4rem;border-left:1px solid var(--line)}.sig div:last-child{border-left:0}
+.sig .box{height:3.2rem;color:var(--fg);font-size:.85rem;font-weight:500;display:flex;align-items:flex-end;justify-content:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.8rem}
+.card{border:1px solid var(--line);border-radius:.5rem;padding:.7rem .9rem;background:var(--paper)}
+.card h3{margin:0 0 .3rem;font-size:.95rem}
+.tag{font-size:.78em;line-height:1.5;padding:0 .5em;border-radius:1em;border:1px solid var(--line);color:var(--mut);margin-right:.4em;display:inline-block;white-space:nowrap;vertical-align:middle;font-weight:400}
+.warn{color:var(--red);font-weight:700}
+ul{margin:.3rem 0;padding-right:1.2rem}
+.flow{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin:.4rem 0}
+.flow span{border:1px solid var(--line);background:var(--soft);padding:.2rem .8rem;border-radius:.4rem}
+.tree{background:var(--soft);border:1px solid var(--line);border-radius:.4rem;padding:.6rem .9rem;white-space:pre-wrap;line-height:1.9}
+label.ck{display:flex;gap:.4rem;align-items:center}
+@page{size:A4;margin:10mm}
+@media print{
+:root,:root[data-theme="dark"]{--bg:#fff;--paper:#fff;--fg:#1c2230;--mut:#5a6275;--line:#b9bfcc;--acc:#1f5fbf;--head:#e9edf4;--red:#d64545;--yel:#e0a21b;--grn:#2e9e5b;--soft:#f7f8fb;color-scheme:light}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{background:#fff;padding:0;font-size:11px;line-height:1.55}
+.wrap{max-width:none}.bar,.noprint{display:none!important}
+.paper{border:0;padding:0;margin:0}
+.tw{overflow:visible}table{min-width:0}th,td{padding:.2rem .35rem}
+tr,.notes,.sig,.gbox,.hd{break-inside:avoid}tr.gr{break-after:avoid}
+.cap{break-after:avoid}
+.pill{padding:0 .3rem;min-width:2.4rem}
+body{font-size:10px;line-height:1.4}
+.hd{padding-bottom:.4rem;margin-bottom:.5rem}.hd-t b{font-size:1.15rem}.ph-ph{width:3.4rem;height:3.9rem}.lg img{height:3rem}
+.top{grid-template-columns:minmax(0,1fr) 12rem;gap:.6rem;margin-bottom:.5rem}
+.gbox svg{max-width:11rem}.gbox{padding:.3rem}
+th,td{padding:.12rem .3rem}.notes{margin:.5rem 0;padding:.3rem .6rem}.notes ul{margin:.1rem 0}
+.sig .box{height:2.6rem}.cap{margin:.2rem 0}
+}
+.okr{cursor:pointer}.okr:hover td{background:var(--soft)}.cd{font-size:.85em;color:var(--mut)}.car{color:var(--acc)}
+.det>td{padding:.4rem .8rem;background:var(--soft)}table.in{min-width:0;background:var(--paper)}table.in th{font-size:.85em}
+.hint{color:var(--mut);font-size:.8rem;margin-right:.6rem}
+input.ti{width:100%;font:inherit;background:var(--paper);color:var(--fg);border:1px solid var(--line);border-radius:.4rem;padding:.15rem .5rem}
+.sm{font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--soft);color:var(--fg);border-radius:.4rem;padding:.05rem .6rem;cursor:pointer}
+.dt{font-size:.8rem;color:var(--mut);margin-top:.5rem}.pg2{margin-top:1rem}table.lt td.tp{font-weight:700;background:var(--soft)}table.lt td{vertical-align:middle}
+table.pt td.t{min-width:16rem}table.pt{min-width:60rem}
+@media print{.pg2{break-before:page;margin:0}.dt{font-size:9px}
+.det{display:none!important}.okr{cursor:default}}
+
+.bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.bar a,.bar button{font:inherit;border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:.4rem;padding:.2rem .9rem;cursor:pointer;text-decoration:none}
+.bar .pb{background:var(--acc);border-color:var(--acc);color:#fff}
+.msg{background:var(--soft);border:1px solid var(--line);border-radius:.4rem;padding:.4rem .8rem;margin-bottom:.6rem}
+.ph-edit{cursor:pointer;position:relative}.ph-edit:hover{outline:2px solid var(--acc)}
+.phm{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50}.phm[hidden]{display:none}
+.phm div{background:var(--paper);color:var(--fg);border-radius:.6rem;padding:1rem 1.2rem;min-width:16rem;display:flex;flex-direction:column;gap:.5rem}
+.phm button,.phm label{font:inherit;border:1px solid var(--line);background:var(--soft);color:var(--fg);border-radius:.4rem;padding:.3rem .8rem;cursor:pointer;text-align:center}
+.phm .dg{color:var(--red)}.phm small{color:var(--mut)}
+.trb{font:inherit;border:1px solid var(--line);background:var(--paper);border-radius:.3rem;padding:0 .3rem;cursor:pointer;line-height:1.4}.trb:hover{border-color:var(--acc)}
+.trm{position:fixed;inset:0;z-index:60}.trm[hidden]{display:none}
+@media print{.trm,.trb{display:none!important}}
+tr.det>td{background:#EEF4FB;border-right:.3rem solid var(--acc);padding:.5rem .7rem}
+tr.det table.in{background:var(--paper);border:1px solid #BCD0E6}tr.det table.in th{background:#D6E4F4;color:var(--acc)}
+tr.okr.open>td{background:#E3EDF8}
+</style>
+<style>
+/* پالت کارنامه: سرمه‌ای برای ساختار، نارنجی کم‌رنگ برای نتایج کلیدی، قرمز/زرد/سبز فقط وضعیت */
+:root{--acc:#1F4E78;--head:#E8EFF7;--grp:#F1F5FA;--sub:#DCE6F2;--kr:#FFF3E6;--krl:#F6C99A;--krh:#FBE3C8;--krt:#9A4A0B;--okr-open:#FFE9D2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--acc:#7fb2e0;--head:#22344a;--grp:#1e2c3d;--sub:#2a4059;--kr:#3a2c1e;--krl:#7a5530;--krh:#4d3823;--krt:#ffb877;--okr-open:#46331f}}
+:root[data-theme="dark"]{--acc:#7fb2e0;--head:#22344a;--grp:#1e2c3d;--sub:#2a4059;--kr:#3a2c1e;--krl:#7a5530;--krh:#4d3823;--krt:#ffb877;--okr-open:#46331f}
+th{color:var(--acc)}
+tr.gr td{background:var(--grp);font-weight:700;color:var(--acc)}tr.gr td:first-child{border-right:.25rem solid var(--acc)}
+td.tp{background:var(--sub);font-weight:500}
+.cap{display:flex;align-items:center;gap:.5rem;border:0;background:none;padding:0;margin:.8rem 0 .35rem;font-weight:700;color:var(--acc)}
+.cap:before{content:"";width:.3rem;height:1.1rem;background:var(--acc);border-radius:2px}
+.gbox{border:2px solid var(--acc);background:var(--paper)}
+tr.okr.open>td{background:var(--okr-open);font-weight:500}
+tr.det>td{background:var(--kr);border-right:.3rem solid var(--krl);padding:.5rem .7rem}
+tr.det table.in{background:var(--paper);border:1px solid var(--krl)}tr.det table.in th{background:var(--krh);color:var(--krt)}
+@media print{:root,:root[data-theme="dark"]{--acc:#1F4E78;--head:#E8EFF7;--grp:#F1F5FA;--sub:#DCE6F2;--kr:#FFF3E6;--krl:#F6C99A;--krh:#FBE3C8;--krt:#9A4A0B;--okr-open:#FFE9D2}}
+</style></head><body><div class="wrap">
+<div class="bar noprint"><a href="{% url 'strategic:scorecard_home' %}?y={{ year }}&m={{ month }}">همه کارنامه‌ها</a>
+ {% if can_edit %}<a href="{% url 'strategic:scorecard_edit' owner.key %}?y={{ year }}&m={{ month }}">ثبت اطلاعات ماه</a><a href="{% url 'strategic:scorecard_settings' %}">تنظیمات</a>{% endif %}
+ <span class="tag">ماه: {{ month_name }} {{ year|fanum }}</span><button class="pb" onclick="window.print()">چاپ / ذخیره PDF</button></div>
+{% for m in messages %}<div class="msg noprint">{{ m }}</div>{% endfor %}
+<div class="paper"><div class="hd">
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
+  <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
+  {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
+ <div class="lg"><img alt="سایپا یدک" src="{% static 'images/saipa-yadak-logo.png' %}"></div>
+</div>
+<div class="top"><div class="tw"><table><tr><th>عنوان</th><th>وزن</th><th>امتیاز از ۱۰۰</th></tr>
+{% for r in rows %}<tr><td class="t">{{ r.title }}</td><td>{{ r.weight|fanum }}٪</td><td><span class="pill {{ r.cls }}">{% if r.score is None %}—{% else %}{{ r.score|fanum }}{% endif %}</span></td></tr>{% endfor %}
+<tr class="tot"><td class="t">مجموع امتیاز</td><td class="{% if wsum != 100 %}warn{% endif %}">{{ wsum|fanum }}٪</td><td><span class="pill {{ cls }}">{{ total|fanum }}</span></td></tr>
+<tr><td class="t">امتیاز ماه گذشته</td><td colspan="2">{% if prev is None %}—{% else %}{{ prev|fanum }}{% endif %}</td></tr></table></div>
+<div class="gbox">{{ gauge }}<div><span class="pill {{ cls }}" style="padding:.1rem .9rem;font-size:.85rem">{{ status }}</span></div></div></div>
+<span class="cap">وضعیت اهداف Objective{% if owner.kind == 'u' %} به تفکیک مدیریت{% endif %}</span><span class="noprint hint">برای دیدن نتایج کلیدی روی هر هدف کلیک کنید</span>
+{% if okr.warn %}<div class="warn noprint">جمع وزن‌های OKR ۱۰۰ نیست؛ وزن‌ها به‌نسبت نرمال شده‌اند. در صفحه OKR اصلاح کنید.</div>{% endif %}
+<div class="tw"><table class="okt"><tr><th>کد</th><th>هدف Objective</th><th>نتایج کلیدی</th><th>وزن</th><th>درصد تحقق</th></tr>
+{% for g in okr.groups %}{% if owner.kind == 'u' %}<tr class="gr"><td class="t" colspan="3"><b>{{ g.name }}</b> <span class="tag">{{ g.items|length|fanum }} هدف</span></td><td>{{ g.weight|fanum }}٪</td><td><span class="pill {{ g.cls }}">{% if g.pct is None %}—{% else %}{{ g.pct|fanum }}{% endif %}</span></td></tr>{% endif %}
+{% for o in g.items %}<tr class="okr" onclick="tg('k{{ forloop.parentloop.counter }}_{{ forloop.counter }}',this)"><td dir="ltr" class="cd">{{ o.code }}</td><td class="t"><span class="car noprint">◂</span> {{ o.title }}</td><td>{{ o.n_kr|fanum }}</td><td>{{ o.weight|fanum }}٪</td><td><span class="pill {{ o.cls }}">{% if o.pct is None %}—{% else %}{{ o.pct|fanum }}{% endif %}</span></td></tr>
+<tr class="det" id="k{{ forloop.parentloop.counter }}_{{ forloop.counter }}" hidden><td colspan="5"><table class="in"><tr><th>نتایج کلیدی (Key Results)</th><th>کد شاخص</th><th>واحد</th><th>هدف</th><th>عملکرد</th><th>تحقق</th></tr>
+{% for k in o.krs %}<tr><td class="t">{% if k.trend_id %}<button type="button" class="trb" onclick="trOpen({{ k.trend_id }})" title="نمودار روند شاخص">&#128200;</button> {% endif %}{{ k.title }}</td><td dir="ltr" class="cd">{{ k.kpi|default:"—" }}</td><td>{{ k.unit|default:"—" }}</td><td>{{ k.target|fanum }}</td><td>{% if k.actual == "—" %}پایش نشده{% else %}{{ k.actual|fanum }}{% endif %}</td><td><span class="pill {{ k.cls }}">{% if k.pct is None %}—{% else %}{{ k.pct|fanum }}{% endif %}</span></td></tr>{% endfor %}
+</table></td></tr>{% endfor %}{% empty %}<tr><td colspan="5" class="t" style="color:var(--mut)">برای این واحد هدف OKR ثبت نشده است.</td></tr>{% endfor %}
+<tr class="tot"><td class="t" colspan="3">جمع وزن اهداف</td><td>۱۰۰٪</td><td><span class="pill {% if okr.score is None %}n{% elif okr.score < 80 %}r{% elif okr.score < 90 %}y{% else %}g{% endif %}">{% if okr.score is None %}—{% else %}{{ okr.score|fanum }}{% endif %}</span></td></tr></table></div>
+{% if not pj_moved %}<span class="cap">وضعیت پروژه‌ها</span><div class="tw"><table><tr><th>عنوان پروژه</th><th>مدیر پروژه</th><th>برنامه‌ای ماه</th><th>واقعی ماه</th><th>درصد تحقق</th><th>واقعی ماه قبل</th><th>توضیحات</th></tr>
+{% for r in projects %}<tr><td class="t">{{ r.title }}</td><td>{{ r.manager|default:"—" }}</td><td>{{ r.plan|fanum }}</td><td>{{ r.actual|fanum }}</td><td><span class="pill {{ r.cls }}">{{ r.pct|fanum }}</span></td><td>{% if r.prev is None %}—{% else %}{{ r.prev|fanum }}{% endif %}</td><td>{{ r.note }}</td></tr>
+{% empty %}<tr><td class="t" colspan="7" style="color:var(--mut)">پروژه‌ای برای این کارنامه انتخاب نشده است. وزن این بخش در جمع نمره‌ها لحاظ نمی‌شود.</td></tr>{% endfor %}
+<tr class="tot"><td class="t" colspan="4">میانگین پیشرفت پروژه‌ها (امتیاز بخش ۳)</td><td><span class="pill {% if pj_score is None %}n{% elif pj_score < 80 %}r{% elif pj_score < 90 %}y{% else %}g{% endif %}">{% if pj_score is None %}—{% else %}{{ pj_score|fanum }}{% endif %}</span></td><td colspan="2"></td></tr></table></div>{% endif %}
+<div class="notes"><b>توضیحات:</b><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></div>
+<div class="sig" style="--n:{{ sigs|length|default:1 }}">{% for g in sigs %}<div><b>{{ g.t }}</b><br><small>{{ g.r }}</small><div class="box">{{ g.n }}</div></div>{% endfor %}</div>
+<div class="dt">تاریخ تهیه: {{ prepared|default:"—" }}</div></div>
+{% if pj_moved %}<div class="paper pg2"><div class="hd">
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
+  <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
+  {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
+ <div class="lg"><img alt="سایپا یدک" src="{% static 'images/saipa-yadak-logo.png' %}"></div>
+</div><span class="cap">وضعیت پروژه‌ها</span><div class="tw"><table><tr><th>عنوان پروژه</th><th>مدیر پروژه</th><th>برنامه‌ای ماه</th><th>واقعی ماه</th><th>درصد تحقق</th><th>واقعی ماه قبل</th><th>توضیحات</th></tr>
+{% for r in projects %}<tr><td class="t">{{ r.title }}</td><td>{{ r.manager|default:"—" }}</td><td>{{ r.plan|fanum }}</td><td>{{ r.actual|fanum }}</td><td><span class="pill {{ r.cls }}">{{ r.pct|fanum }}</span></td><td>{% if r.prev is None %}—{% else %}{{ r.prev|fanum }}{% endif %}</td><td>{{ r.note }}</td></tr>
+{% empty %}<tr><td class="t" colspan="7" style="color:var(--mut)">پروژه‌ای برای این کارنامه انتخاب نشده است. وزن این بخش در جمع نمره‌ها لحاظ نمی‌شود.</td></tr>{% endfor %}
+<tr class="tot"><td class="t" colspan="4">میانگین پیشرفت پروژه‌ها (امتیاز بخش ۳)</td><td><span class="pill {% if pj_score is None %}n{% elif pj_score < 80 %}r{% elif pj_score < 90 %}y{% else %}g{% endif %}">{% if pj_score is None %}—{% else %}{{ pj_score|fanum }}{% endif %}</span></td><td colspan="2"></td></tr></table></div></div>{% endif %}
+<div class="paper pg2"><div class="hd">
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
+  <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
+  {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
+ <div class="lg"><img alt="سایپا یدک" src="{% static 'images/saipa-yadak-logo.png' %}"></div>
+</div><h2 style="text-align:center;margin:.4rem 0 .8rem">{{ cfg.liaison_title }}</h2><div class="tw"><table class="lt"><tr><th>موضوع</th><th>شرح</th><th>امتیاز پایه</th><th>امتیاز کسب‌شده</th></tr>
+{% for t in lia.topics %}{% for p in t.params %}<tr>{% if forloop.first %}<td class="t tp" rowspan="{{ t.params|length }}">{{ t.title }}</td>{% endif %}<td class="t">{{ p.text }}</td>{% if forloop.first %}<td rowspan="{{ t.params|length }}">{{ t.base|fanum }}</td><td rowspan="{{ t.params|length }}"><b>{{ t.earned|fanum }}</b></td>{% endif %}</tr>{% empty %}<tr><td class="t tp">{{ t.title }}</td><td></td><td>{{ t.base|fanum }}</td><td>{{ t.earned|fanum }}</td></tr>{% endfor %}{% endfor %}
+<tr class="tot"><td class="t" colspan="2">مجموع</td><td>{{ lia.base|fanum }}</td><td>{{ lia.earned|fanum }}</td></tr></table></div><div class="dt">تاریخ تهیه: {{ prepared|default:"—" }}</div></div>
+</div>
+{% if can_edit %}<div class="phm noprint" id="phm" hidden onclick="if(event.target===this)this.hidden=true"><div>
+<b>عکس {{ owner.name }}</b><small>تصویر عمودی، حداقل ۴۰۰×۴۶۰ پیکسل، تا ۵ مگابایت (به‌اندازه قاب بریده می‌شود)</small>
+<form method="post" action="{% url 'strategic:scorecard_photo_edit' owner.key %}" enctype="multipart/form-data" id="phf">{% csrf_token %}<input type="hidden" name="action" value="set"><input type="file" name="photo" id="phi" accept="image/*" hidden onchange="document.getElementById('phf').submit()"><label for="phi" style="display:block">{% if has_photo %}تغییر عکس{% else %}افزودن عکس{% endif %}</label></form>
+{% if has_photo %}<form method="post" action="{% url 'strategic:scorecard_photo_edit' owner.key %}">{% csrf_token %}<input type="hidden" name="action" value="del"><button class="dg" style="width:100%">حذف عکس</button></form>{% endif %}
+<button type="button" onclick="document.getElementById('phm').hidden=true">انصراف</button></div></div>{% endif %}
+<div class="trm noprint" id="trm" hidden><iframe id="trf" title="نمودار شاخص" style="width:100%;height:100%;border:0;background:transparent"></iframe></div>
+<script>function phOpen(){document.getElementById('phm').hidden=false}
+function tg(id,tr){var e=document.getElementById(id),open=e&&e.hidden;
+ document.querySelectorAll('tr.det').forEach(function(d){d.hidden=true});
+ document.querySelectorAll('tr.okr .car').forEach(function(c){c.textContent='◂'});document.querySelectorAll('tr.okr.open').forEach(function(r){r.classList.remove('open')});
+ if(e&&open){e.hidden=false;tr.classList.add('open');var c=tr.querySelector('.car');if(c)c.textContent='▾'}}
+var TR_URL="{% url 'strategic:scorecard_kpi_chart' 999999 %}";
+function trOpen(id){var f=document.getElementById('trf');f.src=TR_URL.replace('999999',id);document.getElementById('trm').hidden=false}
+window.addEventListener('message',function(e){if(e.data&&e.data.scKpiClose){document.getElementById('trm').hidden=true;document.getElementById('trf').src='about:blank'}});
+</script>
+</body></html>
