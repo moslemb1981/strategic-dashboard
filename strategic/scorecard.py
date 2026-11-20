@@ -482,6 +482,36 @@ def scorecard_settings(request):
     if request.method == "POST":
         P = request.POST
         old_def = list(cfg.weights)
+        # اعتبارسنجی پیش از هر ذخیره‌سازی
+        errs = []
+        ws_ = [_to_float(P.get(f"weight_{i}")) for i in range(1, 5)]
+        ws_ = [int(w) if w is not None else getattr(cfg, f"weight_{i}") for i, w in enumerate(ws_, 1)]
+        if sum(ws_) != 100:
+            errs.append(f"جمع وزن‌های جدول بالای کارنامه برابر {sum(ws_)} است و باید ۱۰۰ باشد.")
+        for r in _unit_rows():
+            k = r["key"]
+            uw = [_to_float(P.get(f"o{k}_w{i}")) for i in range(1, 5)]
+            if all(w is not None for w in uw) and sum(int(w) for w in uw) != 100:
+                errs.append(f"جمع وزن‌های «{r['label']}» برابر {sum(int(w) for w in uw)} است و باید ۱۰۰ باشد.")
+        for t in LiaisonTopic.objects.all():
+            if P.get(f"t{t.pk}_del"):
+                continue
+            base = _to_float(P.get(f"t{t.pk}_base"))
+            base = int(base) if base is not None else t.base_score
+            tot = 0
+            for pr in t.params.all():
+                if P.get(f"p{pr.pk}_del"):
+                    continue
+                mx = _to_float(P.get(f"p{pr.pk}_max"))
+                tot += int(mx) if mx is not None else pr.max_score
+            for tid, text, mx in zip(P.getlist("np_topic"), P.getlist("np_text"), P.getlist("np_max")):
+                if str(tid) == str(t.pk) and text.strip():
+                    tot += int(_to_float(mx, 0) or 0)
+            if tot != base:
+                errs.append(f"در جدول رابط، جمع امتیاز پارامترهای «{t.title}» برابر {tot} است ولی امتیاز پایه {base} است؛ باید برابر باشند.")
+        if errs:
+            messages.error(request, "ذخیره انجام نشد. " + " ".join(errs))
+            return redirect("strategic:scorecard_settings")
         with transaction.atomic():
             for i in range(1, 5):
                 t = (P.get(f"title_{i}") or "").strip()

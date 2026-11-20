@@ -13,7 +13,7 @@
 .sc .sub{color:var(--m);font-size:.85rem}.sc .tw{overflow-x:auto}.sc .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.7rem}
 .sc .cardl{display:block;border:1px solid var(--l);border-radius:.5rem;padding:.6rem .8rem;text-decoration:none;color:inherit;background:#fff}.sc .cardl:hover{border-color:var(--b)}
 </style>
-<div class="sc"><form method="post" enctype="multipart/form-data">{% csrf_token %}
+<div class="sc"><form method="post" enctype="multipart/form-data" onsubmit="return chk()">{% csrf_token %}
 <div class="box" style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="btn o" href="{% url 'strategic:scorecard_home' %}">مشاهده کارنامه‌ها</a><a class="btn o" href="{% url 'strategic:scorecard_weights' %}">وزن اهداف</a></div>
 <div class="box"><h2>ماه کارنامه و امتیاز سازمان</h2>
 <div>سال: <input type="number" name="period_year" value="{{ cfg.period_year }}"> ماه: <select name="period_month">{% for n, nm in months %}<option value="{{ n }}"{% if n == cfg.period_month %} selected{% endif %}>{{ nm }}</option>{% endfor %}</select>
@@ -24,16 +24,16 @@
 <tr><td><input class="w" type="text" name="title_1" value="{{ cfg.title_1 }}"></td><td><input type="number" name="weight_1" value="{{ cfg.weight_1 }}"></td></tr>
 <tr><td><input class="w" type="text" name="title_2" value="{{ cfg.title_2 }}"></td><td><input type="number" name="weight_2" value="{{ cfg.weight_2 }}"></td></tr>
 <tr><td><input class="w" type="text" name="title_3" value="{{ cfg.title_3 }}"></td><td><input type="number" name="weight_3" value="{{ cfg.weight_3 }}"></td></tr>
-<tr><td><input class="w" type="text" name="title_4" value="{{ cfg.title_4 }}"></td><td><input type="number" name="weight_4" value="{{ cfg.weight_4 }}"></td></tr></table></div>
+<tr><td><input class="w" type="text" name="title_4" value="{{ cfg.title_4 }}"></td><td><input type="number" name="weight_4" value="{{ cfg.weight_4 }}"></td></tr><tr><td class="t"><b>جمع وزن‌ها (باید ۱۰۰ باشد)</b></td><td><b id="wsum"></b></td></tr></table></div>
 <p class="sub">جمع وزن‌ها باید ۱۰۰ باشد. برای واحدی که پروژه ندارد، وزن اختصاصی را در جدول واحدها پایین‌تر بدهید.</p>
 <label><input type="checkbox" name="empty_as_zero" {% if cfg.empty_as_zero %}checked{% endif %}> هدف بدون داده صفر حساب شود (وگرنه از مخرج حذف می‌شود)</label>
 <p>آستانه انتقال جدول پروژه‌ها به صفحه دوم چاپ: <input type="number" name="project_page_limit" value="{{ cfg.project_page_limit }}"></p></div>
 
 <div class="box"><h2>جدول رابط</h2><p>عنوان جدول: <input type="text" name="liaison_title" value="{{ cfg.liaison_title }}" style="width:60%"></p>
-{% for t in topics %}<div class="box" style="background:var(--s)"><div>موضوع: <input type="text" name="t{{ t.id }}_title" value="{{ t.title }}" style="width:45%"> امتیاز پایه: <input type="number" name="t{{ t.id }}_base" value="{{ t.base_score }}"> <label><input type="checkbox" name="t{{ t.id }}_del" value="1"> حذف موضوع</label></div>
+{% for t in topics %}<div class="box" style="background:var(--s)"><div>موضوع: <input type="text" name="t{{ t.id }}_title" value="{{ t.title }}" style="width:45%"> امتیاز پایه: <input type="number" name="t{{ t.id }}_base" class="tb" data-t="{{ t.id }}" value="{{ t.base_score }}"> <label><input type="checkbox" name="t{{ t.id }}_del" value="1"> حذف موضوع</label></div>
 <table style="margin-top:.5rem"><tr><th>پارامتر</th><th>حداکثر</th><th>حذف</th></tr>
-{% for p in t.params.all %}<tr><td><input class="w" type="text" name="p{{ p.id }}_text" value="{{ p.text }}"></td><td><input type="number" name="p{{ p.id }}_max" value="{{ p.max_score }}"></td><td><input type="checkbox" name="p{{ p.id }}_del" value="1"></td></tr>{% endfor %}
-<tr><td><input class="w" type="text" name="np_text" placeholder="پارامتر جدید"><input type="hidden" name="np_topic" value="{{ t.id }}"></td><td><input type="number" name="np_max" value="10"></td><td></td></tr></table></div>{% endfor %}
+{% for p in t.params.all %}<tr><td><input class="w" type="text" name="p{{ p.id }}_text" value="{{ p.text }}"></td><td><input type="number" name="p{{ p.id }}_max" value="{{ p.max_score }}" class="pm" data-t="{{ t.id }}"></td><td><input type="checkbox" name="p{{ p.id }}_del" value="1" class="pd" data-t="{{ t.id }}" onchange="sums()"></td></tr>{% endfor %}
+<tr><td><input class="w" type="text" name="np_text" placeholder="پارامتر جدید"><input type="hidden" name="np_topic" value="{{ t.id }}"></td><td><input type="number" name="np_max" value="10" class="pm" data-t="{{ t.id }}"></td><td></td></tr><tr class="lt" data-t="{{ t.id }}"><td class="t"><b>جمع امتیاز پارامترها (باید برابر امتیاز پایه باشد)</b></td><td><b class="ls"></b></td><td></td></tr></table></div>{% endfor %}
 <div>موضوع جدید: <input type="text" name="nt_title" style="width:45%"> امتیاز پایه: <input type="number" name="nt_base" value="50"></div></div>
 
 <div class="box"><h2>توضیحات و امضاها</h2><textarea name="notes" rows="4" style="width:100%;font:inherit">{{ cfg.notes }}</textarea><p class="sub">هر خط یک مورد.</p>
@@ -49,4 +49,13 @@
 <td><input type="text" name="o{{ u.key }}_head" value="{{ u.o.head_name }}"></td>
 <td><input type="file" name="o{{ u.key }}_photo" accept="image/*" style="max-width:9rem">{% if u.o.head_photo %}<label><input type="checkbox" name="o{{ u.key }}_photo_del" value="1"> حذف</label>{% endif %}</td>
 {% for w in u.w %}<td><input type="number" min="0" max="100" name="o{{ u.key }}_w{{ forloop.counter }}" value="{{ w }}" style="width:4rem{% if u.custom %};background:#FFF6DD{% endif %}"></td>{% endfor %}<td><a href="{% url 'strategic:scorecard_view' u.key %}">کارنامه</a></td></tr>{% endfor %}</table></div></div>
-<button class="btn" type="submit">ذخیره تنظیمات</button></form></div>{% endblock %}
+<button class="btn" type="submit">ذخیره تنظیمات</button></form></div><script>
+function sums(){var ok=true,w=0;for(var i=1;i<=4;i++){w+=+(document.querySelector('[name=weight_'+i+']').value)||0}
+var e=document.getElementById('wsum');e.textContent=w;e.style.color=w==100?'':'#d64545';if(w!=100)ok=false;
+document.querySelectorAll('.lt').forEach(function(r){var t=r.dataset.t,b=+(document.querySelector('.tb[data-t="'+t+'"]').value)||0,s=0;
+document.querySelectorAll('.pm[data-t="'+t+'"]').forEach(function(i){var tr=i.closest('tr'),d=tr.querySelector('.pd'),nt=tr.querySelector('[name=np_text]');if(nt&&!nt.value.trim())return;if(!(d&&d.checked))s+=+i.value||0});
+var c=r.querySelector('.ls');c.textContent=s+' از '+b;c.style.color=s==b?'':'#d64545';if(s!=b)ok=false});return ok}
+function chk(){if(!sums()){alert('جمع وزن‌ها یا امتیازها درست نیست (جمع‌های قرمز)؛ ذخیره انجام نشد.');return false}return true}
+document.addEventListener('input',sums);sums();
+</script>
+{% endblock %}
