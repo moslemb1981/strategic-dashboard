@@ -64,6 +64,7 @@
         {% if s.has_view %}<label class="usr-sec-chk" title="برای بخش‌هایی که در «دسترسی عمومی بخش‌ها» قفل شده‌اند؛ بدون این تیک (یا تیک ویرایش) کاربر واردشده هم آن صفحه را نمی‌بیند">
           <input type="checkbox" name="view_sections" value="{{ s.key }}" class="usr-view-cb" {% if s.view_checked %}checked{% endif %}> مشاهده</label>{% endif %}
         {% if not s.view_only %}<label class="usr-sec-chk"><input type="checkbox" name="sections" value="{{ s.key }}" class="usr-edit-cb" {% if s.checked %}checked{% endif %}> ویرایش</label>{% endif %}
+        {% if s.extra_finalize %}<label class="usr-sec-chk" title="نهایی‌سازی، بازگشایی و حذف ماه کارنامه (برای صفحه‌ی تنظیمات کارنامه، تیک «ویرایش» هم لازم است)"><input type="checkbox" name="finalize_scorecard" {% if s.finalize_checked %}checked{% endif %}> نهایی‌سازی</label>{% endif %}
       </div>
       {% endfor %}
     </div>

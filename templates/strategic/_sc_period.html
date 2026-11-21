@@ -1,0 +1,6 @@
+{% regroup months_avail by y as yrs %}
+<span class="scp"><select class="noprint scp-y" title="سال">{% for g in yrs %}<option value="{{ g.grouper }}"{% if g.grouper == cy %} selected{% endif %}>{{ g.grouper }}</option>{% endfor %}</select>
+<select class="noprint scp-m" title="ماه">{% for a in months_avail %}<option value="?y={{ a.y }}&m={{ a.m }}" data-y="{{ a.y }}"{% if a.y == cy and a.m == cm %} selected{% endif %}>{% with ys=a.y|stringformat:"s" %}{{ a.name|cut:ys }}{% endwith %}{% if a.final %} (نهایی){% else %} (جاری){% endif %}</option>{% endfor %}</select></span>
+<script>(function(){var s=document.currentScript.parentNode.querySelector('.scp');if(!s)return;var y=s.querySelector('.scp-y'),m=s.querySelector('.scp-m'),all=[].slice.call(m.options).map(function(o){return o.cloneNode(true)});
+function fill(sel){var v=y.value;m.innerHTML='';all.forEach(function(o){if(o.getAttribute('data-y')==v)m.appendChild(o.cloneNode(true))});if(sel){var ok=[].some.call(m.options,function(o){return o.selected});if(!ok)m.selectedIndex=0}}
+fill(true);y.onchange=function(){fill(false);m.selectedIndex=0;location=m.value};m.onchange=function(){location=m.value}})()</script>

@@ -15,6 +15,7 @@
 </style>
 <div class="sc">
 <div class="box" style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap"><h2 style="margin:0">کارنامه عملکرد — {{ month_name }} {{ y|fanum }}</h2>
+{% include "strategic/_sc_period.html" with cy=y cm=m %}{% if final %}<span class="pill g">نهایی‌شده</span>{% endif %}
 {% if can_edit %}<a class="btn o" href="{% url 'strategic:scorecard_settings' %}" style="margin-right:auto">تنظیمات کارنامه</a>{% endif %}</div>
 {% for title, items in groups %}<div class="box"><h2>{{ title }}</h2><div class="grid">
 {% for c in items %}<a class="cardl" href="{% url 'strategic:scorecard_view' c.owner.key %}?y={{ y }}&m={{ m }}"><b>{{ c.owner.name }}</b><br><span class="sub">{% if c.head %}{{ c.head }} · {% endif %}{{ c.n|fanum }} هدف OKR</span><br><span class="pill {{ c.cls }}">{{ c.total|fanum }}</span> <span class="sub">{{ c.status }}</span></a>{% endfor %}

@@ -15,9 +15,15 @@
 </style>
 <div class="sc"><form method="post" enctype="multipart/form-data" onsubmit="return chk()">{% csrf_token %}
 <div class="box" style="display:flex;gap:.5rem;flex-wrap:wrap"><a class="btn o" href="{% url 'strategic:scorecard_home' %}">مشاهده کارنامه‌ها</a><a class="btn o" href="{% url 'strategic:scorecard_weights' %}">وزن اهداف</a></div>
+{% if can_finalize %}<div class="box"><h2>نهایی‌سازی ماه</h2>
+<p class="sub">با نهایی‌سازی، از کارنامه همه واحدها یک نسخه ثابت ذخیره می‌شود و ماه قفل می‌شود. نسخه ثابت در انتخاب ماه صفحه کارنامه دیده می‌شود. ماه جاری کارنامه: <b>{{ cur_month_name }} {{ cfg.period_year|fanum }}</b>{% if cur_final %} — <b style="color:#2e9e5b">نهایی‌شده</b>{% endif %}</p>
+<div style="display:flex;gap:.5rem;flex-wrap:wrap">
+<button type="submit" form="fz" name="action" value="finalize" class="btn" onclick="return fzCheck('کارنامه همه واحدها برای ماه {{ cur_month_name }} {{ cfg.period_year|fanum }} نهایی (یا دوباره نهایی) شود؟')">{% if cur_final %}نهایی‌سازی دوباره{% else %}نهایی‌سازی ماه{% endif %}</button>
+{% if cur_final %}<button type="submit" form="fz" name="action" value="reopen" class="btn o" onclick="return fzCheck('نسخه نهایی ماه {{ cur_month_name }} {{ cfg.period_year|fanum }} حذف و ماه بازگشایی شود؟')">بازگشایی ماه</button>{% endif %}</div>
+{% if snap_months %}{% regroup snap_months by y as sy %}{% for g in sy %}<details style="margin-top:.5rem"{% if forloop.first %} open{% endif %}><summary style="cursor:pointer;font-weight:700">{{ g.grouper|fanum }} — {{ g.list|length|fanum }} ماه نهایی‌شده</summary><table style="margin-top:.4rem"><tr><th>ماه نهایی‌شده</th><th>تعداد واحد</th><th>زمان نهایی‌سازی</th><th>مشاهده</th><th>حذف</th></tr>{% for a in g.list %}<tr><td>{{ a.name }}</td><td>{{ a.n }}</td><td>{{ a.at|date:"Y-m-d H:i" }}</td><td><a href="{% url 'strategic:scorecard_home' %}?y={{ a.y }}&m={{ a.m }}">کارنامه‌ها</a></td><td><button type="button" class="btn" style="color:#b91c1c;border-color:#b91c1c" onclick="delSnap({{ a.y }},{{ a.m }},'{{ a.name|fanum }}')">حذف</button></td></tr>{% endfor %}</table></details>{% endfor %}{% endif %}</div>{% endif %}
 <div class="box"><h2>ماه کارنامه و امتیاز سازمان</h2>
 <div>سال: <input type="number" name="period_year" value="{{ cfg.period_year }}"> ماه: <select name="period_month">{% for n, nm in months %}<option value="{{ n }}"{% if n == cfg.period_month %} selected{% endif %}>{{ nm }}</option>{% endfor %}</select>
-&nbsp; تاریخ تهیه: <input type="text" name="prepared_date" value="{{ period.prepared_date|default:'' }}" style="width:8rem"></div>
+&nbsp; تاریخ تهیه: <input type="text" name="prepared_date" dir="ltr" placeholder="{{ today_j }}" title="قالب: 1405/08/15؛ خالی = تاریخ امروز" value="{{ period.prepared_date|default:'' }}" style="width:8rem"></div>
 <p>امتیاز شاخص‌های سازمان (شرکت مادر) این ماه: <input type="number" step="any" min="0" max="100" name="org_score" value="{{ period.org_score|default_if_none:'' }}"></p></div>
 
 <div class="box"><h2>جدول بالای کارنامه (عنوان و وزن پیش‌فرض)</h2><div class="tw"><table><tr><th>عنوان</th><th>وزن (٪)</th></tr>
@@ -50,6 +56,9 @@
 <td><input type="file" name="o{{ u.key }}_photo" accept="image/*" style="max-width:9rem">{% if u.o.head_photo %}<label><input type="checkbox" name="o{{ u.key }}_photo_del" value="1"> حذف</label>{% endif %}</td>
 {% for w in u.w %}<td><input type="number" min="0" max="100" name="o{{ u.key }}_w{{ forloop.counter }}" value="{{ w }}" style="width:4rem{% if u.custom %};background:#FFF6DD{% endif %}"></td>{% endfor %}<td><a href="{% url 'strategic:scorecard_view' u.key %}">کارنامه</a></td></tr>{% endfor %}</table></div></div>
 <button class="btn" type="submit">ذخیره تنظیمات</button></form></div><script>
+function delSnap(y,m,nm){if(!confirm('نسخه نهایی '+nm+' برای همه واحدها حذف شود؟ این کار قابل بازگشت نیست.'))return;var f=document.getElementById('fz');f.querySelector('[name=y]').value=y;f.querySelector('[name=m]').value=m;var a=document.createElement('input');a.type='hidden';a.name='action';a.value='reopen';f.appendChild(a);f.submit()}
+function fzCheck(msg){var y=document.querySelector('[name=period_year]').value,m=document.querySelector('[name=period_month]').value;
+if(y!='{{ cfg.period_year }}'||m!='{{ cfg.period_month }}'){alert('ماه یا سال را تغییر داده‌اید ولی ذخیره نکرده‌اید. ابتدا «ذخیره تنظیمات» را بزنید، سپس نهایی‌سازی را انجام دهید.');return false}return confirm(msg)}
 function sums(){var ok=true,w=0;for(var i=1;i<=4;i++){w+=+(document.querySelector('[name=weight_'+i+']').value)||0}
 var e=document.getElementById('wsum');e.textContent=w;e.style.color=w==100?'':'#d64545';if(w!=100)ok=false;
 document.querySelectorAll('.lt').forEach(function(r){var t=r.dataset.t,b=+(document.querySelector('.tb[data-t="'+t+'"]').value)||0,s=0;
@@ -58,4 +67,5 @@ var c=r.querySelector('.ls');c.textContent=s+' از '+b;c.style.color=s==b?'':'#
 function chk(){if(!sums()){alert('جمع وزن‌ها یا امتیازها درست نیست (جمع‌های قرمز)؛ ذخیره انجام نشد.');return false}return true}
 document.addEventListener('input',sums);sums();
 </script>
+{% if can_finalize %}<form id="fz" method="post" action="{% url 'strategic:scorecard_finalize' %}" style="display:none">{% csrf_token %}<input type="hidden" name="y" value="{{ cfg.period_year }}"><input type="hidden" name="m" value="{{ cfg.period_month }}"></form>{% endif %}
 {% endblock %}

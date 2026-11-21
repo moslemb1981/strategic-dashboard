@@ -15,17 +15,19 @@ from django.db import transaction
 from django.http import FileResponse, Http404
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from .models import (
     Initiative, LiaisonParam, LiaisonScore, LiaisonTopic, Management, OKRObjective, OrgUnit,
     ScorecardConfig, ScorecardEntry, ScorecardOwnerConfig, ScorecardPeriod, ScorecardProject,
-    ScorecardProjectMonth,
+    ScorecardProjectMonth, ScorecardSnapshot,
 )
 from . import views as V
 
 MONTHS = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
           "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"]
 EDIT_PERM = "strategic.change_scorecardconfig"
+FINAL_PERM = "strategic.finalize_scorecard"
 
 
 # ---------------------------------------------------------------- کمکی‌ها
@@ -48,6 +50,24 @@ def _cls(p):
     return "r" if p < 80 else ("y" if p < 90 else "g")
 
 
+def _today_jalali():
+    import jdatetime
+    return jdatetime.date.today().strftime("%Y/%m/%d")
+
+
+def _norm_jdate(v):
+    """تاریخ شمسی را به «YYYY/MM/DD» (ارقام لاتین) برمی‌گرداند؛ نامعتبر → None."""
+    import re
+    v = str(v or "").strip().translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
+    m = re.fullmatch(r"(\d{4})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{1,2})", v)
+    if not m:
+        return None
+    y, mo, d = int(m[1]), int(m[2]), int(m[3])
+    if not (1300 <= y <= 1600 and 1 <= mo <= 12 and 1 <= d <= (31 if mo <= 6 else 30)):
+        return None
+    return f"{y:04d}/{mo:02d}/{d:02d}"
+
+
 def _status_text(p):
     return {"r": "نیازمند بهبود", "y": "در حال پیشرفت", "g": "مطلوب", "n": "بدون داده"}[_cls(p)]
 
@@ -61,6 +81,10 @@ def _period(request, cfg):
     if not 1 <= m <= 12:
         y, m = cfg.period_year, cfg.period_month
     return y, m
+
+
+def can_finalize(user):
+    return user.is_authenticated and user.has_perm(FINAL_PERM)
 
 
 def can_edit(user):
@@ -154,12 +178,10 @@ def _okr_part(owner, cfg):
             eff = gw * w / 100.0
             include = pct is not None or cfg.empty_as_zero
             if include:
-                total_s += eff * (pct or 0)
-                total_w += eff
                 gs += w * (pct or 0)
                 gws += w
             items.append({
-                "code": o.code, "title": o.title, "n_kr": len(krs), "weight": _num(eff), "pct": pct,
+                "code": o.code, "title": o.title, "n_kr": len(krs), "weight": _num(w), "pct": pct,
                 "cls": _cls(pct),
                 "krs": [{
                     "code": k.code, "title": k.title, "kpi": k.kpi_code or "",
@@ -168,6 +190,9 @@ def _okr_part(owner, cfg):
                 } for k in krs],
             })
         gp = round(gs / gws) if gws else None
+        if gws:  # امتیاز کل = میانگین وزنی امتیاز مدیریت‌ها با وزن مدیریت (مدیریت بدون داده کنار می‌رود)
+            total_s += gw * gs / gws
+            total_w += gw
         out.append({"name": g["m"].name, "weight": _num(gw), "pct": gp, "cls": _cls(gp), "items": items})
     score = round(total_s / total_w) if total_w else None
     return {"groups": out, "score": score, "warn": warn, "n_obj": sum(len(g["items"]) for g in out)}
@@ -268,7 +293,7 @@ def build(key, y, m, cfg=None):
         "projects": pj_rows, "pj_score": pj_score, "lia": lia, "org_score": _num(org),
         "prev": _num(entry.prev_score) if entry else None, "rows": rows, "wsum": tw,
         "total": total, "cls": _cls(total), "status": _status_text(total),
-        "prepared": (period.prepared_date if period else "") or "",
+        "prepared": (period.prepared_date if period else "") or _today_jalali(),
         "notes": [x.strip() for x in (cfg.notes or "").splitlines() if x.strip()],
         "sigs": cfg.sig_list,
         "photo_v": (owner["obj"].head_photo.name or "")[-12:], "gauge": gauge_svg(total), "head_name": owner["obj"].head_name, "has_photo": bool(owner["obj"].head_photo),
@@ -277,13 +302,77 @@ def build(key, y, m, cfg=None):
 
 # ---------------------------------------------------------------- صفحه‌ها
 
-@V.guest_gate("executive_show")
+# ---------------------------------------------------------------- نسخه‌ی ثابت ماه‌های نهایی‌شده
+
+def _is_final(y, m):
+    return ScorecardSnapshot.objects.filter(year=y, month=m).exists()
+
+
+def _photo_data_uri(obj):
+    import base64
+    try:
+        with obj.head_photo.open("rb") as f:
+            raw = f.read()
+    except Exception:
+        return ""
+    return "data:image/jpeg;base64," + base64.b64encode(raw).decode() if raw else ""
+
+
+def _freeze(d):
+    """خروجی build() را به دیکشنری قابل ذخیره (JSON) تبدیل می‌کند."""
+    o = d["owner"]
+    out = {k: v for k, v in d.items() if k not in ("owner", "cfg")}
+    out["gauge"] = str(d["gauge"])
+    out["owner"] = {k: o[k] for k in ("key", "kind", "name", "role", "head_label")}
+    out["owner"]["org_kind"] = o["obj"].org_unit.kind if o["kind"] == "m" else "deputy"
+    out["cfg"] = {"liaison_title": d["cfg"].liaison_title, "project_page_limit": d["cfg"].project_page_limit}
+    out["photo_data"] = _photo_data_uri(o["obj"]) if d["has_photo"] else ""
+    return out
+
+
+def _thaw(snap):
+    import json
+    from django.utils.safestring import mark_safe
+    d = json.loads(snap.data)
+    d["gauge"] = mark_safe(d["gauge"])
+    d["frozen"] = True
+    d["final_at"] = snap.finalized_at
+    return d
+
+
+def get_data(key, y, m, cfg):
+    """(داده، ثابت‌شده؟): نسخه‌ی نهایی ماه اگر باشد، وگرنه محاسبه‌ی زنده."""
+    snap = ScorecardSnapshot.objects.filter(owner_key=key, year=y, month=m).first()
+    if snap:
+        return _thaw(snap), True
+    return build(key, y, m, cfg), False
+
+
+def _months_avail_final():
+    from django.db.models import Count, Max
+    rows = (ScorecardSnapshot.objects.values("year", "month").annotate(n=Count("id"), at=Max("finalized_at"))
+            .order_by("-year", "-month"))
+    return [{"y": r["year"], "m": r["month"], "name": f"{MONTHS[r['month'] - 1]} {r['year']}", "n": r["n"], "at": r["at"]} for r in rows]
+
+
+def _months_avail(cfg):
+    ym = {(cfg.period_year, cfg.period_month): False}
+    for y, m in ScorecardSnapshot.objects.values_list("year", "month").distinct():
+        ym[(y, m)] = True
+    return [{"y": y, "m": m, "name": f"{MONTHS[m - 1]} {y}", "final": f}
+            for (y, m), f in sorted(ym.items(), reverse=True)]
+
+
+@V.guest_gate("scorecard")
 def scorecard_home(request):
     cfg = ScorecardConfig.get()
     y, m = _period(request, cfg)
     cards = []
+    final = _is_final(y, m)
     for o in all_owners():
-        d = build(o["key"], y, m, cfg)
+        d, fr = get_data(o["key"], y, m, cfg)
+        if final and not fr:
+            continue  # واحدی که پس از نهایی‌سازی ساخته شده
         cards.append({"owner": o, "total": d["total"], "cls": d["cls"], "status": d["status"],
                       "okr": d["okr"]["score"], "n": d["okr"]["n_obj"], "head": d["head_name"]})
     groups = [
@@ -294,32 +383,82 @@ def scorecard_home(request):
     return render(request, "strategic/scorecard_home.html", {
         "groups": [(t, l) for t, l in groups if l], "y": y, "m": m, "month_name": MONTHS[m - 1],
         "can_edit": can_edit(request.user), "active_page": "scorecard",
+        "months_avail": _months_avail(cfg), "final": final,
     })
 
 
-@V.guest_gate("executive_show")
+@V.guest_gate("scorecard")
 def scorecard_view(request, key):
     cfg = ScorecardConfig.get()
     y, m = _period(request, cfg)
-    d = build(key, y, m, cfg)
+    d, frozen = get_data(key, y, m, cfg)
     if not d:
         raise Http404("کارنامه پیدا نشد")
-    if not (d["owner"]["obj"].has_scorecard):
-        messages.info(request, "برای این واحد کارنامه فعال نشده است (در تنظیمات کارنامه فعال می‌شود).")
-    pj_moved = (d["okr"]["n_obj"] + len(d["okr"]["groups"]) * (1 if d["owner"]["kind"] == "u" else 0)
-                + 2.5 * len(d["projects"])) > cfg.project_page_limit
-    d.update({"can_edit": can_edit(request.user), "pj_moved": pj_moved})
+    if frozen:
+        limit = d["cfg"]["project_page_limit"]
+        d["photo_src"] = d.get("photo_data", "")
+        d["has_photo"] = bool(d["photo_src"])
+        pj_moved = (d["okr"]["n_obj"] + len(d["okr"]["groups"]) * (1 if d["owner"]["kind"] == "u" else 0)
+                    + 2.5 * len(d["projects"])) > limit
+        d.update({"can_edit": False, "pj_moved": pj_moved})
+    else:
+        if _is_final(y, m):
+            messages.info(request, "این واحد هنگام نهایی‌سازی این ماه کارنامه نداشته است.")
+            return redirect(f"{reverse('strategic:scorecard_home')}?y={y}&m={m}")
+        if not d["owner"]["obj"].has_scorecard:
+            messages.info(request, "برای این واحد کارنامه فعال نشده است (در تنظیمات کارنامه فعال می‌شود).")
+        pj_moved = (d["okr"]["n_obj"] + len(d["okr"]["groups"]) * (1 if d["owner"]["kind"] == "u" else 0)
+                    + 2.5 * len(d["projects"])) > cfg.project_page_limit
+        d["photo_src"] = (reverse("strategic:scorecard_photo", args=[key]) + "?v=" + d["photo_v"]) if d["has_photo"] else ""
+        d.update({"can_edit": can_edit(request.user), "pj_moved": pj_moved, "frozen": False})
+    d["months_avail"] = _months_avail(cfg)
     return render(request, "strategic/scorecard.html", d)
 
 
+@login_required
+def scorecard_finalize(request):
+    """نهایی‌سازی یا بازگشایی ماه برای همه‌ی واحدها؛ فقط مدیر سیستم."""
+    if not can_finalize(request.user):
+        messages.error(request, "برای نهایی‌سازی یا بازگشایی ماه، دسترسی «نهایی‌سازی کارنامه» لازم است.")
+        return redirect("strategic:scorecard_settings")
+    if request.method != "POST":
+        return redirect("strategic:scorecard_settings")
+    import json
+    cfg = ScorecardConfig.get()
+    act = request.POST.get("action")
+    try:
+        y, m = int(request.POST.get("y")), int(request.POST.get("m"))
+    except (TypeError, ValueError):
+        return redirect("strategic:scorecard_settings")
+    if not (1 <= m <= 12 and 1300 <= y <= 1600):
+        messages.error(request, "ماه یا سال نامعتبر است.")
+        return redirect("strategic:scorecard_settings")
+    if act == "reopen":
+        n = ScorecardSnapshot.objects.filter(year=y, month=m).delete()[0]
+        V._log_action(request, "SCORECARD reopen", f"{y}/{m} ({n})")
+        messages.success(request, f"ماه {MONTHS[m - 1]} {y} بازگشایی شد.")
+    elif act == "finalize":
+        owners = all_owners()
+        with transaction.atomic():
+            ScorecardSnapshot.objects.filter(year=y, month=m).delete()
+            for o in owners:
+                d = build(o["key"], y, m, cfg)
+                ScorecardSnapshot.objects.create(
+                    owner_key=o["key"], year=y, month=m, finalized_by=request.user.get_username(),
+                    data=json.dumps(_freeze(d), ensure_ascii=False, default=str))
+        V._log_action(request, "SCORECARD finalize", f"{y}/{m} ({len(owners)})")
+        messages.success(request, f"ماه {MONTHS[m - 1]} {y} برای {len(owners)} واحد نهایی شد.")
+    return redirect("strategic:scorecard_settings")
+
+
 @xframe_options_sameorigin
-@V.guest_gate("executive_show")
+@V.guest_gate("scorecard")
 def scorecard_kpi_chart(request, pk):
     """صفحه‌ی مینیمال حاوی همان پنجره‌ی نمودار روند شاخص (با پرچم پروژه‌ها و تحلیل ماهانه) برای نمایش در کارنامه."""
     return render(request, "strategic/scorecard_kpi_chart.html", {"kpi_id": pk})
 
 
-@V.guest_gate("executive_show")
+@V.guest_gate("scorecard")
 def scorecard_photo(request, key):
     o = _owner(key)
     if not o or not o["obj"].head_photo:
@@ -335,23 +474,32 @@ PHOTO_W, PHOTO_H = 400, 460  # پیکسل (نسبت ۸۷ به ۱۰۰ مطابق 
 
 
 def _store_photo(obj, f):
-    """ذخیره عکس مسئول: بریدن به نسبت قاب و کوچک‌کردن به ۴۰۰×۴۶۰ (JPEG)؛ بدون Pillow همان فایل ذخیره می‌شود."""
+    """ذخیره عکس مسئول: فقط JPEG/PNG/GIF/WebP؛ بریدن به نسبت قاب و کوچک‌کردن به ۴۰۰×۴۶۰ (JPEG).
+    بدون Pillow همان فایل (با پسوند مجاز) ذخیره می‌شود؛ فایل نامعتبر یا SVG رد می‌شود."""
     from django.core.files.base import ContentFile
-    if not (f.content_type or "").startswith("image/") or f.size > 5 * 1024 * 1024:
+    ctype = (f.content_type or "").lower()
+    if ctype not in ("image/jpeg", "image/png", "image/gif", "image/webp") or f.size > 5 * 1024 * 1024:
         return False
-    if obj.head_photo:
-        obj.head_photo.delete(save=False)
     try:
         import io
         from PIL import Image, ImageOps
+    except ImportError:
+        ext = {"image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}[ctype]
+        if obj.head_photo:
+            obj.head_photo.delete(save=False)
+        obj.head_photo.save("head." + ext, ContentFile(f.read()), save=False)
+        obj.save()
+        return True
+    try:
         im = ImageOps.exif_transpose(Image.open(f)).convert("RGB")
         im = ImageOps.fit(im, (PHOTO_W, PHOTO_H), Image.LANCZOS, centering=(0.5, 0.3))
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=88)
-        obj.head_photo.save("head.jpg", ContentFile(buf.getvalue()), save=False)
     except Exception:
-        f.seek(0)
-        obj.head_photo = f
+        return False
+    if obj.head_photo:
+        obj.head_photo.delete(save=False)
+    obj.head_photo.save("head.jpg", ContentFile(buf.getvalue()), save=False)
     obj.save()
     return True
 
@@ -409,6 +557,9 @@ def scorecard_edit(request, key):
     if not request.user.has_perm(EDIT_PERM):
         messages.error(request, "برای ثبت کارنامه دسترسی ویرایش «کارنامه عملکرد» لازم است.")
         return redirect("strategic:scorecard_view", key=key)
+    if _is_final(y, m):
+        messages.error(request, "این ماه نهایی شده است؛ برای ویرایش، باید ماه بازگشایی شود (دسترسی «نهایی‌سازی کارنامه»).")
+        return redirect(f"{reverse('strategic:scorecard_view', args=[key])}?y={y}&m={m}")
 
     if request.method == "POST":
         P = request.POST
@@ -537,9 +688,17 @@ def scorecard_settings(request):
                 cfg.project_page_limit = max(1, int(lim))
             cfg.save()
             per, _c = ScorecardPeriod.objects.get_or_create(year=cfg.period_year, month=cfg.period_month)
-            per.org_score = _to_float(P.get("org_score"))
-            per.prepared_date = (P.get("prepared_date") or "").strip()[:20]
-            per.save()
+            if _is_final(cfg.period_year, cfg.period_month):
+                messages.warning(request, "ماه جاری نهایی شده است؛ امتیاز سازمان و تاریخ تهیه‌ی آن تغییر نکرد.")
+            else:
+                per.org_score = _to_float(P.get("org_score"))
+                raw = (P.get("prepared_date") or "").strip()
+                nd = _norm_jdate(raw) if raw else ""
+                if nd is None:
+                    messages.warning(request, "تاریخ تهیه نامعتبر بود و تغییر نکرد؛ قالب درست مثل ۱۴۰۵/۰۸/۱۵ است.")
+                else:
+                    per.prepared_date = nd
+                per.save()
 
             # جدول رابط
             for t in LiaisonTopic.objects.all():
@@ -605,7 +764,7 @@ def scorecard_settings(request):
 
     per = ScorecardPeriod.objects.filter(year=cfg.period_year, month=cfg.period_month).first()
     return render(request, "strategic/scorecard_settings.html", {
-        "cfg": cfg, "sigs": cfg.sig_list, "period": per, "months": list(enumerate(MONTHS, 1)),
+        "cfg": cfg, "sigs": cfg.sig_list, "period": per, "snap_months": _months_avail_final(), "cur_month_name": MONTHS[cfg.period_month - 1], "today_j": _today_jalali(), "cur_final": _is_final(cfg.period_year, cfg.period_month), "can_finalize": can_finalize(request.user), "months": list(enumerate(MONTHS, 1)),
         "topics": LiaisonTopic.objects.prefetch_related("params").order_by("order", "id"),
         "units": _unit_rows(), "active_page": "scorecard",
     })

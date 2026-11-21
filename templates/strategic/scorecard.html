@@ -114,10 +114,10 @@ tr.det table.in{background:var(--paper);border:1px solid var(--krl)}tr.det table
 </style></head><body><div class="wrap">
 <div class="bar noprint"><a href="{% url 'strategic:scorecard_home' %}?y={{ year }}&m={{ month }}">همه کارنامه‌ها</a>
  {% if can_edit %}<a href="{% url 'strategic:scorecard_edit' owner.key %}?y={{ year }}&m={{ month }}">ثبت اطلاعات ماه</a><a href="{% url 'strategic:scorecard_settings' %}">تنظیمات</a>{% endif %}
- <span class="tag">ماه: {{ month_name }} {{ year|fanum }}</span><button class="pb" onclick="window.print()">چاپ / ذخیره PDF</button></div>
+ {% include "strategic/_sc_period.html" with cy=year cm=month %}{% if frozen %}<span class="tag" style="background:#E3F3E8">نهایی‌شده</span>{% else %}<span class="tag">ماه جاری (زنده)</span>{% endif %}<button class="pb" onclick="window.print()">چاپ / ذخیره PDF</button></div>
 {% for m in messages %}<div class="msg noprint">{{ m }}</div>{% endfor %}
 <div class="paper"><div class="hd">
- <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{{ photo_src }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
  <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
   <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
   {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
@@ -133,7 +133,7 @@ tr.det table.in{background:var(--paper);border:1px solid var(--krl)}tr.det table
 <div class="tw"><table class="okt"><tr><th>کد</th><th>هدف Objective</th><th>نتایج کلیدی</th><th>وزن</th><th>درصد تحقق</th></tr>
 {% for g in okr.groups %}{% if owner.kind == 'u' %}<tr class="gr"><td class="t" colspan="3"><b>{{ g.name }}</b> <span class="tag">{{ g.items|length|fanum }} هدف</span></td><td>{{ g.weight|fanum }}٪</td><td><span class="pill {{ g.cls }}">{% if g.pct is None %}—{% else %}{{ g.pct|fanum }}{% endif %}</span></td></tr>{% endif %}
 {% for o in g.items %}<tr class="okr" onclick="tg('k{{ forloop.parentloop.counter }}_{{ forloop.counter }}',this)"><td dir="ltr" class="cd">{{ o.code }}</td><td class="t"><span class="car noprint">◂</span> {{ o.title }}</td><td>{{ o.n_kr|fanum }}</td><td>{{ o.weight|fanum }}٪</td><td><span class="pill {{ o.cls }}">{% if o.pct is None %}—{% else %}{{ o.pct|fanum }}{% endif %}</span></td></tr>
-<tr class="det" id="k{{ forloop.parentloop.counter }}_{{ forloop.counter }}" hidden><td colspan="5"><table class="in"><tr><th>نتایج کلیدی (Key Results)</th><th>کد شاخص</th><th>واحد</th><th>هدف</th><th>عملکرد</th><th>تحقق</th></tr>
+<tr class="det" id="k{{ forloop.parentloop.counter }}_{{ forloop.counter }}" hidden><td colspan="5"><table class="in"><tr><th>شاخص ارزیابی عملکرد (KPI)</th><th>کد شاخص</th><th>واحد</th><th>هدف (KR)</th><th>عملکرد</th><th>تحقق</th></tr>
 {% for k in o.krs %}<tr><td class="t">{% if k.trend_id %}<button type="button" class="trb" onclick="trOpen({{ k.trend_id }})" title="نمودار روند شاخص">&#128200;</button> {% endif %}{{ k.title }}</td><td dir="ltr" class="cd">{{ k.kpi|default:"—" }}</td><td>{{ k.unit|default:"—" }}</td><td>{{ k.target|fanum }}</td><td>{% if k.actual == "—" %}پایش نشده{% else %}{{ k.actual|fanum }}{% endif %}</td><td><span class="pill {{ k.cls }}">{% if k.pct is None %}—{% else %}{{ k.pct|fanum }}{% endif %}</span></td></tr>{% endfor %}
 </table></td></tr>{% endfor %}{% empty %}<tr><td colspan="5" class="t" style="color:var(--mut)">برای این واحد هدف OKR ثبت نشده است.</td></tr>{% endfor %}
 <tr class="tot"><td class="t" colspan="3">جمع وزن اهداف</td><td>۱۰۰٪</td><td><span class="pill {% if okr.score is None %}n{% elif okr.score < 80 %}r{% elif okr.score < 90 %}y{% else %}g{% endif %}">{% if okr.score is None %}—{% else %}{{ okr.score|fanum }}{% endif %}</span></td></tr></table></div>
@@ -143,9 +143,9 @@ tr.det table.in{background:var(--paper);border:1px solid var(--krl)}tr.det table
 <tr class="tot"><td class="t" colspan="4">میانگین پیشرفت پروژه‌ها (امتیاز بخش ۳)</td><td><span class="pill {% if pj_score is None %}n{% elif pj_score < 80 %}r{% elif pj_score < 90 %}y{% else %}g{% endif %}">{% if pj_score is None %}—{% else %}{{ pj_score|fanum }}{% endif %}</span></td><td colspan="2"></td></tr></table></div>{% endif %}
 <div class="notes"><b>توضیحات:</b><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></div>
 <div class="sig" style="--n:{{ sigs|length|default:1 }}">{% for g in sigs %}<div><b>{{ g.t }}</b><br><small>{{ g.r }}</small><div class="box">{{ g.n }}</div></div>{% endfor %}</div>
-<div class="dt">تاریخ تهیه: {{ prepared|default:"—" }}</div></div>
+<div class="dt">تاریخ تهیه: {{ prepared|fanum }}</div></div>
 {% if pj_moved %}<div class="paper pg2"><div class="hd">
- <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{{ photo_src }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
  <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
   <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
   {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
@@ -155,14 +155,14 @@ tr.det table.in{background:var(--paper);border:1px solid var(--krl)}tr.det table
 {% empty %}<tr><td class="t" colspan="7" style="color:var(--mut)">پروژه‌ای برای این کارنامه انتخاب نشده است. وزن این بخش در جمع نمره‌ها لحاظ نمی‌شود.</td></tr>{% endfor %}
 <tr class="tot"><td class="t" colspan="4">میانگین پیشرفت پروژه‌ها (امتیاز بخش ۳)</td><td><span class="pill {% if pj_score is None %}n{% elif pj_score < 80 %}r{% elif pj_score < 90 %}y{% else %}g{% endif %}">{% if pj_score is None %}—{% else %}{{ pj_score|fanum }}{% endif %}</span></td><td colspan="2"></td></tr></table></div></div>{% endif %}
 <div class="paper pg2"><div class="hd">
- <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{% url 'strategic:scorecard_photo' owner.key %}?v={{ photo_v }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
+ <div class="ph-ph{% if can_edit %} ph-edit{% endif %}"{% if can_edit %} onclick="phOpen()" title="افزودن / تغییر / حذف عکس"{% endif %}>{% if has_photo %}<img src="{{ photo_src }}" alt="" style="width:100%;height:100%;object-fit:cover">{% else %}<svg viewBox="0 0 48 48" width="100%" height="100%"><circle cx="24" cy="18" r="9" fill="var(--mut)" opacity=".5"/><path d="M6 46c1-12 9-16 18-16s17 4 18 16z" fill="var(--mut)" opacity=".5"/></svg>{% endif %}</div>
  <div class="hd-t"><b>گزارش عملکرد {{ owner.name }} - {{ month_name }} {{ year|fanum }}</b>
   <span>{{ owner.role }}: <u>{{ owner.name }}</u></span>
   {% if head_name %}<span>{{ owner.head_label }}: <u>{{ head_name }}</u></span>{% endif %}</div>
  <div class="lg"><img alt="سایپا یدک" src="{% static 'images/saipa-yadak-logo.png' %}"></div>
 </div><h2 style="text-align:center;margin:.4rem 0 .8rem">{{ cfg.liaison_title }}</h2><div class="tw"><table class="lt"><tr><th>موضوع</th><th>شرح</th><th>امتیاز پایه</th><th>امتیاز کسب‌شده</th></tr>
 {% for t in lia.topics %}{% for p in t.params %}<tr>{% if forloop.first %}<td class="t tp" rowspan="{{ t.params|length }}">{{ t.title }}</td>{% endif %}<td class="t">{{ p.text }}</td>{% if forloop.first %}<td rowspan="{{ t.params|length }}">{{ t.base|fanum }}</td><td rowspan="{{ t.params|length }}"><b>{{ t.earned|fanum }}</b></td>{% endif %}</tr>{% empty %}<tr><td class="t tp">{{ t.title }}</td><td></td><td>{{ t.base|fanum }}</td><td>{{ t.earned|fanum }}</td></tr>{% endfor %}{% endfor %}
-<tr class="tot"><td class="t" colspan="2">مجموع</td><td>{{ lia.base|fanum }}</td><td>{{ lia.earned|fanum }}</td></tr></table></div><div class="dt">تاریخ تهیه: {{ prepared|default:"—" }}</div></div>
+<tr class="tot"><td class="t" colspan="2">مجموع</td><td>{{ lia.base|fanum }}</td><td>{{ lia.earned|fanum }}</td></tr></table></div><div class="dt">تاریخ تهیه: {{ prepared|fanum }}</div></div>
 </div>
 {% if can_edit %}<div class="phm noprint" id="phm" hidden onclick="if(event.target===this)this.hidden=true"><div>
 <b>عکس {{ owner.name }}</b><small>تصویر عمودی، حداقل ۴۰۰×۴۶۰ پیکسل، تا ۵ مگابایت (به‌اندازه قاب بریده می‌شود)</small>

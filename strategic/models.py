@@ -2565,3 +2565,23 @@ class ScorecardProjectMonth(models.Model):
         unique_together = [("link", "year", "month")]
         verbose_name = "اعداد ماهانه پروژه‌ی کارنامه"
         verbose_name_plural = "اعداد ماهانه پروژه‌های کارنامه"
+
+
+class ScorecardSnapshot(models.Model):
+    """نسخه‌ی ثابت (نهایی‌شده) کارنامه‌ی یک واحد در یک ماه؛ با نهایی‌سازی ماه برای همه‌ی واحدها ساخته می‌شود."""
+
+    owner_key = models.CharField(max_length=20, db_index=True, verbose_name="کلید واحد")
+    year = models.PositiveSmallIntegerField(verbose_name="سال")
+    month = models.PositiveSmallIntegerField(verbose_name="ماه")
+    data = models.TextField(verbose_name="داده‌ی کارنامه (JSON)")
+    finalized_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان نهایی‌سازی")
+    finalized_by = models.CharField(max_length=150, blank=True, verbose_name="نهایی‌کننده")
+
+    class Meta:
+        unique_together = [("owner_key", "year", "month")]
+        permissions = [("finalize_scorecard", "نهایی‌سازی، بازگشایی و حذف ماه کارنامه")]
+        verbose_name = "نسخه نهایی کارنامه"
+        verbose_name_plural = "نسخه‌های نهایی کارنامه"
+
+    def __str__(self):
+        return f"{self.owner_key} {self.year}/{self.month}"

@@ -5286,6 +5286,7 @@ def user_edit(request, pk=None):
             for key in SECTIONS:
                 all_codenames.extend(permissions_for_section(key))
                 all_codenames.append(view_codename(key))
+            all_codenames.append("finalize_scorecard")
             all_perm_ids = list(Permission.objects.filter(
                 content_type__app_label="strategic", codename__in=all_codenames
             ).values_list("pk", flat=True))
@@ -5299,6 +5300,8 @@ def user_edit(request, pk=None):
             for key in selected_view_sections:
                 if key in SECTIONS:
                     selected_codenames.append(view_codename(key))
+            if request.POST.get("finalize_scorecard") == "on":
+                selected_codenames.append("finalize_scorecard")
             selected_perms = Permission.objects.filter(
                 content_type__app_label="strategic", codename__in=selected_codenames
             )
@@ -5326,6 +5329,7 @@ def user_edit(request, pk=None):
             "key": key, "label": label, "bu_scoped": bu_scoped,
             "checked": change_codename in current_perm_codenames,
             "has_view": has_page, "view_only": key == "executive_show",
+            "extra_finalize": key == "scorecard", "finalize_checked": "finalize_scorecard" in current_perm_codenames,
             "view_checked": view_cn in current_perm_codenames or change_codename in current_perm_codenames,
         })
 

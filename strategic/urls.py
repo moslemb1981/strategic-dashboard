@@ -137,6 +137,7 @@ urlpatterns = [
     # کارنامه عملکرد (منطق در scorecard.py)
     path("scorecard/", scorecard.scorecard_home, name="scorecard_home"),
     path("scorecard/kpi-chart/<int:pk>/", scorecard.scorecard_kpi_chart, name="scorecard_kpi_chart"),
+    path("scorecard/finalize/", scorecard.scorecard_finalize, name="scorecard_finalize"),
     path("scorecard/weights/", scorecard.scorecard_weights, name="scorecard_weights"),
     path("scorecard/settings/", scorecard.scorecard_settings, name="scorecard_settings"),
     path("scorecard/photo/<str:key>/set/", scorecard.scorecard_photo_edit, name="scorecard_photo_edit"),
