@@ -285,12 +285,23 @@ def build(key, y, m, cfg=None):
     entry = ScorecardEntry.objects.filter(owner_key=key, year=y, month=m).first()
     w = _weights(cfg, key)
     scores = [okr["score"], _num(org), pj_score, lia["score"]]
-    tw = sum(w)
-    total = round(sum(w[i] * (scores[i] or 0) for i in range(4)) / tw) if tw else 0
-    rows = [{"title": cfg.titles[i], "weight": w[i], "score": scores[i], "cls": _cls(scores[i])} for i in range(4)]
+    act = [True, bool(getattr(cfg, "use_org_score", True)), True, True]
+    we = [w[i] if act[i] else 0 for i in range(4)]
+    tw = sum(we)
+    total = round(sum(we[i] * (scores[i] or 0) for i in range(4)) / tw) if tw else 0
+    if all(act):
+        dw = list(w)
+    else:  # ردیف سازمان حذف شده: وزن ردیف‌های باقی‌مانده به‌نسبت به جمع ۱۰۰ رسانده می‌شود
+        raw = [we[i] * 100.0 / tw if tw else 0 for i in range(4)]
+        dw = [int(x) for x in raw]
+        for i in sorted(range(4), key=lambda i: raw[i] - dw[i], reverse=True)[:max(0, 100 - sum(dw))]:
+            if act[i]:
+                dw[i] += 1
+        tw = sum(dw) if tw else 0
+    rows = [{"title": cfg.titles[i], "weight": dw[i], "score": scores[i], "cls": _cls(scores[i])} for i in range(4) if act[i]]
     return {
         "owner": owner, "cfg": cfg, "year": y, "month": m, "month_name": MONTHS[m - 1], "okr": okr,
-        "projects": pj_rows, "pj_score": pj_score, "lia": lia, "org_score": _num(org),
+        "projects": pj_rows, "pj_score": pj_score, "lia": lia, "org_score": _num(org), "use_org": act[1],
         "prev": _num(entry.prev_score) if entry else None, "rows": rows, "wsum": tw,
         "total": total, "cls": _cls(total), "status": _status_text(total),
         "prepared": (period.prepared_date if period else "") or _today_jalali(),
@@ -637,12 +648,15 @@ def scorecard_settings(request):
         errs = []
         ws_ = [_to_float(P.get(f"weight_{i}")) for i in range(1, 5)]
         ws_ = [int(w) if w is not None else getattr(cfg, f"weight_{i}") for i, w in enumerate(ws_, 1)]
-        if sum(ws_) != 100:
+        use_org = bool(P.get("use_org_score"))
+        if use_org and sum(ws_) != 100:
             errs.append(f"جمع وزن‌های جدول بالای کارنامه برابر {sum(ws_)} است و باید ۱۰۰ باشد.")
+        if not use_org and ws_[0] + ws_[2] + ws_[3] <= 0:
+            errs.append("وقتی ردیف سازمان حذف شده، جمع وزن سه ردیف دیگر باید بیشتر از صفر باشد.")
         for r in _unit_rows():
             k = r["key"]
             uw = [_to_float(P.get(f"o{k}_w{i}")) for i in range(1, 5)]
-            if all(w is not None for w in uw) and sum(int(w) for w in uw) != 100:
+            if use_org and all(w is not None for w in uw) and sum(int(w) for w in uw) != 100:
                 errs.append(f"جمع وزن‌های «{r['label']}» برابر {sum(int(w) for w in uw)} است و باید ۱۰۰ باشد.")
         for t in LiaisonTopic.objects.all():
             if P.get(f"t{t.pk}_del"):
@@ -683,6 +697,7 @@ def scorecard_settings(request):
             if py and pm and 1 <= int(pm) <= 12:
                 cfg.period_year, cfg.period_month = int(py), int(pm)
             cfg.empty_as_zero = bool(P.get("empty_as_zero"))
+            cfg.use_org_score = bool(P.get("use_org_score"))
             lim = _to_float(P.get("project_page_limit"))
             if lim is not None:
                 cfg.project_page_limit = max(1, int(lim))

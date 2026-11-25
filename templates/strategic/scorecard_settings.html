@@ -24,13 +24,14 @@
 <div class="box"><h2>ماه کارنامه و امتیاز سازمان</h2>
 <div>سال: <input type="number" name="period_year" value="{{ cfg.period_year }}"> ماه: <select name="period_month">{% for n, nm in months %}<option value="{{ n }}"{% if n == cfg.period_month %} selected{% endif %}>{{ nm }}</option>{% endfor %}</select>
 &nbsp; تاریخ تهیه: <input type="text" name="prepared_date" dir="ltr" placeholder="{{ today_j }}" title="قالب: 1405/08/15؛ خالی = تاریخ امروز" value="{{ period.prepared_date|default:'' }}" style="width:8rem"></div>
+<p><label><input type="checkbox" name="use_org_score" {% if cfg.use_org_score %}checked{% endif %}> ردیف «امتیاز اهداف شاخص‌های سازمان (شرکت مادر)» در کارنامه حساب و نمایش داده شود</label><br><span class="sub">با برداشتن این تیک، ردیف سازمان از جدول بالای کارنامه و از محاسبه‌ی مجموع حذف می‌شود و وزن سه ردیف دیگر خودکار به‌نسبت به جمع ۱۰۰ می‌رسد. کارنامه‌های نهایی‌شده‌ی قبلی تغییر نمی‌کنند.</span></p>
 <p>امتیاز شاخص‌های سازمان (شرکت مادر) این ماه: <input type="number" step="any" min="0" max="100" name="org_score" value="{{ period.org_score|default_if_none:'' }}"></p></div>
 
 <div class="box"><h2>جدول بالای کارنامه (عنوان و وزن پیش‌فرض)</h2><div class="tw"><table><tr><th>عنوان</th><th>وزن (٪)</th></tr>
 <tr><td><input class="w" type="text" name="title_1" value="{{ cfg.title_1 }}"></td><td><input type="number" name="weight_1" value="{{ cfg.weight_1 }}"></td></tr>
 <tr><td><input class="w" type="text" name="title_2" value="{{ cfg.title_2 }}"></td><td><input type="number" name="weight_2" value="{{ cfg.weight_2 }}"></td></tr>
 <tr><td><input class="w" type="text" name="title_3" value="{{ cfg.title_3 }}"></td><td><input type="number" name="weight_3" value="{{ cfg.weight_3 }}"></td></tr>
-<tr><td><input class="w" type="text" name="title_4" value="{{ cfg.title_4 }}"></td><td><input type="number" name="weight_4" value="{{ cfg.weight_4 }}"></td></tr><tr><td class="t"><b>جمع وزن‌ها (باید ۱۰۰ باشد)</b></td><td><b id="wsum"></b></td></tr></table></div>
+<tr><td><input class="w" type="text" name="title_4" value="{{ cfg.title_4 }}"></td><td><input type="number" name="weight_4" value="{{ cfg.weight_4 }}"></td></tr><tr><td class="t"><b>جمع وزن‌ها (باید ۱۰۰ باشد؛ با حذف ردیف سازمان، جمع ردیف‌های فعال و خودکار نرمال می‌شود)</b></td><td><b id="wsum"></b></td></tr></table></div>
 <p class="sub">جمع وزن‌ها باید ۱۰۰ باشد. برای واحدی که پروژه ندارد، وزن اختصاصی را در جدول واحدها پایین‌تر بدهید.</p>
 <label><input type="checkbox" name="empty_as_zero" {% if cfg.empty_as_zero %}checked{% endif %}> هدف بدون داده صفر حساب شود (وگرنه از مخرج حذف می‌شود)</label>
 <p>آستانه انتقال جدول پروژه‌ها به صفحه دوم چاپ: <input type="number" name="project_page_limit" value="{{ cfg.project_page_limit }}"></p></div>
@@ -60,7 +61,7 @@ function delSnap(y,m,nm){if(!confirm('نسخه نهایی '+nm+' برای همه
 function fzCheck(msg){var y=document.querySelector('[name=period_year]').value,m=document.querySelector('[name=period_month]').value;
 if(y!='{{ cfg.period_year }}'||m!='{{ cfg.period_month }}'){alert('ماه یا سال را تغییر داده‌اید ولی ذخیره نکرده‌اید. ابتدا «ذخیره تنظیمات» را بزنید، سپس نهایی‌سازی را انجام دهید.');return false}return confirm(msg)}
 function sums(){var ok=true,w=0;for(var i=1;i<=4;i++){w+=+(document.querySelector('[name=weight_'+i+']').value)||0}
-var e=document.getElementById('wsum');e.textContent=w;e.style.color=w==100?'':'#d64545';if(w!=100)ok=false;
+var uo=document.querySelector('[name=use_org_score]').checked;if(!uo)w-=(+(document.querySelector('[name=weight_2]').value)||0);var e=document.getElementById('wsum');e.textContent=w;if(uo){e.style.color=w==100?'':'#d64545';if(w!=100)ok=false}else{e.style.color='';if(w<=0)ok=false}
 document.querySelectorAll('.lt').forEach(function(r){var t=r.dataset.t,b=+(document.querySelector('.tb[data-t="'+t+'"]').value)||0,s=0;
 document.querySelectorAll('.pm[data-t="'+t+'"]').forEach(function(i){var tr=i.closest('tr'),d=tr.querySelector('.pd'),nt=tr.querySelector('[name=np_text]');if(nt&&!nt.value.trim())return;if(!(d&&d.checked))s+=+i.value||0});
 var c=r.querySelector('.ls');c.textContent=s+' از '+b;c.style.color=s==b?'':'#d64545';if(s!=b)ok=false});return ok}

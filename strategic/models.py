@@ -2413,6 +2413,7 @@ class ScorecardConfig(models.Model):
     period_month = models.PositiveSmallIntegerField(default=1, verbose_name="ماه کارنامه (۱ تا ۱۲)")
     empty_as_zero = models.BooleanField(default=False, verbose_name="هدف بدون داده صفر حساب شود (وگرنه از مخرج حذف می‌شود)")
     project_page_limit = models.PositiveSmallIntegerField(default=24, verbose_name="آستانه انتقال جدول پروژه‌ها به صفحه بعد (چاپ)")
+    use_org_score = models.BooleanField(default=True, verbose_name="ردیف «امتیاز اهداف سازمان (شرکت مادر)» در کارنامه حساب شود")
 
     class Meta:
         verbose_name = "تنظیمات کارنامه"

@@ -118,6 +118,10 @@
   <div class="o-org">
     <div class="o-center"><button class="o-ceo" id="ceo"></button></div>
     <div class="o-center"><div class="o-vline"></div></div>
+    <div id="indWrap">
+      <div class="o-deps" id="inds" style="padding-top:0"></div>
+      <div class="o-center"><div class="o-vline" style="height:16px"></div></div>
+    </div>
     <div class="o-hbus"></div>
     <div class="o-deps" id="deps" style="padding-top:0"></div>
     <div class="o-center"><div class="o-vline" style="background:var(--o-brand);height:16px"></div></div>
@@ -189,8 +193,11 @@ function render(){
  const nd=D.units.filter(u=>!u.ind).length,nm=D.units.reduce((s,u)=>s+u.managements.length,0);
  $('ceo').className='o-ceo'+(sel.lvl==='company'?' active':'');
  $('ceo').innerHTML='سطح شرکت<small>'+fa(nd)+' معاونت · '+fa(nm)+' مدیریت · پیشرفت کل '+pctTxt(tp)+'</small>';
- $('deps').innerHTML=D.units.map((u,i)=>{const p=unitPct(u),act=sel.u===i&&sel.lvl!=='company';
-  return `<div class="o-dep"><div class="o-vline"></div><button class="o-depbtn ${u.ind?'ind':''} ${act?'active':''}" data-u="${i}"><div class="o-dt">${esc(u.name)}</div><div class="o-bar"><i style="width:${p||0}%;background:${col(p)}"></i></div><div class="o-dm"><span>${fa(u.managements.length)} مدیریت</span><b style="color:${act?'#fff':col(p)}">${pctTxt(p)}</b></div></button></div>`}).join('');
+ const depHtml=(u,i)=>{const p=unitPct(u),act=sel.u===i&&sel.lvl!=='company';
+  return `<div class="o-dep"><div class="o-vline"></div><button class="o-depbtn ${u.ind?'ind':''} ${act?'active':''}" data-u="${i}"><div class="o-dt">${esc(u.name)}</div><div class="o-bar"><i style="width:${p||0}%;background:${col(p)}"></i></div><div class="o-dm"><span>${fa(u.managements.length)} مدیریت</span><b style="color:${act?'#fff':col(p)}">${pctTxt(p)}</b></div></button></div>`};
+ $('inds').innerHTML=D.units.map((u,i)=>u.ind?depHtml(u,i):'').join('');
+ $('deps').innerHTML=D.units.map((u,i)=>u.ind?'':depHtml(u,i)).join('');
+ $('indWrap').hidden=!D.units.some(u=>u.ind);
  const u=sel.lvl==='company'?null:D.units[sel.u];
  $('drill').hidden=!u;
  if(u){$('drillTitle').textContent='مدیریت‌های '+u.name;
@@ -247,7 +254,8 @@ function krForm(title,k,onOk){
  <div class="kp-hint">فقط برای شاخص‌هایی تیک بزنید که عدد کمتر یعنی عملکرد بهتر (مثل نرخ برگشت، هزینه یا زمان تأخیر). در این حالت درصد تحقق = هدف ÷ عملکرد محاسبه می‌شود؛ در حالت عادی = عملکرد ÷ هدف.</div>
  <div class="row"><button class="cancel" id="f_c">انصراف</button><button class="go" id="f_ok">ذخیره</button></div>`);
  let lastAuto=null;
- initKpiPicker(kp=>{const t=$('f_t'),nt=kpiTitleOnly(kp.t);if(!t.value.trim()||t.value===lastAuto){t.value=nt;lastAuto=nt}});
+ let dirty=false;$('f_t').addEventListener('input',()=>{dirty=true});
+ initKpiPicker(kp=>{const t=$('f_t'),nt=kpiTitleOnly(kp.t);if(!dirty||!t.value.trim()||t.value===lastAuto){t.value=nt;lastAuto=nt;dirty=false}});
  $('f_c').onclick=closeM;
  $('f_ok').onclick=async()=>{if(await onOk({title:$('f_t').value,kpi:$('f_kpi').value,weight:$('f_w').value,lo:$('f_lo').checked}))reload()};
 }
@@ -265,6 +273,7 @@ const fi=document.getElementById('okrFile');
 if(fi)fi.onchange=()=>{if(fi.files.length&&confirm('همه‌ی OKRهای فعلی (با وزن‌ها) پاک و با محتوای این فایل جایگزین شود؟'))document.getElementById('okrImportForm').submit();else fi.value=''};
 $('ceo').onclick=()=>{sel={lvl:'company',u:null,m:null};remember();render()};
 $('deps').onclick=e=>{const b=e.target.closest('[data-u]');if(!b)return;sel={lvl:'unit',u:+b.dataset.u,m:null};remember();render()};
+$('inds').onclick=e=>{const b=e.target.closest('[data-u]');if(!b)return;sel={lvl:'unit',u:+b.dataset.u,m:null};remember();render()};
 $('chips').onclick=e=>{const a=e.target.closest('[data-addm]');if(a){const u=D.units[sel.u];
   objForm('مدیریت جدید زیر '+u.name,{t:''},async v=>post({action:'mgmt_add',unit:u.id,name:v}),'نام مدیریت');return}
   const b=e.target.closest('[data-m]');if(!b)return;sel.lvl='mg';sel.m=+b.dataset.m;remember();render()};
